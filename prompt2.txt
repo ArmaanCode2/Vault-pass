@@ -1,0 +1,545 @@
+BUILD A COMPLETE ANDROID PASSWORD MANAGER APPLICATION
+Project Name
+
+VaultPass
+
+Project Objective
+
+Create a complete production-ready Android application that functions as a secure offline password manager.
+
+The application must be capable of being compiled into a downloadable APK and installed directly on Android devices.
+
+This application is intended for personal password storage only.
+
+All password data must remain on the device and must never be transmitted to any server, cloud service, analytics provider, telemetry service, third-party API, or external database.
+
+The application must function completely offline after installation.
+
+APPLICATION TYPE
+
+Android Native Application
+
+REQUIRED TECHNOLOGY STACK
+
+Use:
+
+Kotlin
+Jetpack Compose
+Material Design 3
+Room Database
+MVVM Architecture
+Repository Pattern
+Hilt Dependency Injection
+Android Keystore
+AES-256 Encryption
+
+Generate all:
+
+Source code
+Gradle files
+Android Manifest
+Database implementation
+UI implementation
+Navigation implementation
+Security implementation
+Build configuration
+
+The generated project must be complete and buildable.
+
+Do not generate placeholder implementations.
+
+APPLICATION FLOW
+First Launch
+
+When application launches for the first time:
+
+Display:
+
+Create Master Password
+
+Fields:
+
+Master Password
+Confirm Password
+
+Requirements:
+
+Minimum 8 characters
+Password confirmation validation
+Secure password hashing
+Store only password hash
+Never store plaintext master password
+
+After successful setup:
+
+Open dashboard.
+
+Returning Users
+
+Display lock screen.
+
+Require:
+
+Master Password
+
+Optional:
+
+Biometric Authentication
+Fingerprint Authentication
+Face Authentication
+
+Biometric authentication must be configurable in settings.
+
+MAIN DASHBOARD
+
+Display:
+
+Total Password Entries
+Recently Accessed Entries
+Favorites Section
+Search Bar
+Add Password Button
+Import JSON Button
+
+Design:
+
+Modern
+Clean
+Professional
+Material Design 3
+
+PASSWORD ENTRY STRUCTURE
+
+Every password entry contains:
+
+Required:
+
+Title
+Username / Email
+Password
+
+Optional:
+
+Website
+Notes
+Recovery Email
+Phone Number
+
+Custom Fields:
+
+User can create unlimited custom key-value pairs.
+
+Examples:
+
+Server : Production
+
+API Key : XXXXX
+
+License Key : XXXXX
+
+Crypto Wallet : XXXXX
+
+The app must support unlimited custom fields per entry.
+
+PASSWORD CRUD
+
+Support:
+
+Create Entry
+
+Read Entry
+
+Update Entry
+
+Delete Entry
+
+Duplicate Entry
+
+Delete operation must require confirmation.
+
+PASSWORD SEARCH
+
+Implement instant search.
+
+Search must work across:
+
+Title
+Username
+Website
+Notes
+Category
+Tags
+Custom Fields
+
+Features:
+
+Live search
+Partial matches
+Case insensitive search
+Search suggestions
+Related search results
+
+Search updates in real time while typing.
+
+PASSWORD DETAILS SCREEN
+
+Display:
+
+All entry fields.
+
+Password visibility toggle.
+
+Buttons:
+
+Copy Username
+Copy Password
+Copy Website
+Copy Any Custom Field
+
+Show confirmation after copy.
+
+PASSWORD VISIBILITY OPTIONS
+
+Settings option:
+
+Hide passwords by default.
+
+When enabled:
+
+Passwords display as:
+
+Eye icon reveals password.
+
+User may choose:
+
+Always Hidden
+Remember Visibility During Session
+PASSWORD GENERATOR
+
+Built-in password generator.
+
+Options:
+
+Length:
+8–64 characters
+
+Toggles:
+
+Uppercase
+Lowercase
+Numbers
+Symbols
+
+Display:
+
+Generated password
+
+Strength rating
+
+Copy button
+
+Regenerate button
+
+PASSWORD STRENGTH ANALYSIS
+
+Analyze saved passwords.
+
+Detect:
+
+Weak passwords
+Reused passwords
+Short passwords
+Missing symbols
+
+Display:
+
+Security score
+
+Weak password count
+
+Reused password count
+
+Suggestions for improvement
+
+FAVORITES
+
+Allow entries to be starred.
+
+Favorites appear on dashboard.
+
+TAGS
+
+Allow custom tags.
+
+Examples:
+
+Work
+Personal
+Banking
+Gaming
+Servers
+
+Tags must be searchable.
+
+CATEGORIES
+
+Built-in categories:
+
+Email
+Banking
+Social Media
+Work
+Gaming
+Shopping
+Personal
+
+Support custom categories.
+
+IMPORT JSON FEATURE
+
+User selects local JSON file.
+
+Application parses JSON locally.
+
+No internet usage.
+
+Support:
+
+{
+
+        "email": ["value1","value2"],
+
+        "twitch": ["value1","value2"],
+
+        "lido": ["value1","value2"],
+
+        "zoom": ["value1","value2"] ,
+
+}
+
+Requirements:
+
+Intelligent field mapping
+Import preview
+Import confirmation
+Imported count
+Failed count
+Error handling
+EXPORT FEATURE
+
+Allow:
+
+Export Entire Vault
+
+Export Selected Entries
+
+Export format:
+
+Encrypted JSON
+
+User chooses save location.
+
+SETTINGS SCREEN
+
+Theme:
+
+Light
+Dark
+System Default
+
+Security:
+
+Change Master Password
+Enable Biometrics
+Auto Lock Timer
+
+Options:
+
+Immediate
+1 Minute
+5 Minutes
+15 Minutes
+
+Privacy:
+
+Hide Passwords
+Disable Screenshots
+Clipboard Auto Clear
+
+Data:
+
+Import JSON
+Export Vault
+Backup
+Restore
+
+About:
+
+App Version
+Encryption Information
+AUTO LOCK
+
+Automatically lock application when:
+
+App minimized
+Device locked
+Screen turned off
+Auto-lock timer expires
+
+Require authentication to reopen.
+
+CLIPBOARD SECURITY
+
+When password copied:
+
+Automatically clear clipboard after user-defined time.
+
+Options:
+
+10 seconds
+30 seconds
+60 seconds
+
+Display countdown.
+
+SCREENSHOT PROTECTION
+
+Implement secure mode.
+
+When enabled:
+
+Prevent:
+
+Screenshots
+Screen recording
+Recent apps preview
+
+Sensitive screens must be protected.
+
+SECURITY REQUIREMENTS
+
+Use Android Keystore.
+
+Use AES-256 encryption.
+
+Encrypt all stored password data.
+
+Encrypt database contents before storage.
+
+Protect encryption keys using Android Keystore.
+
+Never store plaintext passwords.
+
+Never store plaintext master password.
+
+Never write passwords to logs.
+
+Never expose passwords through debugging output.
+
+Implement secure password hashing.
+
+Use best-practice Android security recommendations.
+
+OFFLINE REQUIREMENTS
+
+Application must work without internet.
+
+No cloud synchronization.
+
+No remote database.
+
+No Firebase.
+
+No analytics.
+
+No telemetry.
+
+No external API calls.
+
+No password transmission.
+
+No account creation.
+
+No sign-in system.
+
+No online authentication.
+
+Every user's vault exists only on their own device.
+
+ANDROID MANIFEST REQUIREMENTS
+
+DO NOT include:
+<uses-permission android:name="android.permission.INTERNET"/>
+
+The application must not request internet access.
+
+UI REQUIREMENTS
+
+Use Material Design 3.
+
+Use modern animations.
+
+Use responsive layouts.
+
+Support phones and tablets.
+
+Support portrait and landscape modes.
+
+Professional appearance.
+
+Premium-quality design.
+
+Smooth navigation.
+
+CODE GENERATION REQUIREMENTS
+
+Generate:
+
+Complete folder structure
+Complete project architecture
+Complete Kotlin code
+Database implementation
+Encryption implementation
+Navigation implementation
+Settings implementation
+JSON import/export implementation
+Dependency injection implementation
+Build files
+Manifest files
+
+Provide a complete Android Studio project.
+
+Do not provide pseudocode.
+
+Do not provide placeholders.
+
+Generate production-ready code.
+
+The result must be buildable into an APK without requiring major rewrites.
+Before generating code, first create a complete architecture plan and security design review, then generate the application module by module.
+Security Requirements:
+
+- Use Android Keystore for key storage
+- Encrypt database fields individually
+- Prevent screenshots on vault screens
+- Auto-lock app when minimized
+- Clipboard auto-clear after 30 seconds
+- Biometric unlock support
+- Require master password on first setup
+- Never log passwords
+- Never store passwords in plaintext
+- No internet permission in AndroidManifest.xml
+
+FINAL NON-NEGOTIABLE REQUIREMENTS:
+
+- This is an offline-first password manager.
+- No internet permission in AndroidManifest.xml.
+- No cloud storage.
+- No analytics.
+- No telemetry.
+- No external APIs.
+- No password data may ever leave the device.
+- All vault data must be encrypted using AES-256.
+- Keys must be protected using Android Keystore.
+- Master password must never be stored in plaintext.
+- The generated project must be complete, buildable, and APK-ready.
