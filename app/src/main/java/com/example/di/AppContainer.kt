@@ -8,7 +8,7 @@ import com.example.security.CryptoManager
 
 class AppContainer(private val context: Context) {
     val cryptoManager: CryptoManager by lazy {
-        CryptoManager()
+        CryptoManager(settingsRepository)
     }
     
     val settingsRepository: SettingsRepository by lazy {

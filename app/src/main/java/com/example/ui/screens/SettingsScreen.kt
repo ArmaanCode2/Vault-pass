@@ -1,6 +1,8 @@
 package com.example.ui.screens
 
+import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -20,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.example.domain.models.CustomField
 import com.example.domain.models.VaultEntry
 import com.example.ui.VaultViewModel
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +30,24 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+
+fun getFileName(context: Context, uri: Uri): String {
+    var result: String? = null
+    if (uri.scheme == "content") {
+        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (index != -1) result = cursor.getString(index)
+            }
+        }
+    }
+    if (result == null) {
+        result = uri.path
+        val cut = result?.lastIndexOf('/') ?: -1
+        if (cut != -1) result = result?.substring(cut + 1)
+    }
+    return result ?: "Unknown file"
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,20 +59,40 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
+    var previewEntries by remember { mutableStateOf<List<VaultEntry>?>(null) }
+    var invalidCount by remember { mutableStateOf(0) }
+    
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
         uri?.let {
             scope.launch {
                 try {
                     val entries = viewModel.entries.value
-                    val jsonString = Json.encodeToString(entries)
+                    val exportMap = mutableMapOf<String, List<String>>()
+                    entries.forEach { entry ->
+                        val values = mutableListOf<String>()
+                        values.add(entry.username)
+                        values.add(entry.password)
+                        entry.customFields.forEach { customField -> values.add(customField.value) }
+                        
+                        // Handle duplicate titles by appending a number if necessary
+                        var key = entry.title
+                        var counter = 1
+                        while (exportMap.containsKey(key)) {
+                            key = "${entry.title} ($counter)"
+                            counter++
+                        }
+                        exportMap[key] = values
+                    }
+                    val jsonString = Json.encodeToString(exportMap)
                     withContext(Dispatchers.IO) {
                         context.contentResolver.openOutputStream(it)?.use { out ->
                             out.write(jsonString.toByteArray(Charsets.UTF_8))
                         }
                     }
-                    Toast.makeText(context, "Exported successfully", Toast.LENGTH_SHORT).show()
+                    val fileName = getFileName(context, uri)
+                    Toast.makeText(context, "Export completed\nSaved to: $fileName", Toast.LENGTH_LONG).show()
                 } catch (e: Exception) {
-                    Toast.makeText(context, "Export failed", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -66,16 +107,37 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                             reader.readText()
                         } ?: ""
                     }
-                    val importedEntries = Json.decodeFromString<List<VaultEntry>>(jsonString)
-                    var count = 0
-                    importedEntries.forEach { entry ->
-                        // Add as new entry to prevent ID conflicts
-                        viewModel.addEntry(entry.copy(id = 0))
-                        count++
+                    
+                    val map = Json.decodeFromString<Map<String, List<String>>>(jsonString)
+                    val validEntries = mutableListOf<VaultEntry>()
+                    var localInvalidCount = 0
+                    
+                    for ((key, values) in map) {
+                        if (values.isEmpty()) {
+                            localInvalidCount++
+                            continue
+                        }
+                        val username = values.getOrNull(0) ?: ""
+                        val password = values.getOrNull(1) ?: ""
+                        val customFields = mutableListOf<CustomField>()
+                        if (values.size > 2) {
+                            for (i in 2 until values.size) {
+                                customFields.add(CustomField(key = "Field ${i - 1}", value = values[i]))
+                            }
+                        }
+                        validEntries.add(VaultEntry(
+                            title = key,
+                            username = username,
+                            password = password,
+                            customFields = customFields
+                        ))
                     }
-                    Toast.makeText(context, "Imported $count entries", Toast.LENGTH_SHORT).show()
+                    
+                    previewEntries = validEntries
+                    invalidCount = localInvalidCount
+                    
                 } catch (e: Exception) {
-                    Toast.makeText(context, "Import failed. Invalid format.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Import failed. Invalid JSON format.", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -93,6 +155,38 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
             )
         }
     ) { padding ->
+        if (previewEntries != null) {
+            AlertDialog(
+                onDismissRequest = { previewEntries = null },
+                title = { Text("Import Preview") },
+                text = {
+                    val total = previewEntries!!.size + invalidCount
+                    Text("Found $total entries.\nValid entries: ${previewEntries!!.size}\nInvalid entries: $invalidCount\n\nProceed with import?")
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val toImport = previewEntries!!
+                        previewEntries = null
+                        scope.launch {
+                            try {
+                                toImport.forEach { viewModel.addEntry(it.copy(id = 0)) }
+                                Toast.makeText(context, "Successfully imported ${toImport.size} entries", Toast.LENGTH_SHORT).show()
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Failed to import entries into database", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }) {
+                        Text("Confirm")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { previewEntries = null }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+        
         Column(
             modifier = Modifier
                 .padding(padding)
@@ -137,14 +231,26 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                 headlineContent = { Text("Export Vault") },
                 supportingContent = { Text("Save encrypted JSON to device storage") },
                 leadingContent = { Icon(Icons.Default.Upload, contentDescription = null) },
-                modifier = Modifier.clickable { exportLauncher.launch("vaultpass_backup.json") }
+                modifier = Modifier.clickable {
+                    try {
+                        exportLauncher.launch("vaultpass_backup.json")
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "No file manager found to export file", Toast.LENGTH_SHORT).show()
+                    }
+                }
             )
             
             ListItem(
                 headlineContent = { Text("Import JSON") },
                 supportingContent = { Text("Restore entries from a JSON file") },
                 leadingContent = { Icon(Icons.Default.Download, contentDescription = null) },
-                modifier = Modifier.clickable { importLauncher.launch(arrayOf("application/json", "*/*")) }
+                modifier = Modifier.clickable {
+                    try {
+                        importLauncher.launch(arrayOf("application/json", "*/*"))
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "No file manager found to import file", Toast.LENGTH_SHORT).show()
+                    }
+                }
             )
             
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

@@ -52,12 +52,31 @@ class VaultRepository(
     }
 
     private fun decryptEntity(entity: VaultEntryEntity): VaultEntry {
+        val decryptedTitle = cryptoManager.decrypt(entity.titleEnc)
+        
+        // encrypt("") returns "", so if titleEnc is not empty but decryptedTitle is empty, decryption failed
+        if (entity.titleEnc.isNotEmpty() && decryptedTitle.isEmpty()) {
+            return VaultEntry(
+                id = entity.id,
+                title = "[Decryption Failed]",
+                username = "",
+                password = "",
+                website = "",
+                notes = "This entry could not be decrypted. The data might be corrupted or the encryption key was lost.",
+                category = "Error",
+                tags = emptyList(),
+                customFields = emptyList(),
+                isFavorite = entity.isFavorite,
+                timestamp = entity.timestamp
+            )
+        }
+        
         val tagsStr = cryptoManager.decrypt(entity.tagsEnc).takeIf { it.isNotEmpty() } ?: "[]"
         val customFieldsStr = cryptoManager.decrypt(entity.customFieldsEnc).takeIf { it.isNotEmpty() } ?: "[]"
         
         return VaultEntry(
             id = entity.id,
-            title = cryptoManager.decrypt(entity.titleEnc),
+            title = decryptedTitle,
             username = cryptoManager.decrypt(entity.usernameEnc),
             password = cryptoManager.decrypt(entity.passwordEnc),
             website = cryptoManager.decrypt(entity.websiteEnc),

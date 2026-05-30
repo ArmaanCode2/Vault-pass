@@ -10,8 +10,9 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 import java.security.SecureRandom
+import com.example.repository.SettingsRepository
 
-class CryptoManager {
+class CryptoManager(private val settingsRepository: SettingsRepository) {
 
     private var useFallback = false
     private var fallbackKey: SecretKey? = null
@@ -39,9 +40,16 @@ class CryptoManager {
     private fun getKey(): SecretKey {
         if (useFallback) {
             if (fallbackKey == null) {
-                val bytes = ByteArray(32)
-                SecureRandom().nextBytes(bytes)
-                fallbackKey = SecretKeySpec(bytes, "AES")
+                val savedKey = settingsRepository.getFallbackKeySync()
+                if (savedKey != null) {
+                    val bytes = Base64.decode(savedKey, Base64.NO_WRAP)
+                    fallbackKey = SecretKeySpec(bytes, "AES")
+                } else {
+                    val bytes = ByteArray(32)
+                    SecureRandom().nextBytes(bytes)
+                    settingsRepository.saveFallbackKeySync(Base64.encodeToString(bytes, Base64.NO_WRAP))
+                    fallbackKey = SecretKeySpec(bytes, "AES")
+                }
             }
             return fallbackKey!!
         }
@@ -53,10 +61,18 @@ class CryptoManager {
             e.printStackTrace()
             // If Keystore throws during getting key, fallback
             useFallback = true
-            val bytes = ByteArray(32)
-            SecureRandom().nextBytes(bytes)
-            fallbackKey = SecretKeySpec(bytes, "AES")
-            fallbackKey!!
+            
+            val savedKey = settingsRepository.getFallbackKeySync()
+            if (savedKey != null) {
+                val bytes = Base64.decode(savedKey, Base64.NO_WRAP)
+                fallbackKey = SecretKeySpec(bytes, "AES")
+            } else {
+                val bytes = ByteArray(32)
+                SecureRandom().nextBytes(bytes)
+                settingsRepository.saveFallbackKeySync(Base64.encodeToString(bytes, Base64.NO_WRAP))
+                fallbackKey = SecretKeySpec(bytes, "AES")
+            }
+            return fallbackKey!!
         }
     }
 
@@ -79,10 +95,18 @@ class CryptoManager {
         } catch (e: Exception) {
             e.printStackTrace()
             useFallback = true
-            val bytes = ByteArray(32)
-            SecureRandom().nextBytes(bytes)
-            fallbackKey = SecretKeySpec(bytes, "AES")
-            fallbackKey!!
+            
+            val savedKey = settingsRepository.getFallbackKeySync()
+            if (savedKey != null) {
+                val bytes = Base64.decode(savedKey, Base64.NO_WRAP)
+                fallbackKey = SecretKeySpec(bytes, "AES")
+            } else {
+                val bytes = ByteArray(32)
+                SecureRandom().nextBytes(bytes)
+                settingsRepository.saveFallbackKeySync(Base64.encodeToString(bytes, Base64.NO_WRAP))
+                fallbackKey = SecretKeySpec(bytes, "AES")
+            }
+            return fallbackKey!!
         }
     }
 
@@ -105,6 +129,8 @@ class CryptoManager {
         if (encryptedText.isEmpty()) return ""
         return try {
             val combined = Base64.decode(encryptedText, Base64.NO_WRAP)
+            if (combined.size < 12) throw IllegalArgumentException("Invalid payload length")
+            
             val iv = combined.copyOfRange(0, 12)
             val encryptedData = combined.copyOfRange(12, combined.size)
             
