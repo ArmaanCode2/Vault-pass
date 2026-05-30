@@ -3,6 +3,7 @@ package com.example.ui.screens
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -63,6 +64,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
     var invalidCount by remember { mutableStateOf(0) }
     
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
+        Log.d("VaultPass", "Export launcher returned URI: $uri")
         uri?.let {
             scope.launch {
                 try {
@@ -90,8 +92,10 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                         }
                     }
                     val fileName = getFileName(context, uri)
+                    Log.d("VaultPass", "Export successful to file: $fileName")
                     Toast.makeText(context, "Export completed\nSaved to: $fileName", Toast.LENGTH_LONG).show()
                 } catch (e: Exception) {
+                    Log.e("VaultPass", "Exception during export data generation/write", e)
                     Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -99,6 +103,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
     }
     
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        Log.d("VaultPass", "Import launcher returned URI: $uri")
         uri?.let {
             scope.launch {
                 try {
@@ -135,9 +140,11 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                     
                     previewEntries = validEntries
                     invalidCount = localInvalidCount
+                    Log.d("VaultPass", "Import preview ready. Valid: ${validEntries.size}, Invalid: $localInvalidCount")
                     
                 } catch (e: Exception) {
-                    Toast.makeText(context, "Import failed. Invalid JSON format.", Toast.LENGTH_SHORT).show()
+                    Log.e("VaultPass", "Exception during import parsing", e)
+                    Toast.makeText(context, "Import failed: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -170,9 +177,11 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                         scope.launch {
                             try {
                                 toImport.forEach { viewModel.addEntry(it.copy(id = 0)) }
+                                Log.d("VaultPass", "Successfully imported ${toImport.size} entries")
                                 Toast.makeText(context, "Successfully imported ${toImport.size} entries", Toast.LENGTH_SHORT).show()
                             } catch (e: Exception) {
-                                Toast.makeText(context, "Failed to import entries into database", Toast.LENGTH_SHORT).show()
+                                Log.e("VaultPass", "Exception during database import", e)
+                                Toast.makeText(context, "Failed to import entries: ${e.message}", Toast.LENGTH_SHORT).show()
                             }
                         }
                     }) {
@@ -233,9 +242,11 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                 leadingContent = { Icon(Icons.Default.Upload, contentDescription = null) },
                 modifier = Modifier.clickable {
                     try {
+                        Log.d("VaultPass", "Launching export document picker")
                         exportLauncher.launch("vaultpass_backup.json")
                     } catch (e: Exception) {
-                        Toast.makeText(context, "No file manager found to export file", Toast.LENGTH_SHORT).show()
+                        Log.e("VaultPass", "Exception launching export picker", e)
+                        Toast.makeText(context, "Launch failed: ${e.javaClass.simpleName} - ${e.message}", Toast.LENGTH_LONG).show()
                     }
                 }
             )
@@ -246,9 +257,11 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                 leadingContent = { Icon(Icons.Default.Download, contentDescription = null) },
                 modifier = Modifier.clickable {
                     try {
-                        importLauncher.launch(arrayOf("application/json", "*/*"))
+                        Log.d("VaultPass", "Launching import document picker")
+                        importLauncher.launch(arrayOf("application/json"))
                     } catch (e: Exception) {
-                        Toast.makeText(context, "No file manager found to import file", Toast.LENGTH_SHORT).show()
+                        Log.e("VaultPass", "Exception launching import picker", e)
+                        Toast.makeText(context, "Launch failed: ${e.javaClass.simpleName} - ${e.message}", Toast.LENGTH_LONG).show()
                     }
                 }
             )

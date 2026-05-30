@@ -92,6 +92,7 @@ dependencies {
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
   implementation(libs.androidx.biometric)
+  implementation("androidx.fragment:fragment-ktx:1.8.1")
   implementation(libs.security.crypto)
   implementation(libs.kotlinx.serialization.json)
   // implementation(libs.coil.compose)
