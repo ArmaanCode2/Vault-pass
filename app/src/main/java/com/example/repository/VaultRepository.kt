@@ -9,29 +9,39 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.flowOn
+import com.example.domain.models.VaultListEntry
 
 class VaultRepository(
     private val vaultDao: VaultDao,
     private val cryptoManager: CryptoManager
 ) {
+    val allRawEntities: Flow<List<VaultEntryEntity>> = vaultDao.getAllEntries()
+
     val allEntries: Flow<List<VaultEntry>> = vaultDao.getAllEntries().map { entities ->
         entities.map { decryptEntity(it) }
+    }.flowOn(Dispatchers.IO)
+
+    suspend fun getEntryById(id: Int): VaultEntry? = withContext(Dispatchers.IO) {
+        val entity = vaultDao.getEntryById(id) ?: return@withContext null
+        decryptEntity(entity)
     }
 
-    suspend fun getEntryById(id: Int): VaultEntry? {
-        val entity = vaultDao.getEntryById(id) ?: return null
-        return decryptEntity(entity)
-    }
-
-    suspend fun insertEntry(entry: VaultEntry) {
+    suspend fun insertEntry(entry: VaultEntry) = withContext(Dispatchers.IO) {
         vaultDao.insertEntry(encryptEntry(entry))
     }
 
-    suspend fun updateEntry(entry: VaultEntry) {
+    suspend fun insertEntries(entries: List<VaultEntry>) = withContext(Dispatchers.IO) {
+        vaultDao.insertEntries(entries.map { encryptEntry(it) })
+    }
+
+    suspend fun updateEntry(entry: VaultEntry) = withContext(Dispatchers.IO) {
         vaultDao.updateEntry(encryptEntry(entry))
     }
 
-    suspend fun deleteEntry(id: Int) {
+    suspend fun deleteEntry(id: Int) = withContext(Dispatchers.IO) {
         vaultDao.deleteEntry(id)
     }
 
@@ -51,7 +61,17 @@ class VaultRepository(
         )
     }
 
-    private fun decryptEntity(entity: VaultEntryEntity): VaultEntry {
+    fun decryptLightweight(entity: VaultEntryEntity): VaultListEntry {
+        val decryptedTitle = cryptoManager.decrypt(entity.titleEnc)
+        return VaultListEntry(
+            id = entity.id,
+            title = if (entity.titleEnc.isNotEmpty() && decryptedTitle.isEmpty()) "[Decryption Failed]" else decryptedTitle,
+            username = cryptoManager.decrypt(entity.usernameEnc),
+            isFavorite = entity.isFavorite
+        )
+    }
+
+    fun decryptEntity(entity: VaultEntryEntity): VaultEntry {
         val decryptedTitle = cryptoManager.decrypt(entity.titleEnc)
         
         // encrypt("") returns "", so if titleEnc is not empty but decryptedTitle is empty, decryption failed

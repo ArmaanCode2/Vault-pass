@@ -21,16 +21,24 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.example.domain.models.VaultEntry
+import com.example.domain.models.VaultListEntry
 import com.example.ui.VaultViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
-    val entries by viewModel.entries.collectAsStateWithLifecycle()
+    val entriesState by viewModel.dashboardEntries.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
 
     var isSearchActive by remember { mutableStateOf(false) }
+
+    if (entriesState == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+    val entries = entriesState!!
 
     if (isSearchActive) {
         SearchBar(
@@ -193,6 +201,43 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                     }
                 }
 
+                if (searchQuery.isNotBlank()) {
+                    item {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Showing results for: \"$searchQuery\"",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                                IconButton(
+                                    onClick = { viewModel.updateSearchQuery("") },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Clear search",
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 item {
                     Row(
                         modifier = Modifier
@@ -202,6 +247,11 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Recently Accessed", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        if (searchQuery.isNotBlank()) {
+                            TextButton(onClick = { viewModel.updateSearchQuery("") }) {
+                                Text("Clear Search")
+                            }
+                        }
                     }
                 }
                 
@@ -245,7 +295,7 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
 }
 
 @Composable
-fun EntryList(entries: List<VaultEntry>, navController: NavController) {
+fun EntryList(entries: List<VaultListEntry>, navController: NavController) {
     LazyColumn(contentPadding = PaddingValues(bottom = 80.dp)) {
         items(entries, key = { it.id }) { entry ->
             ListItem(

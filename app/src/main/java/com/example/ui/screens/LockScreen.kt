@@ -13,6 +13,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.example.ui.VaultViewModel
 
 @Composable
@@ -25,6 +26,15 @@ fun LockScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
     val isBiometricEnabled by viewModel.settingsRepository.isBiometricEnabled.collectAsStateWithLifecycle(initialValue = false)
+
+    var hasAutoPrompted by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(isBiometricEnabled) {
+        if (isBiometricEnabled && !hasAutoPrompted) {
+            hasAutoPrompted = true
+            onShowBiometricPrompt()
+        }
+    }
 
     Column(
         modifier = Modifier

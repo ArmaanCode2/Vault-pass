@@ -4,11 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.domain.models.VaultEntry
+import com.example.domain.models.VaultListEntry
 import com.example.repository.SettingsRepository
 import com.example.repository.VaultRepository
 import com.example.security.PasswordHashHelper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class VaultViewModel(
     val vaultRepository: VaultRepository,
@@ -22,31 +26,49 @@ class VaultViewModel(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    val entries: StateFlow<List<VaultEntry>> = combine(
-        vaultRepository.allEntries,
-        _searchQuery
-    ) { all, query ->
+    private val _isImporting = MutableStateFlow(false)
+    val isImporting: StateFlow<Boolean> = _isImporting.asStateFlow()
+
+    private val allDecryptedEntries: StateFlow<List<VaultEntry>?> = vaultRepository.allEntries
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    @OptIn(FlowPreview::class)
+    val dashboardEntries: StateFlow<List<VaultListEntry>?> = combine(
+        vaultRepository.allRawEntities,
+        allDecryptedEntries,
+        _searchQuery.debounce(250)
+    ) { rawEntities, decryptedEntities, query ->
         if (query.isBlank()) {
-            all
+            rawEntities.map { vaultRepository.decryptLightweight(it) }
         } else {
             val keywords = query.lowercase().split("\\s+".toRegex()).filter { it.isNotBlank() }
-            if (keywords.isEmpty()) {
-                all
-            } else {
-                all.filter { entry ->
-                    keywords.all { q ->
-                        entry.title.lowercase().contains(q) ||
-                        entry.username.lowercase().contains(q) ||
-                        entry.website.lowercase().contains(q) ||
-                        entry.notes.lowercase().contains(q) ||
-                        entry.category.lowercase().contains(q) ||
-                        entry.tags.any { t -> t.lowercase().contains(q) } ||
-                        entry.customFields.any { f -> f.key.lowercase().contains(q) || f.value.lowercase().contains(q) }
+            
+            // If full decryption hasn't finished yet in the background, fallback to lightweight matching
+            if (decryptedEntities == null) {
+                rawEntities.mapNotNull { entity ->
+                    val light = vaultRepository.decryptLightweight(entity)
+                    val matchLight = keywords.all { q ->
+                        light.title.lowercase().contains(q) || light.username.lowercase().contains(q)
                     }
+                    if (matchLight) light else null
+                }
+            } else {
+                decryptedEntities.filter { full ->
+                    keywords.all { q ->
+                        full.title.lowercase().contains(q) ||
+                        full.username.lowercase().contains(q) ||
+                        full.website.lowercase().contains(q) ||
+                        full.notes.lowercase().contains(q) ||
+                        full.category.lowercase().contains(q) ||
+                        full.tags.any { t -> t.lowercase().contains(q) } ||
+                        full.customFields.any { f -> f.key.lowercase().contains(q) || f.value.lowercase().contains(q) }
+                    }
+                }.map { full ->
+                    VaultListEntry(full.id, full.title, full.username, full.isFavorite)
                 }
             }
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.flowOn(Dispatchers.IO).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     // First launch properties
     val masterHash = settingsRepository.masterPasswordHash.stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -85,8 +107,24 @@ class VaultViewModel(
         _searchQuery.value = query
     }
 
+    fun setImporting(importing: Boolean) {
+        _isImporting.value = importing
+    }
+
     fun addEntry(entry: VaultEntry) {
         viewModelScope.launch { vaultRepository.insertEntry(entry) }
+    }
+
+    suspend fun addEntries(entries: List<VaultEntry>) {
+        vaultRepository.insertEntries(entries)
+    }
+
+    suspend fun getAllEntriesDecrypted(): List<VaultEntry> {
+        return vaultRepository.allEntries.first()
+    }
+
+    suspend fun getEntryById(id: Int): VaultEntry? {
+        return vaultRepository.getEntryById(id)
     }
 
     fun updateEntry(entry: VaultEntry) {

@@ -39,11 +39,24 @@ fun PasswordDetailsScreen(
         return
     }
 
-    val entries by viewModel.entries.collectAsStateWithLifecycle()
-    val entry = entries.find { it.id == entryId }
+    var loadedEntry by remember { mutableStateOf<com.example.domain.models.VaultEntry?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(entryId) {
+        loadedEntry = viewModel.getEntryById(entryId)
+        isLoading = false
+    }
 
     val context = LocalContext.current
 
+    if (isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    val entry = loadedEntry
     if (entry == null) {
         navController.popBackStack()
         return

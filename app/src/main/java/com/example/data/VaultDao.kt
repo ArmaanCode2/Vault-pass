@@ -19,6 +19,9 @@ interface VaultDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEntry(entry: VaultEntryEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEntries(entries: List<VaultEntryEntity>)
+
     @Update
     suspend fun updateEntry(entry: VaultEntryEntity)
 

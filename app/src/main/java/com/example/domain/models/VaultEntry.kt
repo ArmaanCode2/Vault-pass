@@ -8,6 +8,13 @@ data class CustomField(
     val value: String
 )
 
+data class VaultListEntry(
+    val id: Int,
+    val title: String,
+    val username: String,
+    val isFavorite: Boolean
+)
+
 @Serializable
 data class VaultEntry(
     val id: Int = 0,

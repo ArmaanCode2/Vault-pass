@@ -33,26 +33,50 @@ fun PasswordEntryScreen(
     navController: NavController,
     entryId: Int?
 ) {
-    val entries by viewModel.entries.collectAsStateWithLifecycle()
     val hidePasswordsByDefault by viewModel.settingsRepository.hidePasswordsByDefault.collectAsStateWithLifecycle(initialValue = true)
     
-    val existingEntry = remember(entries, entryId) { entries.find { it.id == entryId } }
+    var existingEntry by remember { mutableStateOf<VaultEntry?>(null) }
+    var isLoading by remember { mutableStateOf(entryId != null) }
 
-    var title by remember { mutableStateOf(existingEntry?.title ?: "") }
-    var username by remember { mutableStateOf(existingEntry?.username ?: "") }
-    var password by remember { mutableStateOf(existingEntry?.password ?: "") }
-    var website by remember { mutableStateOf(existingEntry?.website ?: "") }
-    var notes by remember { mutableStateOf(existingEntry?.notes ?: "") }
-    var category by remember { mutableStateOf(existingEntry?.category ?: "Personal") }
-    var isFavorite by remember { mutableStateOf(existingEntry?.isFavorite ?: false) }
-    
-    var customFields by remember { mutableStateOf(existingEntry?.customFields ?: emptyList()) }
+    var title by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var website by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("Personal") }
+    var isFavorite by remember { mutableStateOf(false) }
+    var customFields by remember { mutableStateOf(emptyList<CustomField>()) }
     
     var passwordVisible by remember { mutableStateOf(!hidePasswordsByDefault) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
+    LaunchedEffect(entryId) {
+        if (entryId != null) {
+            val loaded = viewModel.getEntryById(entryId)
+            existingEntry = loaded
+            if (loaded != null) {
+                title = loaded.title
+                username = loaded.username
+                password = loaded.password
+                website = loaded.website
+                notes = loaded.notes
+                category = loaded.category
+                isFavorite = loaded.isFavorite
+                customFields = loaded.customFields
+            }
+        }
+        isLoading = false
+    }
+
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+
+    if (isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
 
     val copyToClipboard: (String, String) -> Unit = { label, text ->
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

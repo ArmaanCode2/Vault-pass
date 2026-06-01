@@ -60,6 +60,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
+    val isImporting by viewModel.isImporting.collectAsStateWithLifecycle()
     val themeMode by viewModel.settingsRepository.themeMode.collectAsStateWithLifecycle(initialValue = 0)
     var showThemeDialog by remember { mutableStateOf(false) }
     val themeOptions = listOf("System Default", "Light Mode", "Dark Mode")
@@ -72,7 +73,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
         uri?.let {
             scope.launch {
                 try {
-                    val entries = viewModel.entries.value
+                    val entries = viewModel.getAllEntriesDecrypted()
                     val exportMap = mutableMapOf<String, List<String>>()
                     entries.forEach { entry ->
                         val values = mutableListOf<String>()
@@ -166,6 +167,21 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
             )
         }
     ) { padding ->
+        if (isImporting) {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text("Importing Vault") },
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text("Importing entries safely in the background...")
+                    }
+                },
+                confirmButton = {}
+            )
+        }
+        
         if (previewEntries != null) {
             AlertDialog(
                 onDismissRequest = { previewEntries = null },
@@ -180,12 +196,15 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                         previewEntries = null
                         scope.launch {
                             try {
-                                toImport.forEach { viewModel.addEntry(it.copy(id = 0)) }
+                                viewModel.setImporting(true)
+                                viewModel.addEntries(toImport)
                                 Log.d("VaultPass", "Successfully imported ${toImport.size} entries")
                                 Toast.makeText(context, "Successfully imported ${toImport.size} entries", Toast.LENGTH_SHORT).show()
                             } catch (e: Exception) {
                                 Log.e("VaultPass", "Exception during database import", e)
                                 Toast.makeText(context, "Failed to import entries: ${e.message}", Toast.LENGTH_SHORT).show()
+                            } finally {
+                                viewModel.setImporting(false)
                             }
                         }
                     }) {
