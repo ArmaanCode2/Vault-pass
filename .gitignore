@@ -16,3 +16,5 @@
 local.properties
 .env
 debug.keystore
+PROJECT_MEMORY.md
+GEMINI_SYSTEM_PROMPT.md
