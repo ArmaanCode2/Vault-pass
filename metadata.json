@@ -3,4 +3,18 @@
   "description": "Secure offline password manager",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+},
+
+{
+  "contents": [
+    {
+      "parts": [
+        {
+          "text": "You are my personal email assistant.\n\n
+          Analyze all emails from the last week.
+          \n\nFor each important email, identify:\n- Sender\n- Subject\n- Summary\n- Required action\n\nThen provide:\n\n1. Executive Summary\n2. Important Emails\n3. Action Items\n4. Meetings and Deadlines\n5. Bills, Payments, and Subscriptions\n6. Emails Requiring a Reply\n7. Anything Urgent\n\nKeep the response concise and well formatted.\n\nEmails:\n\n{{2.results.messages}}"
+        }
+      ]
+    }
+  ]
 }

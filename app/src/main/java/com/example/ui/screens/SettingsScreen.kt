@@ -60,6 +60,10 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
+    val themeMode by viewModel.settingsRepository.themeMode.collectAsStateWithLifecycle(initialValue = 0)
+    var showThemeDialog by remember { mutableStateOf(false) }
+    val themeOptions = listOf("System Default", "Light Mode", "Dark Mode")
+    
     var previewEntries by remember { mutableStateOf<List<VaultEntry>?>(null) }
     var invalidCount by remember { mutableStateOf(0) }
     
@@ -196,12 +200,56 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
             )
         }
         
+        if (showThemeDialog) {
+            AlertDialog(
+                onDismissRequest = { showThemeDialog = false },
+                title = { Text("Choose Theme") },
+                text = {
+                    Column {
+                        themeOptions.forEachIndexed { index, option ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        scope.launch { viewModel.settingsRepository.setThemeMode(index) }
+                                        showThemeDialog = false
+                                    }
+                                    .padding(vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = (themeMode == index),
+                                    onClick = null
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text(option)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showThemeDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+        
         Column(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
         ) {
+            SettingsGroup("Appearance")
+            
+            ListItem(
+                headlineContent = { Text("Theme") },
+                supportingContent = { Text(themeOptions[themeMode]) },
+                modifier = Modifier.clickable { showThemeDialog = true }
+            )
+            
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             SettingsGroup("Security")
             
             ListItem(
