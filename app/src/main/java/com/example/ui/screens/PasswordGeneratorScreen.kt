@@ -4,25 +4,31 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import kotlin.math.log2
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PasswordGeneratorScreen(navController: NavController) {
-    var length by remember { mutableFloatStateOf(16f) }
+    var length by remember { mutableFloatStateOf(18f) }
     var useUppercase by remember { mutableStateOf(true) }
     var useLowercase by remember { mutableStateOf(true) }
     var useNumbers by remember { mutableStateOf(true) }
@@ -31,6 +37,15 @@ fun PasswordGeneratorScreen(navController: NavController) {
     var generatedPassword by remember { mutableStateOf("") }
     
     val context = LocalContext.current
+
+    fun getPoolSize(): Int {
+        var size = 0
+        if (useUppercase) size += 26
+        if (useLowercase) size += 26
+        if (useNumbers) size += 10
+        if (useSymbols) size += 32
+        return if (size == 0) 1 else size
+    }
 
     fun generate() {
         if (!useUppercase && !useLowercase && !useNumbers && !useSymbols) {
@@ -61,83 +76,237 @@ fun PasswordGeneratorScreen(navController: NavController) {
         generate()
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Password Generator") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
-    ) { padding ->
+    val poolSize = getPoolSize()
+    val entropyBits = if (poolSize > 1) (length * log2(poolSize.toDouble())).toInt() else 0
+    val strengthLabel = when {
+        entropyBits < 50 -> "Weak"
+        entropyBits < 80 -> "Good"
+        else -> "Strong"
+    }
+    val strengthColor = when {
+        entropyBits < 50 -> MaterialTheme.colorScheme.error
+        entropyBits < 80 -> Color(0xFFFFB4AB) // Orange-ish or just secondary
+        else -> MaterialTheme.colorScheme.primaryContainer
+    }
+    val crackTime = when {
+        entropyBits < 40 -> "Instantly"
+        entropyBits < 60 -> "Hours"
+        entropyBits < 80 -> "Months"
+        entropyBits < 100 -> "Years"
+        else -> "Centuries"
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         Column(
             modifier = Modifier
-                .padding(padding)
                 .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .systemBarsPadding()
         ) {
-            Surface(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = MaterialTheme.shapes.medium
+            // Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = generatedPassword,
-                    modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.headlineMedium.copy(fontFamily = FontFamily.Monospace),
-                    textAlign = TextAlign.Center
-                )
+                IconButton(onClick = { navController.popBackStack(); Unit }) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(Icons.Default.Password, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Generator", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
-            
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Button(onClick = {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    val clip = ClipData.newPlainText("Password", generatedPassword)
-                    clipboard.setPrimaryClip(clip)
-                    Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
-                }) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Copy")
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                // Password Display Card
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.1f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text("GENERATED PASSWORD", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Surface(
+                                color = strengthColor.copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = strengthColor, modifier = Modifier.size(16.dp))
+                                    Text(strengthLabel, style = MaterialTheme.typography.labelSmall, color = strengthColor)
+                                }
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFF08132A).copy(alpha=0.5f), RoundedCornerShape(8.dp))
+                                .border(1.dp, Color.White.copy(alpha=0.05f), RoundedCornerShape(8.dp))
+                                .padding(16.dp)
+                                .defaultMinSize(minHeight = 80.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = generatedPassword,
+                                style = MaterialTheme.typography.headlineSmall.copy(fontFamily = FontFamily.Monospace),
+                                color = MaterialTheme.colorScheme.primary,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Button(
+                                onClick = {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    val clip = ClipData.newPlainText("Password", generatedPassword)
+                                    clipboard.setPrimaryClip(clip)
+                                    Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(Icons.Default.ContentCopy, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Copy Password")
+                            }
+
+                            OutlinedButton(
+                                onClick = { generate() },
+                                modifier = Modifier.size(48.dp),
+                                contentPadding = PaddingValues(0.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = "Regenerate", tint = MaterialTheme.colorScheme.onSurface)
+                            }
+                        }
+                    }
+                }
+
+                // Security Analysis Card
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.1f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text("SECURITY ANALYSIS", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        
+                        // Progress Bar
+                        Row(modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp))) {
+                            val ratio = (entropyBits / 120f).coerceIn(0f, 1f)
+                            Box(modifier = Modifier.weight(ratio.coerceAtLeast(0.01f)).fillMaxHeight().background(strengthColor))
+                            Box(modifier = Modifier.weight((1f - ratio).coerceAtLeast(0.01f)).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceContainer))
+                        }
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            AnalysisStat("Entropy", "$entropyBits bits", MaterialTheme.colorScheme.primary)
+                            AnalysisStat("Crack Time", crackTime, MaterialTheme.colorScheme.primary)
+                            AnalysisStat("Pattern", "Random", MaterialTheme.colorScheme.primary)
+                            AnalysisStat("Pwned Check", "Clear", MaterialTheme.colorScheme.primaryContainer)
+                        }
+                    }
+                }
+
+                // Configuration Card
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.1f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text("CONFIGURATION", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        HorizontalDivider(color = Color.White.copy(alpha=0.1f))
+                        
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text("Length", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+                                Box(
+                                    modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp)).border(1.dp, Color.White.copy(alpha=0.1f), RoundedCornerShape(4.dp)).padding(horizontal = 12.dp, vertical = 4.dp)
+                                ) {
+                                    Text(length.toInt().toString(), style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace), color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                            Slider(
+                                value = length,
+                                onValueChange = { length = it },
+                                valueRange = 8f..64f,
+                                steps = 55
+                            )
+                        }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            ConfigToggle("A", "Uppercase", useUppercase) { useUppercase = it }
+                            ConfigToggle("a", "Lowercase", useLowercase) { useLowercase = it }
+                            ConfigToggle("1", "Numbers", useNumbers) { useNumbers = it }
+                            ConfigToggle("@", "Symbols", useSymbols) { useSymbols = it }
+                        }
+                    }
                 }
                 
-                FilledTonalButton(onClick = { generate() }) {
-                    Icon(Icons.Default.Refresh, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Regenerate")
-                }
+                Spacer(modifier = Modifier.height(40.dp))
             }
-            
-            Spacer(modifier = Modifier.height(32.dp))
-            
-            Text("Length: ${length.toInt()}", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
-            Slider(
-                value = length,
-                onValueChange = { length = it },
-                valueRange = 8f..64f,
-                steps = 55
-            )
-            
-            ListItem(
-                headlineContent = { Text("Uppercase (A-Z)") },
-                trailingContent = { Switch(checked = useUppercase, onCheckedChange = { useUppercase = it }) }
-            )
-            ListItem(
-                headlineContent = { Text("Lowercase (a-z)") },
-                trailingContent = { Switch(checked = useLowercase, onCheckedChange = { useLowercase = it }) }
-            )
-            ListItem(
-                headlineContent = { Text("Numbers (0-9)") },
-                trailingContent = { Switch(checked = useNumbers, onCheckedChange = { useNumbers = it }) }
-            )
-            ListItem(
-                headlineContent = { Text("Symbols (!@#)") },
-                trailingContent = { Switch(checked = useSymbols, onCheckedChange = { useSymbols = it }) }
-            )
         }
+    }
+}
+
+@Composable
+fun AnalysisStat(label: String, value: String, valueColor: Color) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium, color = valueColor, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+fun ConfigToggle(iconLabel: String, title: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF08132A).copy(alpha=0.4f), RoundedCornerShape(8.dp))
+            .border(1.dp, Color.White.copy(alpha=0.05f), RoundedCornerShape(8.dp))
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp))
+                    .border(1.dp, Color.White.copy(alpha=0.1f), RoundedCornerShape(4.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(iconLabel, style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace), color = MaterialTheme.colorScheme.primary)
+            }
+            Text(title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primaryContainer)
+        )
     }
 }

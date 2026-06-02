@@ -8,6 +8,8 @@ import com.example.domain.models.VaultListEntry
 import com.example.repository.SettingsRepository
 import com.example.repository.VaultRepository
 import com.example.security.PasswordHashHelper
+import com.example.domain.security.SecurityAnalyzer
+import com.example.domain.security.SecurityStats
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
@@ -32,25 +34,35 @@ class VaultViewModel(
     private val allDecryptedEntries: StateFlow<List<VaultEntry>?> = vaultRepository.allEntries
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    @OptIn(FlowPreview::class)
+    val securityStats: StateFlow<SecurityStats?> = allDecryptedEntries
+        .filterNotNull()
+        .map { SecurityAnalyzer.analyze(it) }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    private val allLightweightEntries: StateFlow<List<VaultListEntry>?> = vaultRepository.allRawEntities
+        .map { rawList ->
+            rawList.map { vaultRepository.decryptLightweight(it) }
+        }
+        .flowOn(Dispatchers.IO)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
     val dashboardEntries: StateFlow<List<VaultListEntry>?> = combine(
-        vaultRepository.allRawEntities,
+        allLightweightEntries.filterNotNull(),
         allDecryptedEntries,
-        _searchQuery.debounce(250)
-    ) { rawEntities, decryptedEntities, query ->
+        _searchQuery
+    ) { lightEntities, decryptedEntities, query ->
         if (query.isBlank()) {
-            rawEntities.map { vaultRepository.decryptLightweight(it) }
+            lightEntities
         } else {
             val keywords = query.lowercase().split("\\s+".toRegex()).filter { it.isNotBlank() }
             
             // If full decryption hasn't finished yet in the background, fallback to lightweight matching
             if (decryptedEntities == null) {
-                rawEntities.mapNotNull { entity ->
-                    val light = vaultRepository.decryptLightweight(entity)
-                    val matchLight = keywords.all { q ->
+                lightEntities.filter { light ->
+                    keywords.all { q ->
                         light.title.lowercase().contains(q) || light.username.lowercase().contains(q)
                     }
-                    if (matchLight) light else null
                 }
             } else {
                 decryptedEntities.filter { full ->
@@ -68,7 +80,7 @@ class VaultViewModel(
                 }
             }
         }
-    }.flowOn(Dispatchers.IO).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     // First launch properties
     val masterHash = settingsRepository.masterPasswordHash.stateIn(viewModelScope, SharingStarted.Eagerly, null)

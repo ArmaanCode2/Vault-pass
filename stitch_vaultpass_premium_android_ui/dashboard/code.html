@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>VaultPass - Main Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary": "#ffffff",
+                        "surface-container-high": "#1f2942",
+                        "surface": "#08132a",
+                        "on-primary-fixed": "#002019",
+                        "surface-bright": "#2f3952",
+                        "surface-container-highest": "#2a344d",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-low": "#101b33",
+                        "secondary-container": "#3c4962",
+                        "on-surface-variant": "#bacac3",
+                        "tertiary-container": "#d8e2ff",
+                        "on-error": "#690005",
+                        "on-secondary-container": "#abb9d6",
+                        "outline": "#85948e",
+                        "on-background": "#d9e2ff",
+                        "on-tertiary-fixed": "#091b39",
+                        "secondary-fixed-dim": "#b9c7e4",
+                        "inverse-surface": "#d9e2ff",
+                        "on-secondary": "#233148",
+                        "inverse-on-surface": "#263049",
+                        "background": "#08132a",
+                        "on-tertiary": "#20304f",
+                        "on-primary-fixed-variant": "#005142",
+                        "on-primary": "#00382d",
+                        "on-tertiary-fixed-variant": "#374767",
+                        "tertiary-fixed-dim": "#b6c6ed",
+                        "primary-fixed-dim": "#38debb",
+                        "on-primary-container": "#00725e",
+                        "surface-container": "#151f37",
+                        "surface-tint": "#38debb",
+                        "inverse-primary": "#006b58",
+                        "secondary-fixed": "#d6e3ff",
+                        "surface-variant": "#2a344d",
+                        "primary-fixed": "#5ffbd6",
+                        "secondary": "#b9c7e4",
+                        "surface-container-lowest": "#030d25",
+                        "on-tertiary-container": "#556486",
+                        "on-secondary-fixed": "#0d1c32",
+                        "outline-variant": "#3c4a45",
+                        "on-secondary-fixed-variant": "#39475f",
+                        "primary-container": "#5ffbd6",
+                        "error": "#ffb4ab",
+                        "primary": "#ffffff",
+                        "tertiary-fixed": "#d8e2ff",
+                        "error-container": "#93000a",
+                        "surface-dim": "#08132a",
+                        "on-surface": "#d9e2ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "32px",
+                        "container-padding": "20px",
+                        "xs": "4px",
+                        "sm": "12px",
+                        "lg": "24px",
+                        "md": "16px",
+                        "base": "8px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Inter"],
+                        "code-display": ["JetBrains Mono"],
+                        "headline-lg-mobile": ["Inter"],
+                        "title-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "label-md": ["JetBrains Mono"],
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                        "code-display": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "600"}],
+                        "title-lg": ["22px", {"lineHeight": "28px", "fontWeight": "500"}],
+                        "display-lg": ["57px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .ambient-glow {
+            box-shadow: 0 8px 32px -8px rgba(95, 251, 214, 0.2);
+        }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background antialiased font-body-md min-h-screen relative pb-32">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface/70 dark:bg-surface/70 backdrop-blur-xl shadow-sm md:border-none flex justify-between items-center px-container-padding h-16">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed" data-icon="shield_lock" data-weight="fill" style="font-variation-settings: 'FILL' 1;">shield_lock</span>
+<span class="font-headline-lg-mobile text-headline-lg-mobile md:font-headline-lg md:text-headline-lg font-bold text-primary dark:text-primary-fixed">VaultPass</span>
+</div>
+<div class="flex items-center gap-md">
+<button class="text-on-surface-variant hover:bg-surface-bright/50 transition-colors duration-200 p-2 rounded-full">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center border border-white/10 overflow-hidden">
+<img alt="Profile" class="w-full h-full object-cover" data-alt="A close-up professional portrait of a person with short dark hair, wearing a dark blue shirt. The background is a soft, out-of-focus studio light setting. The lighting is clean and modern, evoking a high-end corporate or tech industry vibe." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB2vQ6tKafm3uq5anazK6CbclFVv0CamJPfqOCqwYSCBOoWjLuCPCIDBxhNkTRHQ4FMQR8IvpsauQBtrGvGb8A1EuQ2jTk8n0GQyUAPWeHQSb9J0yxG47dZKzTPKFHIZEFMsjR9HTcsmBoKIGIeKcvFZzg1WaoolfQVhCXXPH9SCwX-Kb9UrL5pvLyUvN7WEXErcZ9thn4SENAONAQbH5ifLKxMqXZCoBwAnHA7OwkFf28jUdRcojkqGDp9Kd_lODq5rJjkAcil5n-p"/>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="pt-24 px-container-padding max-w-[1200px] mx-auto grid grid-cols-4 md:grid-cols-12 gap-gutter">
+<!-- Welcome & Security Score -->
+<div class="col-span-4 md:col-span-12 flex flex-col md:flex-row gap-lg mb-md">
+<div class="flex-1 flex flex-col justify-center">
+<h1 class="font-title-lg text-title-lg text-primary mb-xs">Welcome back, Alex</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Your vault is looking secure today.</p>
+</div>
+<!-- Security Score Card -->
+<div class="bg-[#112240] rounded-xl border border-white/10 p-md flex items-center gap-lg md:w-80">
+<div class="relative w-16 h-16 flex items-center justify-center">
+<svg class="w-full h-full transform -rotate-90" viewbox="0 0 36 36">
+<path class="text-surface-container-highest stroke-current" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-width="3"></path>
+<path class="text-primary-container stroke-current" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-dasharray="85, 100" stroke-width="3"></path>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center flex-col">
+<span class="font-code-display text-code-display text-primary-fixed">85</span>
+</div>
+</div>
+<div>
+<h3 class="font-body-lg text-body-lg text-primary mb-xs">Security Score</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Good standing</p>
+</div>
+</div>
+</div>
+<!-- Vault Stats Row -->
+<div class="col-span-4 md:col-span-12 grid grid-cols-3 gap-sm mb-lg">
+<div class="bg-[#112240] rounded-lg border border-white/10 p-md flex flex-col items-center justify-center text-center">
+<span class="font-code-display text-code-display text-primary mb-xs">142</span>
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Total</span>
+</div>
+<div class="bg-[#112240] rounded-lg border border-white/10 p-md flex flex-col items-center justify-center text-center">
+<span class="font-code-display text-code-display text-error mb-xs">3</span>
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Weak</span>
+</div>
+<div class="bg-[#112240] rounded-lg border border-white/10 p-md flex flex-col items-center justify-center text-center">
+<span class="font-code-display text-code-display text-surface-tint mb-xs">1</span>
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Reused</span>
+</div>
+</div>
+<!-- Favorites (Horizontal Scroll) -->
+<div class="col-span-4 md:col-span-12 mb-lg">
+<div class="flex justify-between items-center mb-md">
+<h2 class="font-title-lg text-title-lg text-primary">Favorites</h2>
+<button class="font-label-md text-label-md text-primary-fixed hover:text-primary transition-colors">VIEW ALL</button>
+</div>
+<div class="flex gap-md overflow-x-auto no-scrollbar pb-xs -mx-container-padding px-container-padding md:mx-0 md:px-0">
+<div class="min-w-[140px] bg-[#112240] rounded-xl border border-white/10 p-md flex flex-col items-center justify-center shrink-0 hover:bg-surface-bright/30 transition-colors cursor-pointer">
+<div class="w-12 h-12 rounded-full bg-white flex items-center justify-center mb-sm">
+<img alt="Google" class="w-6 h-6" data-alt="The iconic Google logo 'G' icon with its classic blue, red, yellow, and green colors on a pure white background. The image is a clean, minimal vector-style representation suitable for a tech UI." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDQHsvROmCs_uEgEtWd8tVBvOm7wO3EPPjAL2ecou9uhMennxXO0lNQfucXZy-ME7lyerp9bGkWKjMU9xEMRinqEyt2Dz4txAvqlVGGBpRP8Z9km9yAG3LNvSPmogxK1BPtox9OmGz9lPmtb_SybN4LMEtj-gUyqmjLtVKHNxGV62XW04-NFGaUwH9VcxXxXPfTzLeK86JOlrRVcqlG2njWu9IvpQE8dJB2omOmWNke7kjC8pjylOhllrcljCqEnXYhcmWAbYYbtcc5"/>
+</div>
+<span class="font-body-md text-body-md text-primary">Google</span>
+<span class="font-label-md text-label-md text-on-surface-variant mt-xs">Personal</span>
+</div>
+<div class="min-w-[140px] bg-[#112240] rounded-xl border border-white/10 p-md flex flex-col items-center justify-center shrink-0 hover:bg-surface-bright/30 transition-colors cursor-pointer">
+<div class="w-12 h-12 rounded-full bg-[#0079d3] flex items-center justify-center mb-sm">
+<img alt="Chase" class="w-6 h-6 invert" data-alt="The Chase bank logo, an octagonal geometric symbol, rendered in pure white against a solid bright blue circular background. It conveys high-security financial services in a minimalist aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBokzITUxEuf7fOMrzck8yXGTtaVqPCnTz-SQe6AXc8bRQgBOSHqsDns4afb5lfYAw0yBgjZufxaHUCjhk2PTW2bqW3WuuAWWEiCt_8mlt0hboI7lPQrkOGqMje71BrE52spFP4SyklcZuNB7QOkIFSUyL6UXx7KEOoUfWCNrqFLe9VZ7fT5Gi4LhZFfuezBn2_7y0Ghf-f9LRlokVdoxJY4SImYdQ96kAhnk3InuOoP6wgB7GIm0E_ggF6CDUEnDqFW2Ms9ZI7ku-u"/>
+</div>
+<span class="font-body-md text-body-md text-primary">Chase Bank</span>
+<span class="font-label-md text-label-md text-on-surface-variant mt-xs">Finance</span>
+</div>
+<div class="min-w-[140px] bg-[#112240] rounded-xl border border-white/10 p-md flex flex-col items-center justify-center shrink-0 hover:bg-surface-bright/30 transition-colors cursor-pointer">
+<div class="w-12 h-12 rounded-full bg-black flex items-center justify-center mb-sm border border-white/20">
+<img alt="GitHub" class="w-6 h-6 invert" data-alt="The GitHub Octocat logo silhouette in pure white, centered perfectly inside a stark black circular background. The style is sharp, monochrome, and tailored for a developer-centric interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBRhTcTDA0mIM4YGehF2qDeyt0ovT_Q3flW77GyFrln1oZkdIlHS5kI3RaK1zTLkOfwvK4TDCr9N3tL2NV0JFMmD8avzkbdheD1DFTd8Ed7l0Hge6xhKPIzWImNdWYcCsJb1-ISG2l0iL1dc86K3TZnmIPuM8GgwWlSzsqmg0R99QQOSCPB5UZetl46EYaP7YqlTHpfLlDZx0Mwne2r2QStRhhICjOo3Dp_GMAxE37Jj9GfWVrqqLfnxpz665iRcos_k_mtUbRgOq2p"/>
+</div>
+<span class="font-body-md text-body-md text-primary">GitHub</span>
+<span class="font-label-md text-label-md text-on-surface-variant mt-xs">Work</span>
+</div>
+<div class="min-w-[140px] bg-[#112240] rounded-xl border border-white/10 p-md flex flex-col items-center justify-center shrink-0 border-dashed border-outline-variant hover:border-primary-fixed/50 transition-colors cursor-pointer">
+<div class="w-12 h-12 rounded-full bg-surface-container-highest flex items-center justify-center mb-sm">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="add">add</span>
+</div>
+<span class="font-body-md text-body-md text-primary">Add New</span>
+</div>
+</div>
+</div>
+<!-- Recent Entries -->
+<div class="col-span-4 md:col-span-12">
+<h2 class="font-title-lg text-title-lg text-primary mb-md">Recent Entries</h2>
+<div class="flex flex-col gap-sm">
+<!-- Entry Item -->
+<div class="bg-[#112240] rounded-lg border border-white/10 p-md flex items-center justify-between hover:bg-surface-bright/20 transition-colors cursor-pointer group">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded bg-[#e50914] flex items-center justify-center shrink-0">
+<img alt="Netflix" class="w-5 h-5 invert" data-alt="The stark white 'N' symbol of the Netflix logo placed squarely on a vibrant, deep crimson red background. The design is flat, modern, and instantly recognizable as an entertainment brand." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCTyV_a-U1nfqYy81GepmbVIvt8O5OKbY5YJR5Las3Y6INt_OepXiCMWODDMG-RMOStNquupwNEJXYwGXiU32sH2PXyyiLaZ3z9bQOmINAa4a9UvGp3I1QFRSQeH3zxAlytEkZn3U3gfHGc0-_ceM_nfJx0uygU8Zd4b9l4Z_JsWSYQLWwLhlKFGqKnE7gVkCDIvThiLs_tyR-1-lY1FDX2wLNB7z8_f2kFPLokqyKqHZgmaz2QYDIj8OwaP1sNjyAcHjiC_V4Fh9gj"/>
+</div>
+<div>
+<h4 class="font-body-lg text-body-lg text-primary">Netflix</h4>
+<p class="font-body-md text-body-md text-on-surface-variant truncate w-40 md:w-auto">alex@example.com</p>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<div class="hidden md:flex gap-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant"></span>
+</div>
+<button class="text-on-surface-variant group-hover:text-primary transition-colors p-2 rounded-full hover:bg-surface-container">
+<span class="material-symbols-outlined" data-icon="content_copy">content_copy</span>
+</button>
+</div>
+</div>
+<!-- Entry Item -->
+<div class="bg-[#112240] rounded-lg border border-white/10 p-md flex items-center justify-between hover:bg-surface-bright/20 transition-colors cursor-pointer group">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded bg-[#1da1f2] flex items-center justify-center shrink-0">
+<img alt="Twitter" class="w-5 h-5 invert" data-alt="A clean white bird silhouette icon, representing the legacy Twitter logo, set against a classic light blue square background. The visual is crisp and designed for small-scale UI representation." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAlZ1p2iWe1deQjv99QHNlm5-ro-6TEl_pxxXUcY8FaV0bdzueU5Df9eYxh9ajheFV78gJElnWwJXCSfuW0-r9xk5j4WMyGT3s-OTAaLCqD4TuH3kydtmuDw6P1AwgZdcZSOcrbE4eJ7qseEN17oAY6xi8fT69k3440PD4n2JORo4Jl0EXcTJUA2DdVDukaQXQ50j5bOxweMF_FNLRZ_A8ja2EkibrhLKfgngd0gPUeF6JCC13D2SwBYWXyxUVI27rZYXD08Wvsj9If"/>
+</div>
+<div>
+<h4 class="font-body-lg text-body-lg text-primary">Twitter / X</h4>
+<p class="font-body-md text-body-md text-on-surface-variant truncate w-40 md:w-auto">@alex_dev</p>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<div class="hidden md:flex gap-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant"></span>
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant"></span>
+</div>
+<button class="text-on-surface-variant group-hover:text-primary transition-colors p-2 rounded-full hover:bg-surface-container">
+<span class="material-symbols-outlined" data-icon="content_copy">content_copy</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- FAB -->
+<button class="fixed bottom-24 right-6 w-14 h-14 bg-primary-container text-on-primary-container rounded-2xl flex items-center justify-center ambient-glow hover:bg-primary-fixed transition-colors z-40 md:hidden">
+<span class="material-symbols-outlined text-[28px]" data-icon="add">add</span>
+</button>
+<button class="fixed bottom-8 right-8 w-14 h-14 bg-primary-container text-on-primary-container rounded-2xl hidden md:flex items-center justify-center ambient-glow hover:bg-primary-fixed transition-colors z-40">
+<span class="material-symbols-outlined text-[28px]" data-icon="add">add</span>
+</button>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 w-full z-50 rounded-t-xl border-t border-white/10 shadow-lg bg-surface/70 dark:bg-surface/70 backdrop-blur-xl flex justify-around items-center h-20 pb-safe px-4">
+<button class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-4 py-1 scale-95 active:scale-90 transition-transform hover:text-primary">
+<span class="material-symbols-outlined" data-icon="lock" data-weight="fill" style="font-variation-settings: 'FILL' 1;">lock</span>
+<span class="font-label-md text-label-md mt-1">Vault</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant scale-95 active:scale-90 transition-transform hover:text-primary">
+<span class="material-symbols-outlined" data-icon="security">security</span>
+<span class="font-label-md text-label-md mt-1">Security</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant scale-95 active:scale-90 transition-transform hover:text-primary">
+<span class="material-symbols-outlined" data-icon="password">password</span>
+<span class="font-label-md text-label-md mt-1">Generator</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant scale-95 active:scale-90 transition-transform hover:text-primary">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-md text-label-md mt-1">Settings</span>
+</button>
+</nav>
+</body></html>

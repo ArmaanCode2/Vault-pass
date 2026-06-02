@@ -29,6 +29,7 @@ import com.example.ui.VaultViewModel
 fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
     val entriesState by viewModel.dashboardEntries.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val securityStats by viewModel.securityStats.collectAsStateWithLifecycle()
 
     var isSearchActive by remember { mutableStateOf(false) }
 
@@ -71,28 +72,62 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("VaultPass") },
+                    title = { 
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("VaultPass", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        }
+                    },
                     actions = {
                         IconButton(onClick = { isSearchActive = true }) {
                             Icon(Icons.Default.Search, contentDescription = "Search")
                         }
-                        IconButton(onClick = { navController.navigate("generator") }) {
-                            Icon(Icons.Default.VpnKey, contentDescription = "Password Generator")
-                        }
-                        IconButton(onClick = { navController.navigate("settings") }) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings")
-                        }
                         IconButton(onClick = { viewModel.lock() }) {
                             Icon(Icons.Default.Lock, contentDescription = "Lock Vault")
                         }
-                    }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+                    )
                 )
+            },
+            bottomBar = {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                    tonalElevation = 8.dp
+                ) {
+                    NavigationBarItem(
+                        selected = true,
+                        onClick = { },
+                        icon = { Icon(Icons.Default.Lock, contentDescription = "Vault") },
+                        label = { Text("Vault") }
+                    )
+                    NavigationBarItem(
+                        selected = false,
+                        onClick = { }, // Future security center
+                        icon = { Icon(Icons.Default.Shield, contentDescription = "Security") },
+                        label = { Text("Security") }
+                    )
+                    NavigationBarItem(
+                        selected = false,
+                        onClick = { navController.navigate("generator") },
+                        icon = { Icon(Icons.Default.VpnKey, contentDescription = "Generator") },
+                        label = { Text("Generator") }
+                    )
+                    NavigationBarItem(
+                        selected = false,
+                        onClick = { navController.navigate("settings") },
+                        icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
+                        label = { Text("Settings") }
+                    )
+                }
             },
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = { navController.navigate("add_entry") },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Add Entry")
@@ -101,66 +136,67 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
         ) { paddingValues ->
             LazyColumn(
                 modifier = Modifier.padding(paddingValues).fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 80.dp)
+                contentPadding = PaddingValues(bottom = 88.dp)
             ) {
+                // Welcome & Security Score
                 item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Welcome back", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                        Text(securityStats?.securityStatus ?: "Analyzing...", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
                         Card(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(112.dp),
-                            shape = RoundedCornerShape(24.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                            shape = RoundedCornerShape(16.dp)
                         ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp).fillMaxSize(),
-                                verticalArrangement = Arrangement.SpaceBetween
+                            Row(
+                                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("TOTAL VAULT", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                                Text("${entries.size}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                        Card(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(112.dp),
-                            shape = RoundedCornerShape(24.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer,
-                                contentColor = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp).fillMaxSize(),
-                                verticalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("WEAK ITEMS", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                                // Placeholder for weak items count
-                                Text("0", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(64.dp)) {
+                                    CircularProgressIndicator(
+                                        progress = { (securityStats?.securityScore ?: 0) / 100f },
+                                        modifier = Modifier.fillMaxSize(),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    )
+                                    Text((securityStats?.securityScore ?: 100).toString(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column {
+                                    Text("Security Score", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                    Text(securityStats?.securityStatus ?: "Analyzing...", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
                             }
                         }
                     }
                 }
 
+                // Stats Row
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        StatCard(modifier = Modifier.weight(1f), count = securityStats?.totalPasswords?.toString() ?: "0", label = "TOTAL", color = MaterialTheme.colorScheme.primary)
+                        StatCard(modifier = Modifier.weight(1f), count = securityStats?.weakPasswords?.toString() ?: "0", label = "WEAK", color = MaterialTheme.colorScheme.error)
+                        StatCard(modifier = Modifier.weight(1f), count = securityStats?.reusedPasswords?.toString() ?: "0", label = "REUSED", color = MaterialTheme.colorScheme.tertiary)
+                    }
+                }
+
+                // Favorites
                 val favorites = entries.filter { it.isFavorite }
                 if (favorites.isNotEmpty()) {
                     item {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("Favorites", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text("VIEW ALL", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                     item {
@@ -171,11 +207,10 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                             items(favorites, key = { "fav_${it.id}" }) { fav ->
                                 Card(
                                     modifier = Modifier
-                                        .width(128.dp)
+                                        .width(120.dp)
                                         .clickable { navController.navigate("entry_details/${fav.id}") },
                                     shape = RoundedCornerShape(16.dp),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                    border = CardDefaults.outlinedCardBorder()
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                                 ) {
                                     Column(
                                         modifier = Modifier.padding(12.dp).fillMaxWidth(),
@@ -183,17 +218,17 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                                     ) {
                                         Box(
                                             modifier = Modifier
-                                                .size(40.dp)
-                                                .clip(RoundedCornerShape(12.dp))
+                                                .size(48.dp)
+                                                .clip(CircleShape)
                                                 .background(MaterialTheme.colorScheme.primaryContainer),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             val initial = fav.title.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
-                                            Text(initial, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                            Text(initial, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
                                         }
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text(fav.title, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold)
-                                        Text(fav.username, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Text(fav.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold)
+                                        Text("Personal", style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 }
                             }
@@ -201,19 +236,16 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                     }
                 }
 
+                // Clear Search active indicator (preserved)
                 if (searchQuery.isNotBlank()) {
                     item {
                         Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
                             color = MaterialTheme.colorScheme.secondaryContainer,
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -226,12 +258,7 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                                     onClick = { viewModel.updateSearchQuery("") },
                                     modifier = Modifier.size(24.dp)
                                 ) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = "Clear search",
-                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                                    Icon(Icons.Default.Close, contentDescription = "Clear search", tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(18.dp))
                                 }
                             }
                         }
@@ -240,17 +267,16 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
 
                 item {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Recently Accessed", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         if (searchQuery.isNotBlank()) {
-                            TextButton(onClick = { viewModel.updateSearchQuery("") }) {
-                                Text("Clear Search")
-                            }
+                            TextButton(onClick = { 
+                                viewModel.updateSearchQuery("")
+                                isSearchActive = false
+                            }) { Text("Clear Search") }
                         }
                     }
                 }
@@ -263,33 +289,59 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                     }
                 } else {
                     items(entries, key = { it.id }) { entry ->
-                        ListItem(
-                            headlineContent = { Text(entry.title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold) },
-                            supportingContent = { Text(entry.username, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                            trailingContent = {
-                                if (entry.isFavorite) {
-                                    Icon(Icons.Default.Star, contentDescription = "Favorite", tint = MaterialTheme.colorScheme.primary)
-                                }
-                            },
-                            leadingContent = {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(Icons.Default.VpnKey, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            },
+                        Card(
                             modifier = Modifier
-                                .padding(horizontal = 8.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .clickable { navController.navigate("entry_details/${entry.id}") }
-                        )
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                                .clickable { navController.navigate("entry_details/${entry.id}") },
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                    Box(
+                                        modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.secondary),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        val initial = entry.title.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+                                        Text(initial, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondary)
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(entry.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                                        Text(entry.username, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    }
+                                }
+                                IconButton(onClick = { /* Copy logic could go here */ }) {
+                                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun StatCard(modifier: Modifier = Modifier, count: String, label: String, color: androidx.compose.ui.graphics.Color) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(count, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = color)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

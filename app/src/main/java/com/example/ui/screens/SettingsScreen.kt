@@ -7,19 +7,21 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -155,18 +157,11 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
         }
     }
     
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Settings") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
-    ) { padding ->
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         if (isImporting) {
             AlertDialog(
                 onDismissRequest = {},
@@ -253,104 +248,198 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                 }
             )
         }
-        
+
         Column(
             modifier = Modifier
-                .padding(padding)
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
+                .systemBarsPadding()
         ) {
-            SettingsGroup("Appearance")
-            
-            ListItem(
-                headlineContent = { Text("Theme") },
-                supportingContent = { Text(themeOptions[themeMode]) },
-                modifier = Modifier.clickable { showThemeDialog = true }
-            )
-            
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            SettingsGroup("Security")
-            
-            ListItem(
-                headlineContent = { Text("Enable Biometrics") },
-                supportingContent = { Text("Use fingerprint/face to unlock") },
-                trailingContent = {
-                    Switch(checked = isBiometricEnabled, onCheckedChange = { 
-                        scope.launch { viewModel.settingsRepository.setBiometricEnabled(it) } 
-                    })
+            // Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { navController.popBackStack(); Unit }) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            )
-            
-            ListItem(
-                headlineContent = { Text("Hide Passwords by Default") },
-                trailingContent = {
-                    Switch(checked = hidePasswords, onCheckedChange = { 
-                        scope.launch { viewModel.settingsRepository.setHidePasswordsByDefault(it) } 
-                    })
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                // Intro Text
+                Column {
+                    Text("Settings", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Manage your vault preferences and security configurations.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            )
-            
-            ListItem(
-                headlineContent = { Text("Disable Screenshots") },
-                supportingContent = { Text("Prevents screenshots and recents preview") },
-                trailingContent = {
-                    Switch(checked = disableScreenshots, onCheckedChange = { 
-                        scope.launch { viewModel.settingsRepository.setDisableScreenshots(it) } 
-                    })
-                }
-            )
-            
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            SettingsGroup("Data Backup")
-            
-            ListItem(
-                headlineContent = { Text("Export Vault") },
-                supportingContent = { Text("Save encrypted JSON to device storage") },
-                leadingContent = { Icon(Icons.Default.Upload, contentDescription = null) },
-                modifier = Modifier.clickable {
-                    try {
-                        Log.d("VaultPass", "Launching export document picker")
-                        exportLauncher.launch("vaultpass_backup.json")
-                    } catch (e: Exception) {
-                        Log.e("VaultPass", "Exception launching export picker", e)
-                        Toast.makeText(context, "Launch failed: ${e.javaClass.simpleName} - ${e.message}", Toast.LENGTH_LONG).show()
+
+                // Appearance
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("APPEARANCE", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF112240)),
+                        shape = RoundedCornerShape(16.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.1f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column {
+                            SettingsRow(
+                                title = "Theme",
+                                subtitle = themeOptions[themeMode],
+                                icon = Icons.Default.Palette,
+                                iconColor = MaterialTheme.colorScheme.primary,
+                                iconBgColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
+                                trailingContent = { Icon(Icons.Default.ChevronRight, tint = MaterialTheme.colorScheme.onSurfaceVariant, contentDescription = null) },
+                                onClick = { showThemeDialog = true }
+                            )
+                            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+                            SettingsRow(
+                                title = "Hide Passwords by Default",
+                                subtitle = "Obscure passwords in lists",
+                                icon = Icons.Default.VisibilityOff,
+                                iconColor = MaterialTheme.colorScheme.secondary,
+                                iconBgColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
+                                trailingContent = { 
+                                    Switch(checked = hidePasswords, onCheckedChange = { scope.launch { viewModel.settingsRepository.setHidePasswordsByDefault(it) } }) 
+                                }
+                            )
+                        }
                     }
                 }
-            )
-            
-            ListItem(
-                headlineContent = { Text("Import JSON") },
-                supportingContent = { Text("Restore entries from a JSON file") },
-                leadingContent = { Icon(Icons.Default.Download, contentDescription = null) },
-                modifier = Modifier.clickable {
-                    try {
-                        Log.d("VaultPass", "Launching import document picker")
-                        importLauncher.launch(arrayOf("application/json"))
-                    } catch (e: Exception) {
-                        Log.e("VaultPass", "Exception launching import picker", e)
-                        Toast.makeText(context, "Launch failed: ${e.javaClass.simpleName} - ${e.message}", Toast.LENGTH_LONG).show()
+
+                // Security
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("SECURITY", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF112240)),
+                        shape = RoundedCornerShape(16.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.1f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column {
+                            SettingsRow(
+                                title = "Biometric Unlock",
+                                subtitle = "Use fingerprint/face to access vault",
+                                icon = Icons.Default.Fingerprint,
+                                iconColor = MaterialTheme.colorScheme.primary,
+                                iconBgColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
+                                trailingContent = { 
+                                    Switch(checked = isBiometricEnabled, onCheckedChange = { scope.launch { viewModel.settingsRepository.setBiometricEnabled(it) } }) 
+                                }
+                            )
+                            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+                            SettingsRow(
+                                title = "Disable Screenshots",
+                                subtitle = "Prevent screen capture & recents",
+                                icon = Icons.Default.Security,
+                                iconColor = MaterialTheme.colorScheme.error,
+                                iconBgColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
+                                trailingContent = { 
+                                    Switch(checked = disableScreenshots, onCheckedChange = { scope.launch { viewModel.settingsRepository.setDisableScreenshots(it) } }) 
+                                }
+                            )
+                        }
                     }
                 }
-            )
-            
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            SettingsGroup("About")
-            
-            ListItem(
-                headlineContent = { Text("VaultPass Offline") },
-                supportingContent = { Text("No internet access requested. All data encrypted with AES-256 GCM.") }
-            )
+
+                // Advanced Data
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("DATA BACKUP", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF112240)),
+                        shape = RoundedCornerShape(16.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.1f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column {
+                            SettingsRow(
+                                title = "Export Vault",
+                                subtitle = "Save encrypted JSON to device",
+                                icon = Icons.Default.Upload,
+                                iconColor = MaterialTheme.colorScheme.secondary,
+                                iconBgColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
+                                trailingContent = { Icon(Icons.Default.ChevronRight, tint = MaterialTheme.colorScheme.onSurfaceVariant, contentDescription = null) },
+                                onClick = { 
+                                    try {
+                                        exportLauncher.launch("vaultpass_backup.json")
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Launch failed: ${e.message}", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            )
+                            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+                            SettingsRow(
+                                title = "Import JSON",
+                                subtitle = "Restore entries from backup",
+                                icon = Icons.Default.Download,
+                                iconColor = MaterialTheme.colorScheme.secondary,
+                                iconBgColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
+                                trailingContent = { Icon(Icons.Default.ChevronRight, tint = MaterialTheme.colorScheme.onSurfaceVariant, contentDescription = null) },
+                                onClick = { 
+                                    try {
+                                        importLauncher.launch(arrayOf("application/json"))
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Launch failed: ${e.message}", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(40.dp))
+            }
         }
     }
 }
 
 @Composable
-fun SettingsGroup(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-    )
+fun SettingsRow(
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconColor: Color = MaterialTheme.colorScheme.primary,
+    iconBgColor: Color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
+    trailingContent: @Composable () -> Unit,
+    onClick: (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = onClick != null) { onClick?.invoke() }
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(iconBgColor, RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(24.dp))
+            }
+            Column {
+                Text(title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        trailingContent()
+    }
 }
 

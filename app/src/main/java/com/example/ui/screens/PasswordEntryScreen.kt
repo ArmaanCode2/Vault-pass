@@ -4,8 +4,12 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -13,7 +17,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -94,192 +100,279 @@ fun PasswordEntryScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(if (entryId == null) "New Entry" else "Edit Entry") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { isFavorite = !isFavorite }) {
-                        Icon(
-                            if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                            contentDescription = "Favorite",
-                            tint = if (isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
-                        )
-                    }
-                    if (entryId != null) {
-                        IconButton(onClick = { showDeleteConfirm = true }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete")
-                        }
-                    }
-                }
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = {
-                val newEntry = VaultEntry(
-                    id = entryId ?: 0,
-                    title = title.takeIf { it.isNotBlank() } ?: "Untitled",
-                    username = username,
-                    password = password,
-                    website = website,
-                    notes = notes,
-                    category = category,
-                    customFields = customFields,
-                    isFavorite = isFavorite
-                )
-                if (entryId == null) {
-                    viewModel.addEntry(newEntry)
-                } else {
-                    viewModel.updateEntry(newEntry)
-                }
-                navController.popBackStack()
-            }) {
-                Icon(Icons.Default.Save, contentDescription = "Save")
-            }
+    val isEditing = entryId != null
+    val saveEntry = {
+        val newEntry = VaultEntry(
+            id = entryId ?: 0,
+            title = title.takeIf { it.isNotBlank() } ?: "Untitled",
+            username = username,
+            password = password,
+            website = website,
+            notes = notes,
+            category = category.takeIf { it.isNotBlank() } ?: "Personal",
+            customFields = customFields,
+            isFavorite = isFavorite
+        )
+        if (isEditing) {
+            viewModel.updateEntry(newEntry)
+        } else {
+            viewModel.addEntry(newEntry)
         }
-    ) { padding ->
+        navController.popBackStack()
+        Unit
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         Column(
             modifier = Modifier
-                .padding(padding)
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .systemBarsPadding()
         ) {
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text("Title") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = username,
-                    onValueChange = { username = it },
-                    label = { Text("Username / Email") },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
+            // Top App Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                IconButton(onClick = { navController.popBackStack(); Unit }) {
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Text(
+                    text = if (isEditing) "Edit Entry" else "New Entry",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
                 )
-                if (username.isNotEmpty()) {
-                    IconButton(onClick = { copyToClipboard("Username", username) }) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy username")
-                    }
+                TextButton(onClick = saveEntry) {
+                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Save", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium)
                 }
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Password") },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        val icon = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(icon, contentDescription = "Toggle password visibility")
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                // Category Selector
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    val categories = listOf("Login" to Icons.Default.Login, "Card" to Icons.Default.CreditCard, "Secure Note" to Icons.Default.Notes)
+                    categories.forEach { (catName, icon) ->
+                        val isSelected = category == catName
+                        Surface(
+                            shape = RoundedCornerShape(24.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                            border = if (!isSelected) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
+                            modifier = Modifier.clickable { category = catName }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(icon, contentDescription = null, tint = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(catName, color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
+                            }
                         }
                     }
-                )
-                if (password.isNotEmpty()) {
-                    IconButton(onClick = { copyToClipboard("Password", password) }) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy password")
+                }
+
+                // Core Details Card
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.1f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        EntryTextField(label = "Title", value = title, onValueChange = { title = it }, icon = Icons.Default.Title, placeholder = "e.g. My Bank")
+                        EntryTextField(label = "Website (URI)", value = website, onValueChange = { website = it }, icon = Icons.Default.Language, placeholder = "https://")
                     }
                 }
-            }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = website,
-                    onValueChange = { website = it },
-                    label = { Text("Website") },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-                if (website.isNotEmpty()) {
-                    IconButton(onClick = { copyToClipboard("Website", website) }) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy website")
+                // Credentials Card
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.1f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        EntryTextField(
+                            label = "Username / Email",
+                            value = username,
+                            onValueChange = { username = it },
+                            icon = Icons.Default.Person,
+                            placeholder = "Username",
+                            trailingIcon = {
+                                IconButton(onClick = { copyToClipboard("Username", username) }) {
+                                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        )
+                        EntryTextField(
+                            label = "Password",
+                            value = password,
+                            onValueChange = { password = it },
+                            icon = Icons.Default.VpnKey,
+                            placeholder = "Password",
+                            isPassword = true,
+                            passwordVisible = passwordVisible,
+                            trailingIcon = {
+                                Row {
+                                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                        Icon(if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = "Toggle Visibility", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    IconButton(onClick = { navController.navigate("generator") }) {
+                                        Icon(Icons.Default.Password, contentDescription = "Generate", tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                            }
+                        )
                     }
                 }
-            }
-            
-            OutlinedTextField(
-                value = category,
-                onValueChange = { category = it },
-                label = { Text("Category") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
 
-            OutlinedTextField(
-                value = notes,
-                onValueChange = { notes = it },
-                label = { Text("Notes") },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 3
-            )
+                // Meta & Notes Card
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.1f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text("Favorite", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+                            }
+                            Switch(
+                                checked = isFavorite,
+                                onCheckedChange = { isFavorite = it },
+                                colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primaryContainer)
+                            )
+                        }
+                        
+                        HorizontalDivider(color = Color.White.copy(alpha=0.05f))
 
-            Text("Custom Fields", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
-            
-            customFields.forEachIndexed { index, field ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    var editKey by remember { mutableStateOf(field.key) }
-                    var editValue by remember { mutableStateOf(field.value) }
-                    
-                    OutlinedTextField(
-                        value = editKey,
-                        onValueChange = { 
-                            editKey = it
-                            val mut = customFields.toMutableList()
-                            mut[index] = field.copy(key = it)
-                            customFields = mut
-                        },
-                        label = { Text("Key") },
-                        modifier = Modifier.weight(0.4f),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    OutlinedTextField(
-                        value = editValue,
-                        onValueChange = { 
-                            editValue = it
-                            val mut = customFields.toMutableList()
-                            mut[index] = field.copy(value = it)
-                            customFields = mut
-                        },
-                        label = { Text("Value") },
-                        modifier = Modifier.weight(0.6f),
-                        singleLine = true
-                    )
-                    IconButton(onClick = { copyToClipboard(editKey, editValue) }) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy value")
-                    }
-                    IconButton(onClick = {
-                        val mut = customFields.toMutableList()
-                        mut.removeAt(index)
-                        customFields = mut
-                    }) {
-                        Icon(Icons.Default.Close, contentDescription = "Remove")
+                        Column {
+                            Text("Secure Notes", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            TextField(
+                                value = notes,
+                                onValueChange = { notes = it },
+                                placeholder = { Text("Add any extra details, recovery codes, or hints here...", style = MaterialTheme.typography.bodyMedium) },
+                                modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 100.dp),
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = Color(0xFF16274B),
+                                    unfocusedContainerColor = Color(0xFF16274B),
+                                    focusedIndicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                    unfocusedIndicatorColor = Color.Transparent
+                                ),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                        }
+
+                        if (customFields.isNotEmpty()) {
+                            HorizontalDivider(color = Color.White.copy(alpha=0.05f))
+                            customFields.forEachIndexed { index, field ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    TextField(
+                                        value = field.key,
+                                        onValueChange = { 
+                                            val mut = customFields.toMutableList()
+                                            mut[index] = field.copy(key = it)
+                                            customFields = mut
+                                        },
+                                        placeholder = { Text("Key") },
+                                        modifier = Modifier.weight(0.4f),
+                                        colors = TextFieldDefaults.colors(
+                                            focusedContainerColor = Color(0xFF16274B), unfocusedContainerColor = Color(0xFF16274B),
+                                            focusedIndicatorColor = MaterialTheme.colorScheme.primaryContainer, unfocusedIndicatorColor = Color.Transparent
+                                        ),
+                                        shape = RoundedCornerShape(8.dp),
+                                        singleLine = true
+                                    )
+                                    TextField(
+                                        value = field.value,
+                                        onValueChange = { 
+                                            val mut = customFields.toMutableList()
+                                            mut[index] = field.copy(value = it)
+                                            customFields = mut
+                                        },
+                                        placeholder = { Text("Value") },
+                                        modifier = Modifier.weight(0.6f),
+                                        colors = TextFieldDefaults.colors(
+                                            focusedContainerColor = Color(0xFF16274B), unfocusedContainerColor = Color(0xFF16274B),
+                                            focusedIndicatorColor = MaterialTheme.colorScheme.primaryContainer, unfocusedIndicatorColor = Color.Transparent
+                                        ),
+                                        shape = RoundedCornerShape(8.dp),
+                                        singleLine = true
+                                    )
+                                    IconButton(onClick = {
+                                        val mut = customFields.toMutableList()
+                                        mut.removeAt(index)
+                                        customFields = mut
+                                    }) {
+                                        Icon(Icons.Default.RemoveCircleOutline, contentDescription = "Remove", tint = MaterialTheme.colorScheme.error)
+                                    }
+                                }
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                val mut = customFields.toMutableList()
+                                mut.add(CustomField("", ""))
+                                customFields = mut
+                            },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(Icons.Default.AddCircleOutline, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Add Custom Field", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
-            }
 
-            TextButton(onClick = {
-                val mut = customFields.toMutableList()
-                mut.add(CustomField("", ""))
-                customFields = mut
-            }) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Add Custom Field")
+                if (isEditing) {
+                    TextButton(
+                        onClick = { showDeleteConfirm = true },
+                        modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp),
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Delete Entry")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }
@@ -294,6 +387,7 @@ fun PasswordEntryScreen(
                     entryId?.let { viewModel.deleteEntry(it) }
                     showDeleteConfirm = false
                     navController.popBackStack()
+                    Unit
                 }) {
                     Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
@@ -303,6 +397,40 @@ fun PasswordEntryScreen(
                     Text("Cancel")
                 }
             }
+        )
+    }
+}
+
+@Composable
+fun EntryTextField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    placeholder: String,
+    isPassword: Boolean = false,
+    passwordVisible: Boolean = false,
+    trailingIcon: @Composable (() -> Unit)? = null
+) {
+    Column {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(modifier = Modifier.height(4.dp))
+        TextField(
+            value = value,
+            onValueChange = onValueChange,
+            placeholder = { Text(placeholder, style = MaterialTheme.typography.bodyLarge) },
+            leadingIcon = { Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+            trailingIcon = trailingIcon,
+            visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Color(0xFF16274B),
+                unfocusedContainerColor = Color(0xFF16274B),
+                focusedIndicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                unfocusedIndicatorColor = Color.Transparent
+            ),
+            shape = RoundedCornerShape(8.dp)
         )
     }
 }
