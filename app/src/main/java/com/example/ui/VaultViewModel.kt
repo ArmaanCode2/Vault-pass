@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+enum class DashboardFilter { ALL, WEAK, REUSED }
+
 class VaultViewModel(
     val vaultRepository: VaultRepository,
     val settingsRepository: SettingsRepository
@@ -31,6 +33,13 @@ class VaultViewModel(
     private val _isImporting = MutableStateFlow(false)
     val isImporting: StateFlow<Boolean> = _isImporting.asStateFlow()
 
+    private val _activeFilter = MutableStateFlow(DashboardFilter.ALL)
+    val activeFilter: StateFlow<DashboardFilter> = _activeFilter.asStateFlow()
+
+    fun setDashboardFilter(filter: DashboardFilter) {
+        _activeFilter.value = filter
+    }
+
     private val allDecryptedEntries: StateFlow<List<VaultEntry>?> = vaultRepository.allEntries
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
@@ -39,6 +48,47 @@ class VaultViewModel(
         .map { SecurityAnalyzer.analyze(it) }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val weakEntriesList: StateFlow<List<WeakEntryData>?> = combine(
+        allDecryptedEntries,
+        securityStats
+    ) { decrypted, stats ->
+        if (decrypted == null || stats == null) return@combine null
+        decrypted.filter { stats.weakEntryIds.contains(it.id) }.map { full ->
+            WeakEntryData(
+                entry = VaultListEntry(full.id, full.title, full.username, full.isFavorite),
+                score = SecurityAnalyzer.scorePassword(full.password),
+                reasons = SecurityAnalyzer.getWeaknessReasons(full.password)
+            )
+        }.sortedBy { it.score }
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val reusedEntriesGroups: StateFlow<List<ReusedGroupData>?> = combine(
+        allDecryptedEntries,
+        securityStats
+    ) { decrypted, stats ->
+        if (decrypted == null || stats == null) return@combine null
+        
+        val reusedDecrypted = decrypted.filter { stats.reusedEntryIds.contains(it.id) }
+        val grouped = reusedDecrypted.groupBy { it.password }
+        
+        grouped.map { (pwd, entries) ->
+            ReusedGroupData(
+                passwordScore = SecurityAnalyzer.scorePassword(pwd),
+                entries = entries.map { VaultListEntry(it.id, it.title, it.username, it.isFavorite) }
+            )
+        }.sortedByDescending { it.entries.size }
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val missingEntriesList: StateFlow<List<VaultListEntry>?> = combine(
+        allDecryptedEntries,
+        securityStats
+    ) { decrypted, stats ->
+        if (decrypted == null || stats == null) return@combine null
+        decrypted.filter { stats.missingEntryIds.contains(it.id) }.map { full ->
+            VaultListEntry(full.id, full.title, full.username, full.isFavorite)
+        }
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val allLightweightEntries: StateFlow<List<VaultListEntry>?> = vaultRepository.allRawEntities
         .map { rawList ->
@@ -50,35 +100,46 @@ class VaultViewModel(
     val dashboardEntries: StateFlow<List<VaultListEntry>?> = combine(
         allLightweightEntries.filterNotNull(),
         allDecryptedEntries,
-        _searchQuery
-    ) { lightEntities, decryptedEntities, query ->
+        _searchQuery,
+        _activeFilter,
+        securityStats
+    ) { lightEntities, decryptedEntities, query, filter, stats ->
+        
+        var list = lightEntities
+        
+        if (filter == DashboardFilter.WEAK && stats != null) {
+            list = list.filter { stats.weakEntryIds.contains(it.id) }
+        } else if (filter == DashboardFilter.REUSED && stats != null) {
+            list = list.filter { stats.reusedEntryIds.contains(it.id) }
+        }
+
         if (query.isBlank()) {
-            lightEntities
-        } else {
-            val keywords = query.lowercase().split("\\s+".toRegex()).filter { it.isNotBlank() }
-            
-            // If full decryption hasn't finished yet in the background, fallback to lightweight matching
-            if (decryptedEntities == null) {
-                lightEntities.filter { light ->
-                    keywords.all { q ->
-                        light.title.lowercase().contains(q) || light.username.lowercase().contains(q)
-                    }
-                }
-            } else {
-                decryptedEntities.filter { full ->
-                    keywords.all { q ->
-                        full.title.lowercase().contains(q) ||
-                        full.username.lowercase().contains(q) ||
-                        full.website.lowercase().contains(q) ||
-                        full.notes.lowercase().contains(q) ||
-                        full.category.lowercase().contains(q) ||
-                        full.tags.any { t -> t.lowercase().contains(q) } ||
-                        full.customFields.any { f -> f.key.lowercase().contains(q) || f.value.lowercase().contains(q) }
-                    }
-                }.map { full ->
-                    VaultListEntry(full.id, full.title, full.username, full.isFavorite)
+            return@combine list
+        }
+        
+        val keywords = query.lowercase().split("\\s+".toRegex()).filter { it.isNotBlank() }
+        
+        // If full decryption hasn't finished yet in the background, fallback to lightweight matching
+        if (decryptedEntities == null) {
+            list.filter { light ->
+                keywords.all { q ->
+                    light.title.lowercase().contains(q) || light.username.lowercase().contains(q)
                 }
             }
+        } else {
+            val fullMatchIds = decryptedEntities.filter { full ->
+                keywords.all { q ->
+                    full.title.lowercase().contains(q) ||
+                    full.username.lowercase().contains(q) ||
+                    full.website.lowercase().contains(q) ||
+                    full.notes.lowercase().contains(q) ||
+                    full.category.lowercase().contains(q) ||
+                    full.tags.any { t -> t.lowercase().contains(q) } ||
+                    full.customFields.any { f -> f.key.lowercase().contains(q) || f.value.lowercase().contains(q) }
+                }
+            }.map { it.id }.toSet()
+            
+            list.filter { fullMatchIds.contains(it.id) }
         }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -160,3 +221,14 @@ class VaultViewModelFactory(
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
+
+data class WeakEntryData(
+    val entry: VaultListEntry,
+    val score: Int,
+    val reasons: List<String>
+)
+
+data class ReusedGroupData(
+    val passwordScore: Int,
+    val entries: List<VaultListEntry>
+)

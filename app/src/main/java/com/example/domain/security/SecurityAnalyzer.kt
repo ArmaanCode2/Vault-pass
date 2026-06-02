@@ -3,88 +3,170 @@ package com.example.domain.security
 import com.example.domain.models.VaultEntry
 
 data class SecurityStats(
+    val securityScore: Int,
     val totalPasswords: Int,
+    val strongPasswords: Int,
+    val mediumPasswords: Int,
     val weakPasswords: Int,
     val reusedPasswords: Int,
-    val securityScore: Int,
-    val securityStatus: String
+    val missingPasswords: Int,
+    val securityStatus: String,
+    val weakEntryIds: Set<Int> = emptySet(),
+    val reusedEntryIds: Set<Int> = emptySet(),
+    val missingEntryIds: Set<Int> = emptySet(),
+    val recommendations: List<SecurityRecommendation> = emptyList()
 )
+
+enum class RecommendationAction { FIX_WEAK, FIX_REUSED, FIX_MISSING }
+
+data class SecurityRecommendation(
+    val title: String,
+    val description: String,
+    val actionType: RecommendationAction,
+    val priority: Int
+)
+
+object RecommendationEngine {
+    fun generateRecommendations(weakCount: Int, reusedCount: Int, missingCount: Int): List<SecurityRecommendation> {
+        val recommendations = mutableListOf<SecurityRecommendation>()
+
+        if (missingCount > 0) {
+            recommendations.add(
+                SecurityRecommendation(
+                    title = "Add $missingCount missing passwords",
+                    description = "Incomplete entries are insecure and difficult to manage.",
+                    actionType = RecommendationAction.FIX_MISSING,
+                    priority = 0
+                )
+            )
+        }
+        
+        if (weakCount > 0) {
+            recommendations.add(
+                SecurityRecommendation(
+                    title = "Replace $weakCount weak passwords",
+                    description = "Weak passwords are easily guessable. Update them to improve your security score.",
+                    actionType = RecommendationAction.FIX_WEAK,
+                    priority = if (weakCount > 5) 1 else 3
+                )
+            )
+        }
+        
+        if (reusedCount > 0) {
+            recommendations.add(
+                SecurityRecommendation(
+                    title = "Fix $reusedCount reused passwords",
+                    description = "Reusing passwords increases risk across multiple accounts.",
+                    actionType = RecommendationAction.FIX_REUSED,
+                    priority = if (reusedCount > 3) 2 else 4
+                )
+            )
+        }
+        
+        return recommendations.sortedBy { it.priority }
+    }
+}
 
 object SecurityAnalyzer {
 
     fun analyze(entries: List<VaultEntry>): SecurityStats {
-        if (entries.isEmpty()) {
+        val total = entries.size
+
+        if (total == 0) {
             return SecurityStats(
+                securityScore = 0,
                 totalPasswords = 0,
+                strongPasswords = 0,
+                mediumPasswords = 0,
                 weakPasswords = 0,
                 reusedPasswords = 0,
-                securityScore = 0,
-                securityStatus = "No passwords stored"
+                missingPasswords = 0,
+                securityStatus = "No passwords stored",
+                weakEntryIds = emptySet(),
+                reusedEntryIds = emptySet(),
+                missingEntryIds = emptySet(),
+                recommendations = emptyList()
             )
         }
 
-        val total = entries.size
-        
+        var totalScore = 0
         var weakCount = 0
-        var totalScore = 0.0
+        var mediumCount = 0
+        var strongCount = 0
+        var missingCount = 0
+        
+        val weakEntryIds = mutableSetOf<Int>()
+        val reusedEntryIds = mutableSetOf<Int>()
+        val missingEntryIds = mutableSetOf<Int>()
         val passwordCounts = mutableMapOf<String, Int>()
 
-        // Pass 1: Count frequency of each password
+        // Pass 1: Count frequency of each password and calculate strength
         for (entry in entries) {
             val pwd = entry.password
-            if (pwd.isNotEmpty()) {
-                passwordCounts[pwd] = (passwordCounts[pwd] ?: 0) + 1
+            if (pwd.isEmpty()) {
+                missingCount++
+                missingEntryIds.add(entry.id)
+                continue
             }
-        }
 
-        // Pass 2: Calculate individual scores and weak counts
-        for (entry in entries) {
-            val pwd = entry.password
-            if (pwd.isNotEmpty()) {
-                val score = scorePassword(pwd)
-                totalScore += score
-                
-                // Keep the old definition of weak for the UI counter, or use score < 60
-                if (score <= 40) {
-                    weakCount++
-                }
+            passwordCounts[pwd] = (passwordCounts[pwd] ?: 0) + 1
+
+            val score = scorePassword(pwd)
+            totalScore += score
+            
+            if (score <= 40) {
+                weakCount++
+                weakEntryIds.add(entry.id)
+            } else if (score <= 70) {
+                mediumCount++
             } else {
-                weakCount++ // empty is weak
+                strongCount++
             }
         }
 
-        // Pass 3: Calculate reuse
+        // Pass 2: Calculate reuse
         var reusedCount = 0
         for (entry in entries) {
             val pwd = entry.password
             if (pwd.isNotEmpty() && (passwordCounts[pwd] ?: 0) > 1) {
                 reusedCount++
+                reusedEntryIds.add(entry.id)
             }
         }
 
+        val analyzedPasswords = total - missingCount
+
         // Vault base score is average of all passwords
-        val averageScore = totalScore / total
+        val averageScore = if (analyzedPasswords > 0) totalScore / analyzedPasswords else 0
 
         // Reuse penalty: up to 30 points if 100% of passwords are reused
-        val reuseRatio = reusedCount.toDouble() / total
+        val reuseRatio = if (analyzedPasswords > 0) reusedCount.toDouble() / analyzedPasswords else 0.0
         val reusePenalty = reuseRatio * 30.0
         
         val finalScore = (averageScore - reusePenalty).toInt().coerceIn(0, 100)
 
-        val status = when (finalScore) {
-            in 81..100 -> "Excellent"
-            in 61..80 -> "Good"
-            in 41..60 -> "Fair"
-            in 21..40 -> "Very Weak"
+        val status = when {
+            analyzedPasswords == 0 -> "Incomplete"
+            finalScore in 81..100 -> "Excellent"
+            finalScore in 61..80 -> "Good"
+            finalScore in 41..60 -> "Fair"
+            finalScore in 21..40 -> "Very Weak"
             else -> "Critical"
         }
 
         return SecurityStats(
+            securityScore = finalScore,
             totalPasswords = total,
+            strongPasswords = strongCount,
+            mediumPasswords = mediumCount,
             weakPasswords = weakCount,
             reusedPasswords = reusedCount,
-            securityScore = finalScore,
-            securityStatus = status
+            missingPasswords = missingCount,
+            securityStatus = status,
+            weakEntryIds = weakEntryIds,
+            reusedEntryIds = reusedEntryIds,
+            missingEntryIds = missingEntryIds,
+            recommendations = RecommendationEngine.generateRecommendations(weakCount, reusedCount, missingCount)
         )
     }
 
@@ -130,5 +212,38 @@ object SecurityAnalyzer {
         }
 
         return score.toInt().coerceIn(0, 100)
+    }
+
+    fun getWeaknessReasons(password: String): List<String> {
+        if (password.isEmpty()) return listOf("Empty password")
+        
+        val reasons = mutableListOf<String>()
+        if (password.length < 8) reasons.add("Too short")
+        if (!password.any { it.isUpperCase() }) reasons.add("Missing uppercase letter")
+        if (!password.any { it.isLowerCase() }) reasons.add("Missing lowercase letter")
+        if (!password.any { it.isDigit() }) reasons.add("Missing number")
+        if (!password.any { !it.isLetterOrDigit() }) reasons.add("Missing symbol")
+        
+        val commonPasswords = listOf("password", "123456", "12345678", "qwerty", "admin", "letmein", "password123")
+        if (commonPasswords.contains(password.lowercase())) {
+            reasons.add("Commonly used password")
+        }
+
+        val dictionaryWords = listOf("football", "dragon", "arsenal", "liverpool", "monkey", "sunshine", "iloveyou")
+        if (dictionaryWords.any { password.lowercase().contains(it) }) {
+            reasons.add("Contains common dictionary word")
+        }
+
+        val repeatedPattern = Regex("(.)\\1{2,}")
+        if (repeatedPattern.containsMatchIn(password)) {
+            reasons.add("Repeated characters detected")
+        }
+
+        val sequentialPatterns = listOf("12345", "qwerty", "abcdef", "98765", "asdfg")
+        if (sequentialPatterns.any { password.lowercase().contains(it) }) {
+            reasons.add("Sequential pattern detected")
+        }
+
+        return reasons
     }
 }

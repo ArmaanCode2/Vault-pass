@@ -57,6 +57,18 @@ fun VaultApp(
             composable("settings") {
                 SettingsScreen(viewModel, navController)
             }
+            composable("security") {
+                SecurityScreen(viewModel, navController)
+            }
+            composable("weak_passwords") {
+                WeakPasswordsScreen(viewModel, navController)
+            }
+            composable("reused_passwords") {
+                ReusedPasswordsScreen(viewModel, navController)
+            }
+            composable("missing_passwords") {
+                MissingPasswordsScreen(viewModel, navController)
+            }
             composable("generator") {
                 PasswordGeneratorScreen(navController)
             }

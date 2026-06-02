@@ -23,12 +23,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.domain.models.VaultListEntry
 import com.example.ui.VaultViewModel
+import com.example.ui.DashboardFilter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
     val entriesState by viewModel.dashboardEntries.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val activeFilter by viewModel.activeFilter.collectAsStateWithLifecycle()
     val securityStats by viewModel.securityStats.collectAsStateWithLifecycle()
 
     var isSearchActive by remember { mutableStateOf(false) }
@@ -105,7 +107,7 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                     )
                     NavigationBarItem(
                         selected = false,
-                        onClick = { }, // Future security center
+                        onClick = { navController.navigate("security") { launchSingleTop = true } },
                         icon = { Icon(Icons.Default.Shield, contentDescription = "Security") },
                         label = { Text("Security") }
                     )
@@ -180,9 +182,9 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        StatCard(modifier = Modifier.weight(1f), count = securityStats?.totalPasswords?.toString() ?: "0", label = "TOTAL", color = MaterialTheme.colorScheme.primary)
-                        StatCard(modifier = Modifier.weight(1f), count = securityStats?.weakPasswords?.toString() ?: "0", label = "WEAK", color = MaterialTheme.colorScheme.error)
-                        StatCard(modifier = Modifier.weight(1f), count = securityStats?.reusedPasswords?.toString() ?: "0", label = "REUSED", color = MaterialTheme.colorScheme.tertiary)
+                        StatCard(modifier = Modifier.weight(1f).clickable { viewModel.setDashboardFilter(DashboardFilter.ALL) }, count = securityStats?.totalPasswords?.toString() ?: "0", label = "TOTAL", color = MaterialTheme.colorScheme.primary)
+                        StatCard(modifier = Modifier.weight(1f).clickable { viewModel.setDashboardFilter(DashboardFilter.WEAK) }, count = securityStats?.weakPasswords?.toString() ?: "0", label = "WEAK", color = MaterialTheme.colorScheme.error)
+                        StatCard(modifier = Modifier.weight(1f).clickable { viewModel.setDashboardFilter(DashboardFilter.REUSED) }, count = securityStats?.reusedPasswords?.toString() ?: "0", label = "REUSED", color = MaterialTheme.colorScheme.tertiary)
                     }
                 }
 
@@ -236,8 +238,8 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                     }
                 }
 
-                // Clear Search active indicator (preserved)
-                if (searchQuery.isNotBlank()) {
+                // Clear Search/Filter active indicator
+                if (searchQuery.isNotBlank() || activeFilter != DashboardFilter.ALL) {
                     item {
                         Surface(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
@@ -249,16 +251,24 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                val filterText = when (activeFilter) {
+                                    DashboardFilter.WEAK -> "Weak Passwords"
+                                    DashboardFilter.REUSED -> "Reused Passwords"
+                                    else -> "Search Results"
+                                }
                                 Text(
-                                    text = "Showing results for: \"$searchQuery\"",
+                                    text = if (searchQuery.isNotBlank()) "Showing results for: \"$searchQuery\"" else "Showing: $filterText",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                                 IconButton(
-                                    onClick = { viewModel.updateSearchQuery("") },
+                                    onClick = { 
+                                        viewModel.updateSearchQuery("")
+                                        viewModel.setDashboardFilter(DashboardFilter.ALL)
+                                    },
                                     modifier = Modifier.size(24.dp)
                                 ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Clear search", tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Default.Close, contentDescription = "Clear", tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(18.dp))
                                 }
                             }
                         }
@@ -272,11 +282,12 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Recently Accessed", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        if (searchQuery.isNotBlank()) {
+                        if (searchQuery.isNotBlank() || activeFilter != DashboardFilter.ALL) {
                             TextButton(onClick = { 
                                 viewModel.updateSearchQuery("")
+                                viewModel.setDashboardFilter(DashboardFilter.ALL)
                                 isSearchActive = false
-                            }) { Text("Clear Search") }
+                            }) { Text(if (activeFilter != DashboardFilter.ALL && searchQuery.isBlank()) "Show All" else "Clear Search") }
                         }
                     }
                 }
@@ -315,9 +326,6 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                                         Text(entry.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
                                         Text(entry.username, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
-                                }
-                                IconButton(onClick = { /* Copy logic could go here */ }) {
-                                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
