@@ -29,6 +29,11 @@ class VaultViewModel(
 ) : ViewModel(), DefaultLifecycleObserver {
 
     private var autoLockJob: kotlinx.coroutines.Job? = null
+    private var isPerformingSystemOperation = false
+
+    fun setPerformingSystemOperation(isPerforming: Boolean) {
+        isPerformingSystemOperation = isPerforming
+    }
 
     init {
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
@@ -41,6 +46,9 @@ class VaultViewModel(
 
     override fun onStop(owner: LifecycleOwner) {
         super.onStop(owner)
+        if (isPerformingSystemOperation) {
+            return
+        }
         // App backgrounded
         viewModelScope.launch {
             val timeout = settingsRepository.autoLockTimer.firstOrNull() ?: 60000L

@@ -100,6 +100,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
     }
     
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
+        viewModel.setPerformingSystemOperation(false)
         Log.d("VaultPass", "Export launcher returned URI: $uri")
         uri?.let {
             scope.launch {
@@ -123,6 +124,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
     }
     
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        viewModel.setPerformingSystemOperation(false)
         Log.d("VaultPass", "Import launcher returned URI: $uri")
         uri?.let {
             scope.launch {
@@ -184,8 +186,10 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                             if (exportPassword.isNotEmpty()) {
                                 showExportPasswordDialog = false
                                 try {
+                                    viewModel.setPerformingSystemOperation(true)
                                     exportLauncher.launch("vaultpass_backup.json")
                                 } catch (e: Exception) {
+                                    viewModel.setPerformingSystemOperation(false)
                                     Toast.makeText(context, "Launch failed: ${e.message}", Toast.LENGTH_LONG).show()
                                 }
                             }
@@ -472,20 +476,67 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                     Switch(
                                         checked = isBiometricEnabled, 
                                         onCheckedChange = { isEnabled -> 
-                                            scope.launch { 
-                                                if (isEnabled) {
-                                                    try {
-                                                        com.example.security.BiometricCryptoHelper.generateBiometricKey()
-                                                        com.example.security.BiometricCryptoHelper.generateBiometricAesKey()
-                                                        viewModel.wrapDekForBiometrics()
-                                                    } catch (e: Exception) {
-                                                        e.printStackTrace()
-                                                        android.widget.Toast.makeText(context, "Failed to generate biometric key: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
-                                                        return@launch
-                                                    }
+                                            if (isEnabled) {
+                                                val fragmentActivity = context as? androidx.fragment.app.FragmentActivity
+                                                if (fragmentActivity == null) {
+                                                    android.widget.Toast.makeText(context, "Cannot show biometric prompt on this device", android.widget.Toast.LENGTH_SHORT).show()
+                                                    return@Switch
                                                 }
-                                                viewModel.settingsRepository.setBiometricEnabled(isEnabled) 
-                                            } 
+                                                try {
+                                                    com.example.security.BiometricCryptoHelper.generateBiometricKey()
+                                                    com.example.security.BiometricCryptoHelper.generateBiometricAesKey()
+                                                    
+                                                    val cipher = com.example.security.BiometricCryptoHelper.getEncryptCipherForBiometric()
+                                                    if (cipher == null) {
+                                                        android.widget.Toast.makeText(context, "Failed to initialize biometric encryption", android.widget.Toast.LENGTH_SHORT).show()
+                                                        return@Switch
+                                                    }
+                                                    
+                                                    val executor = androidx.core.content.ContextCompat.getMainExecutor(context)
+                                                    val promptInfo = androidx.biometric.BiometricPrompt.PromptInfo.Builder()
+                                                        .setTitle("Enable Biometric Unlock")
+                                                        .setSubtitle("Authenticate to secure your vault")
+                                                        .setNegativeButtonText("Cancel")
+                                                        .build()
+                                                        
+                                                    val biometricPrompt = androidx.biometric.BiometricPrompt(fragmentActivity, executor,
+                                                        object : androidx.biometric.BiometricPrompt.AuthenticationCallback() {
+                                                            override fun onAuthenticationSucceeded(result: androidx.biometric.BiometricPrompt.AuthenticationResult) {
+                                                                super.onAuthenticationSucceeded(result)
+                                                                scope.launch(kotlinx.coroutines.Dispatchers.Default) {
+                                                                    try {
+                                                                        val authCipher = result.cryptoObject?.cipher ?: throw IllegalStateException("Cipher null")
+                                                                        val softwareDek = viewModel.vaultRepository.getSoftwareDek() ?: throw IllegalStateException("Vault is locked")
+                                                                        val iv = authCipher.iv
+                                                                        val encryptedData = authCipher.doFinal(softwareDek)
+                                                                        val combined = iv + encryptedData
+                                                                        val dekBioWrapped = android.util.Base64.encodeToString(combined, android.util.Base64.NO_WRAP)
+                                                                        
+                                                                        viewModel.settingsRepository.saveDekBioWrappedSync(dekBioWrapped)
+                                                                        viewModel.settingsRepository.setBiometricEnabled(true)
+                                                                    } catch (e: Exception) {
+                                                                        e.printStackTrace()
+                                                                        withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                                            android.widget.Toast.makeText(context, "Encryption failed: ${e.message ?: e.toString()}", android.widget.Toast.LENGTH_LONG).show()
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                            
+                                                            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                                                                android.widget.Toast.makeText(context, "Auth error: $errString", android.widget.Toast.LENGTH_SHORT).show()
+                                                            }
+                                                        })
+                                                        
+                                                    biometricPrompt.authenticate(promptInfo, androidx.biometric.BiometricPrompt.CryptoObject(cipher))
+                                                    
+                                                } catch (e: Exception) {
+                                                    e.printStackTrace()
+                                                    android.widget.Toast.makeText(context, "Biometric setup failed: ${e.message ?: e.toString()}", android.widget.Toast.LENGTH_LONG).show()
+                                                }
+                                            } else {
+                                                scope.launch { viewModel.settingsRepository.setBiometricEnabled(false) }
+                                            }
                                         }
                                     ) 
                                 }
@@ -584,8 +635,10 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                 trailingContent = { Icon(Icons.Default.ChevronRight, tint = MaterialTheme.colorScheme.onSurfaceVariant, contentDescription = null) },
                                 onClick = { 
                                     try {
+                                        viewModel.setPerformingSystemOperation(true)
                                         importLauncher.launch(arrayOf("application/json"))
                                     } catch (e: Exception) {
+                                        viewModel.setPerformingSystemOperation(false)
                                         Toast.makeText(context, "Launch failed: ${e.message}", Toast.LENGTH_LONG).show()
                                     }
                                 }
