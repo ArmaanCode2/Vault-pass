@@ -17,7 +17,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.example.ui.DashboardFilter
 import com.example.ui.VaultViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)

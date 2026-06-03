@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 
-enum class DashboardFilter { ALL, WEAK, REUSED }
+
 
 class VaultViewModel(
     val vaultRepository: VaultRepository,
@@ -26,6 +26,9 @@ class VaultViewModel(
 ) : ViewModel() {
 
     // Auth State
+    private val _isUnlocking = MutableStateFlow(false)
+    val isUnlocking: StateFlow<Boolean> = _isUnlocking.asStateFlow()
+
     private val _isUnlocked = MutableStateFlow(false)
     val isUnlocked: StateFlow<Boolean> = _isUnlocked.asStateFlow()
 
@@ -35,12 +38,7 @@ class VaultViewModel(
     private val _isImporting = MutableStateFlow(false)
     val isImporting: StateFlow<Boolean> = _isImporting.asStateFlow()
 
-    private val _activeFilter = MutableStateFlow(DashboardFilter.ALL)
-    val activeFilter: StateFlow<DashboardFilter> = _activeFilter.asStateFlow()
 
-    fun setDashboardFilter(filter: DashboardFilter) {
-        _activeFilter.value = filter
-    }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     private val allDecryptedEntries: StateFlow<List<VaultEntry>?> = _isUnlocked
@@ -158,32 +156,16 @@ class VaultViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    val dashboardEntries: StateFlow<List<VaultListEntry>?> = _activeFilter.flatMapLatest { filter ->
-        if (filter == DashboardFilter.ALL) {
-            combine(allLightweightEntries.filterNotNull(), allDecryptedEntries, _searchQuery) { lightEntities, decryptedEntities, query ->
-                processDashboardEntries(lightEntities, decryptedEntities, query, filter, null)
-            }
-        } else {
-            combine(allLightweightEntries.filterNotNull(), allDecryptedEntries, _searchQuery, detailedSecurityStats) { lightEntities, decryptedEntities, query, stats ->
-                processDashboardEntries(lightEntities, decryptedEntities, query, filter, stats)
-            }
-        }
+    val dashboardEntries: StateFlow<List<VaultListEntry>?> = combine(allLightweightEntries.filterNotNull(), allDecryptedEntries, _searchQuery) { lightEntities, decryptedEntities, query ->
+        processDashboardEntries(lightEntities, decryptedEntities, query)
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private fun processDashboardEntries(
         lightEntities: List<VaultListEntry>,
         decryptedEntities: List<VaultEntry>?,
-        query: String,
-        filter: DashboardFilter,
-        stats: SecurityStats?
+        query: String
     ): List<VaultListEntry> {
-        var list = lightEntities
-        
-        if (filter == DashboardFilter.WEAK && stats != null) {
-            list = list.filter { stats.weakEntryIds.contains(it.id) }
-        } else if (filter == DashboardFilter.REUSED && stats != null) {
-            list = list.filter { stats.reusedEntryIds.contains(it.id) }
-        }
+        val list = lightEntities
 
         if (query.isBlank()) {
             return list
@@ -220,127 +202,147 @@ class VaultViewModel(
     
     val isFirstLaunch: StateFlow<Boolean?> = settingsRepository.masterPasswordHash.map { it == null }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    private fun performMigration(password: String, salt: String) {
-        viewModelScope.launch {
+    private suspend fun performMigration(password: String, salt: String) {
+        try {
+            // 1. Generate new software DEK
+            val newDek = ByteArray(32)
+            java.security.SecureRandom().nextBytes(newDek)
+
+            // 2. Wrap new DEK with Master Password KEK
+            val mpKek = PasswordHashHelper.deriveMasterKey(password, salt)
+            val dekMpWrapped = com.example.security.CryptoManager.wrapDekWithKek(newDek, mpKek)
+            
+            // 3. (Removed Biometric Wrapping in Background: Requires User Authentication)
+
+            // 4. PREPARE PHASE: Save pending wrapped DEKs
+            settingsRepository.savePendingDekMpWrappedSync(dekMpWrapped)
+
+            // 5. COMMIT PHASE (DB): Translate Data
+            // Read all current entries using OLD Keystore key (CryptoManager hasn't been injected yet)
+            val currentEntries = vaultRepository.allEntries.first()
+            
+            // Inject new DEK
+            vaultRepository.injectSoftwareDek(newDek)
+
+            // Rewrite all entries to trigger encryption with new DEK
+            vaultRepository.updateEntries(currentEntries)
+
+            // 6. FINALIZE PHASE: Commit permanent keys and clear pending
+            settingsRepository.saveDekMpWrappedSync(dekMpWrapped)
+            settingsRepository.clearPendingKeysSync()
+            
+            recalculateSecurityStats()
+            _isUnlocked.value = true
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun unlockWithPassword(password: String): Boolean {
+        if (_isUnlocking.value) return false
+        _isUnlocking.value = true
+        return withContext(Dispatchers.Default) {
             try {
-                // 1. Generate new software DEK
-                val newDek = ByteArray(32)
-                java.security.SecureRandom().nextBytes(newDek)
+                val hash = masterHash.value ?: return@withContext false
+                val salt = masterSalt.value ?: return@withContext false
+                val isValid = PasswordHashHelper.verifyPassword(password, salt, hash)
+                if (isValid) {
+                    val mpWrapped = settingsRepository.getDekMpWrappedSync()
+                    if (mpWrapped != null) {
+                        // User is migrated, unwrap DEK
+                        val kek = PasswordHashHelper.deriveMasterKey(password, salt)
+                        val dek = com.example.security.CryptoManager.unwrapDekWithKek(mpWrapped, kek)
+                        if (dek != null) {
+                            vaultRepository.injectSoftwareDek(dek)
+                            _isUnlocked.value = true
+                            return@withContext true
+                        }
+                        return@withContext false
+                    } else {
+                        val pendingMpWrapped = settingsRepository.getPendingDekMpWrappedSync()
+                        if (pendingMpWrapped != null) {
+                            // MIGRATION CRASH RECOVERY
+                            recoverMigration(password, salt, pendingMpWrapped)
+                        } else {
+                            // User has NOT migrated, trigger migration
+                            performMigration(password, salt)
+                        }
+                    }
+                    return@withContext true
+                }
+                return@withContext false
+            } finally {
+                _isUnlocking.value = false
+            }
+        }
+    }
 
-                // 2. Wrap new DEK with Master Password KEK
-                val mpKek = PasswordHashHelper.deriveMasterKey(password, salt)
-                val dekMpWrapped = com.example.security.CryptoManager.wrapDekWithKek(newDek, mpKek)
-                
-                // 3. (Removed Biometric Wrapping in Background: Requires User Authentication)
+    private suspend fun recoverMigration(password: String, salt: String, pendingMpWrapped: String) {
+        val kek = PasswordHashHelper.deriveMasterKey(password, salt)
+        val dek = com.example.security.CryptoManager.unwrapDekWithKek(pendingMpWrapped, kek)
+        if (dek != null) {
+            vaultRepository.injectSoftwareDek(dek)
+            
+            val testEntry = vaultRepository.allRawEntities.first().firstOrNull()
+            var dbUpdateSucceeded = true
+            if (testEntry != null) {
+                val decrypted = vaultRepository.decryptEntity(testEntry)
+                if (decrypted.isDecryptionFailed) {
+                    dbUpdateSucceeded = false
+                }
+            }
 
-                // 4. PREPARE PHASE: Save pending wrapped DEKs
-                settingsRepository.savePendingDekMpWrappedSync(dekMpWrapped)
-
-                // 5. COMMIT PHASE (DB): Translate Data
-                // Read all current entries using OLD Keystore key (CryptoManager hasn't been injected yet)
-                val currentEntries = vaultRepository.allEntries.first()
-                
-                // Inject new DEK
-                vaultRepository.injectSoftwareDek(newDek)
-
-                // Rewrite all entries to trigger encryption with new DEK
-                vaultRepository.updateEntries(currentEntries)
-
-                // 6. FINALIZE PHASE: Commit permanent keys and clear pending
-                settingsRepository.saveDekMpWrappedSync(dekMpWrapped)
+            if (dbUpdateSucceeded) {
+                // DB was updated successfully. Finalize migration.
+                settingsRepository.saveDekMpWrappedSync(pendingMpWrapped)
+                val pendingBioWrapped = settingsRepository.getPendingDekBioWrappedSync()
+                if (pendingBioWrapped != null) {
+                    settingsRepository.saveDekBioWrappedSync(pendingBioWrapped)
+                }
                 settingsRepository.clearPendingKeysSync()
-                
-                recalculateSecurityStats()
                 _isUnlocked.value = true
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-
-    fun unlockWithPassword(password: String): Boolean {
-        val hash = masterHash.value ?: return false
-        val salt = masterSalt.value ?: return false
-        val isValid = PasswordHashHelper.verifyPassword(password, salt, hash)
-        if (isValid) {
-            val mpWrapped = settingsRepository.getDekMpWrappedSync()
-            if (mpWrapped != null) {
-                // User is migrated, unwrap DEK
-                val kek = PasswordHashHelper.deriveMasterKey(password, salt)
-                val dek = com.example.security.CryptoManager.unwrapDekWithKek(mpWrapped, kek)
-                if (dek != null) {
-                    vaultRepository.injectSoftwareDek(dek)
-                    _isUnlocked.value = true
-                    return true
-                }
-                return false
             } else {
-                val pendingMpWrapped = settingsRepository.getPendingDekMpWrappedSync()
-                if (pendingMpWrapped != null) {
-                    // MIGRATION CRASH RECOVERY
-                    recoverMigration(password, salt, pendingMpWrapped)
-                } else {
-                    // User has NOT migrated, trigger migration
-                    performMigration(password, salt)
-                }
-            }
-            return true
-        }
-        return false
-    }
-
-    private fun recoverMigration(password: String, salt: String, pendingMpWrapped: String) {
-        viewModelScope.launch {
-            val kek = PasswordHashHelper.deriveMasterKey(password, salt)
-            val dek = com.example.security.CryptoManager.unwrapDekWithKek(pendingMpWrapped, kek)
-            if (dek != null) {
-                vaultRepository.injectSoftwareDek(dek)
-                
-                val testEntry = vaultRepository.allRawEntities.first().firstOrNull()
-                var dbUpdateSucceeded = true
-                if (testEntry != null) {
-                    val decrypted = vaultRepository.decryptEntity(testEntry)
-                    if (decrypted.isDecryptionFailed) {
-                        dbUpdateSucceeded = false
-                    }
-                }
-
-                if (dbUpdateSucceeded) {
-                    // DB was updated successfully. Finalize migration.
-                    settingsRepository.saveDekMpWrappedSync(pendingMpWrapped)
-                    val pendingBioWrapped = settingsRepository.getPendingDekBioWrappedSync()
-                    if (pendingBioWrapped != null) {
-                        settingsRepository.saveDekBioWrappedSync(pendingBioWrapped)
-                    }
-                    settingsRepository.clearPendingKeysSync()
-                    _isUnlocked.value = true
-                } else {
-                    // DB was NOT updated (transaction rolled back). 
-                    // Clear pending keys and start migration again.
-                    settingsRepository.clearPendingKeysSync()
-                    vaultRepository.clearSoftwareDek()
-                    performMigration(password, salt)
-                }
-            } else {
-                // If we can't unwrap pending DEK, clear and restart
+                // DB was NOT updated (transaction rolled back). 
+                // Clear pending keys and start migration again.
                 settingsRepository.clearPendingKeysSync()
+                vaultRepository.clearSoftwareDek()
                 performMigration(password, salt)
             }
+        } else {
+            // If we can't unwrap pending DEK, clear and restart
+            settingsRepository.clearPendingKeysSync()
+            performMigration(password, salt)
         }
     }
     
-    fun unlockWithBiometrics(challenge: ByteArray, signature: ByteArray): Boolean {
-        val isValid = com.example.security.BiometricCryptoHelper.verifySignature(challenge, signature)
-        if (isValid) {
-            _isUnlocked.value = true
+    suspend fun unlockWithBiometrics(challenge: ByteArray, signature: ByteArray): Boolean {
+        if (_isUnlocking.value) return false
+        _isUnlocking.value = true
+        return withContext(Dispatchers.Default) {
+            try {
+                val isValid = com.example.security.BiometricCryptoHelper.verifySignature(challenge, signature)
+                if (isValid) {
+                    _isUnlocked.value = true
+                }
+                return@withContext isValid
+            } finally {
+                _isUnlocking.value = false
+            }
         }
-        return isValid
     }
 
-    fun unlockWithBiometrics(dek: ByteArray): Boolean {
-        vaultRepository.injectSoftwareDek(dek)
-        _isUnlocked.value = true
-        return true
+    suspend fun unlockWithBiometrics(dek: ByteArray): Boolean {
+        if (_isUnlocking.value) return false
+        _isUnlocking.value = true
+        return withContext(Dispatchers.Default) {
+            try {
+                vaultRepository.injectSoftwareDek(dek)
+                _isUnlocked.value = true
+                return@withContext true
+            } finally {
+                _isUnlocking.value = false
+            }
+        }
     }
 
     suspend fun wrapDekForBiometrics() {

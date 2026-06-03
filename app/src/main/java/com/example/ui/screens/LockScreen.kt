@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.example.ui.VaultViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun LockScreen(
@@ -148,13 +149,19 @@ fun LockScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    val isUnlocking by viewModel.isUnlocking.collectAsStateWithLifecycle()
+                    val coroutineScope = rememberCoroutineScope()
+
                     Button(
                         onClick = {
-                            val success = viewModel.unlockWithPassword(password)
-                            if (!success) {
-                                errorMessage = "Incorrect master password"
+                            coroutineScope.launch {
+                                val success = viewModel.unlockWithPassword(password)
+                                if (!success) {
+                                    errorMessage = "Incorrect master password"
+                                }
                             }
                         },
+                        enabled = !isUnlocking,
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
@@ -162,9 +169,17 @@ fun LockScreen(
                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     ) {
-                        Icon(Icons.Default.LockOpen, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Unlock", style = MaterialTheme.typography.titleMedium)
+                        if (isUnlocking) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(Icons.Default.LockOpen, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Unlock", style = MaterialTheme.typography.titleMedium)
+                        }
                     }
                     
 

@@ -22,6 +22,8 @@ import com.example.ui.screens.VaultApp
 import com.example.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.isSystemInDarkTheme
 
@@ -140,26 +142,32 @@ class MainActivity : FragmentActivity() {
                 object : BiometricPrompt.AuthenticationCallback() {
                     override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                         super.onAuthenticationSucceeded(result)
-                        try {
-                            if (result.cryptoObject?.cipher != null && dekBioWrapped != null) {
-                                // Unwrap DEK
-                                val combined = android.util.Base64.decode(dekBioWrapped, android.util.Base64.NO_WRAP)
-                                val encryptedData = combined.copyOfRange(12, combined.size)
-                                val dek = result.cryptoObject!!.cipher!!.doFinal(encryptedData)
-                                viewModel.unlockWithBiometrics(dek)
-                            } else if (result.cryptoObject?.signature != null && challenge != null) {
-                                // Challenge-Response
-                                val authSignature = result.cryptoObject!!.signature!!
-                                authSignature.update(challenge)
-                                val signatureBytes = authSignature.sign()
-                                val unlocked = viewModel.unlockWithBiometrics(challenge, signatureBytes)
-                                if (!unlocked) {
-                                    android.widget.Toast.makeText(this@MainActivity, "Biometric verification failed", android.widget.Toast.LENGTH_SHORT).show()
+                        lifecycleScope.launch(Dispatchers.Default) {
+                            try {
+                                if (result.cryptoObject?.cipher != null && dekBioWrapped != null) {
+                                    // Unwrap DEK
+                                    val combined = android.util.Base64.decode(dekBioWrapped, android.util.Base64.NO_WRAP)
+                                    val encryptedData = combined.copyOfRange(12, combined.size)
+                                    val dek = result.cryptoObject!!.cipher!!.doFinal(encryptedData)
+                                    viewModel.unlockWithBiometrics(dek)
+                                } else if (result.cryptoObject?.signature != null && challenge != null) {
+                                    // Challenge-Response
+                                    val authSignature = result.cryptoObject!!.signature!!
+                                    authSignature.update(challenge)
+                                    val signatureBytes = authSignature.sign()
+                                    val unlocked = viewModel.unlockWithBiometrics(challenge, signatureBytes)
+                                    if (!unlocked) {
+                                        withContext(Dispatchers.Main) {
+                                            android.widget.Toast.makeText(this@MainActivity, "Biometric verification failed", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                withContext(Dispatchers.Main) {
+                                    android.widget.Toast.makeText(this@MainActivity, "Authentication error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                            android.widget.Toast.makeText(this@MainActivity, "Authentication error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 })
