@@ -49,7 +49,7 @@ class VaultViewModel(
         if (isPerformingSystemOperation) {
             return
         }
-        // App backgrounded
+        // App backgrounded (delayed by 700ms from ProcessLifecycleOwner)
         viewModelScope.launch {
             val timeout = settingsRepository.autoLockTimer.firstOrNull() ?: 60000L
             if (timeout == 0L) {
@@ -60,6 +60,19 @@ class VaultViewModel(
                     kotlinx.coroutines.delay(timeout)
                     lock()
                 }
+            }
+        }
+    }
+
+    fun handleActivityStopped() {
+        if (isPerformingSystemOperation) return
+        
+        // Instantaneous check for "Immediately" auto-lock
+        viewModelScope.launch {
+            val timeout = settingsRepository.autoLockTimer.firstOrNull() ?: 60000L
+            if (timeout == 0L) {
+                autoLockJob?.cancel()
+                lock()
             }
         }
     }
@@ -482,54 +495,88 @@ class VaultViewModel(
         recalculateSecurityStats()
     }
 
-    suspend    fun generateExportPayload(password: String): ByteArray {
+    suspend fun generateExportPayload(password: String): ByteArray {
         val entries = getAllEntriesDecrypted()
-        val exportMap = mutableMapOf<String, List<String>>()
-        entries.forEach { entry ->
-            val values = mutableListOf<String>()
-            values.add(entry.username)
-            values.add(entry.password)
-            entry.customFields.forEach { customField -> values.add(customField.value) }
-            
-            var key = entry.title
-            var counter = 1
-            while (exportMap.containsKey(key)) {
-                key = "${entry.title} ($counter)"
-                counter++
+        
+        // Ensure unique titles since they are visually important, even in the new array format
+        val titleCounts = mutableMapOf<String, Int>()
+        val exportList = entries.map { entry ->
+            var finalTitle = entry.title
+            var count = titleCounts[finalTitle] ?: 0
+            if (count > 0) {
+                do {
+                    count++
+                    finalTitle = "${entry.title} ($count)"
+                } while (titleCounts.containsKey(finalTitle))
             }
-            exportMap[key] = values
+            titleCounts[finalTitle] = count.takeIf { it > 0 } ?: 1
+            
+            VaultExportDto(
+                title = finalTitle,
+                username = entry.username,
+                password = entry.password,
+                customFields = entry.customFields.map { it.value },
+                isFavorite = entry.isFavorite
+            )
         }
-        val jsonString = kotlinx.serialization.json.Json.encodeToString(exportMap)
+        
+        val jsonString = kotlinx.serialization.json.Json.encodeToString(exportList)
         val backupData = com.example.security.CryptoManager.encryptBackup(jsonString, password)
         val base64Backup = android.util.Base64.encodeToString(backupData, android.util.Base64.NO_WRAP)
         return base64Backup.toByteArray(Charsets.UTF_8)
     }
 
     fun decodeImportPayload(jsonString: String): Pair<List<VaultEntry>, Int> {
-        val map = kotlinx.serialization.json.Json.decodeFromString<Map<String, List<String>>>(jsonString)
         val validEntries = mutableListOf<VaultEntry>()
         var localInvalidCount = 0
-        
-        for ((key, values) in map) {
-            if (values.isEmpty()) {
-                localInvalidCount++
-                continue
-            }
-            val username = values.getOrNull(0) ?: ""
-            val password = values.getOrNull(1) ?: ""
-            val customFields = mutableListOf<com.example.domain.models.CustomField>()
-            if (values.size > 2) {
-                for (i in 2 until values.size) {
-                    customFields.add(com.example.domain.models.CustomField(key = "Field ${i - 1}", value = values[i]))
+
+        // 1. Try New Format
+        try {
+            val list = kotlinx.serialization.json.Json.decodeFromString<List<VaultExportDto>>(jsonString)
+            for (dto in list) {
+                val customFields = dto.customFields.mapIndexed { index, value ->
+                    com.example.domain.models.CustomField(key = "Field ${index + 1}", value = value)
                 }
+                validEntries.add(VaultEntry(
+                    title = dto.title,
+                    username = dto.username,
+                    password = dto.password,
+                    customFields = customFields,
+                    isFavorite = dto.isFavorite
+                ))
             }
-            validEntries.add(VaultEntry(
-                title = key,
-                username = username,
-                password = password,
-                customFields = customFields
-            ))
+            return Pair(validEntries, localInvalidCount)
+        } catch (e: Exception) {
+            // Fallback to legacy map format
         }
+
+        // 2. Try Legacy Format
+        try {
+            val map = kotlinx.serialization.json.Json.decodeFromString<Map<String, List<String>>>(jsonString)
+            for ((key, values) in map) {
+                if (values.isEmpty()) {
+                    localInvalidCount++
+                    continue
+                }
+                val username = values.getOrNull(0) ?: ""
+                val password = values.getOrNull(1) ?: ""
+                val customFields = mutableListOf<com.example.domain.models.CustomField>()
+                if (values.size > 2) {
+                    for (i in 2 until values.size) {
+                        customFields.add(com.example.domain.models.CustomField(key = "Field ${i - 1}", value = values[i]))
+                    }
+                }
+                validEntries.add(VaultEntry(
+                    title = key,
+                    username = username,
+                    password = password,
+                    customFields = customFields
+                ))
+            }
+        } catch (e: Exception) {
+            localInvalidCount++ // Total failure
+        }
+        
         return Pair(validEntries, localInvalidCount)
     }
 
@@ -578,4 +625,13 @@ data class WeakEntryData(
 data class ReusedGroupData(
     val passwordScore: Int,
     val entries: List<VaultListEntry>
+)
+
+@kotlinx.serialization.Serializable
+data class VaultExportDto(
+    val title: String,
+    val username: String,
+    val password: String,
+    val customFields: List<String> = emptyList(),
+    val isFavorite: Boolean = false
 )

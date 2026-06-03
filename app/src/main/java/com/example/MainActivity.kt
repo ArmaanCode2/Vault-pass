@@ -34,7 +34,11 @@ class MainActivity : FragmentActivity() {
         VaultViewModelFactory(app.container.vaultRepository, app.container.settingsRepository)
     }
 
-    private var backgroundTime: Long = 0
+
+    override fun onStop() {
+        super.onStop()
+        viewModel.handleActivityStopped()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -85,22 +89,7 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    override fun onStop() {
-        super.onStop()
-        backgroundTime = System.currentTimeMillis()
-    }
 
-    override fun onStart() {
-        super.onStart()
-        if (backgroundTime > 0) {
-            lifecycleScope.launch {
-                val autoLockMs = viewModel.settingsRepository.autoLockTimer.first()
-                if (System.currentTimeMillis() - backgroundTime > autoLockMs) {
-                    viewModel.lock()
-                }
-            }
-        }
-    }
 
     private fun showBiometricPrompt() {
         lifecycleScope.launch {

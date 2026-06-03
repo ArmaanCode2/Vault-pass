@@ -140,7 +140,7 @@ fun PasswordDetailsScreen(
                             modifier = Modifier
                                 .size(64.dp)
                                 .background(MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(16.dp))
-                                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(16.dp)),
+                                .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(16.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -251,7 +251,7 @@ fun PasswordDetailsScreen(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surface.copy(alpha=0.9f))
-                .border(1.dp, Color.White.copy(alpha=0.1f))
+                .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.1f))
                 .padding(16.dp)
                 .navigationBarsPadding()
         ) {

@@ -9,7 +9,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,6 +29,7 @@ import com.example.ui.VaultViewModel
 @Composable
 fun MissingPasswordsScreen(viewModel: VaultViewModel, navController: NavController) {
     val missingEntries by viewModel.missingEntriesList.collectAsStateWithLifecycle()
+    val securityStats by viewModel.settingsRepository.securityStatsSummary.collectAsStateWithLifecycle(initialValue = null)
 
     Scaffold(
         topBar = {
@@ -58,8 +61,42 @@ fun MissingPasswordsScreen(viewModel: VaultViewModel, navController: NavControll
         ) {
             if (entries.isEmpty()) {
                 item {
-                    Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                        Text("No missing passwords! All credentials are complete.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val totalEntries = securityStats?.totalPasswords ?: 0
+                    Box(modifier = Modifier.fillMaxWidth().fillParentMaxHeight(0.8f), contentAlignment = Alignment.Center) {
+                        if (totalEntries == 0) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    Icons.Default.Inbox, 
+                                    contentDescription = null, 
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(64.dp)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("Vault Empty", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("No entries have been added yet.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        } else {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    Icons.Default.CheckCircle, 
+                                    contentDescription = null, 
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(64.dp)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("All Passwords Complete", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("All stored entries contain passwords.\nYour vault is complete and no action is required.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                Spacer(modifier = Modifier.height(24.dp))
+                                Surface(
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {
+                                    Text("Total Entries: $totalEntries", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                                }
+                            }
+                        }
                     }
                 }
             } else {

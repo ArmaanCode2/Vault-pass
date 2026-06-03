@@ -203,7 +203,7 @@ fun PasswordEntryScreen(
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)),
                     shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.1f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.1f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -216,7 +216,7 @@ fun PasswordEntryScreen(
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)),
                     shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.1f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.1f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -262,7 +262,7 @@ fun PasswordEntryScreen(
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)),
                     shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.1f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.1f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -283,7 +283,7 @@ fun PasswordEntryScreen(
                             )
                         }
                         
-                        HorizontalDivider(color = Color.White.copy(alpha=0.05f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha=0.05f))
 
                         Column {
                             Text("Secure Notes", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -306,7 +306,7 @@ fun PasswordEntryScreen(
                         }
 
                         if (customFields.isNotEmpty()) {
-                            HorizontalDivider(color = Color.White.copy(alpha=0.05f))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha=0.05f))
                             customFields.forEachIndexed { index, field ->
                                 val rowError = customFieldsErrors.getOrNull(index)
                                 Column(modifier = Modifier.fillMaxWidth()) {

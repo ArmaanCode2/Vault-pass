@@ -136,7 +136,7 @@ fun PasswordGeneratorScreen(navController: NavController) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)),
                     shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.1f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.1f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -160,8 +160,8 @@ fun PasswordGeneratorScreen(navController: NavController) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color(0xFF08132A).copy(alpha=0.5f), RoundedCornerShape(8.dp))
-                                .border(1.dp, Color.White.copy(alpha=0.05f), RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha=0.5f), RoundedCornerShape(8.dp))
+                                .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.05f), RoundedCornerShape(8.dp))
                                 .padding(16.dp)
                                 .defaultMinSize(minHeight = 80.dp),
                             contentAlignment = Alignment.Center
@@ -207,7 +207,7 @@ fun PasswordGeneratorScreen(navController: NavController) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)),
                     shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.1f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.1f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -233,18 +233,18 @@ fun PasswordGeneratorScreen(navController: NavController) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)),
                     shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.1f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.1f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Text("CONFIGURATION", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                        HorizontalDivider(color = Color.White.copy(alpha=0.1f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha=0.1f))
                         
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Text("Length", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                                 Box(
-                                    modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp)).border(1.dp, Color.White.copy(alpha=0.1f), RoundedCornerShape(4.dp)).padding(horizontal = 12.dp, vertical = 4.dp)
+                                    modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp)).border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.1f), RoundedCornerShape(4.dp)).padding(horizontal = 12.dp, vertical = 4.dp)
                                 ) {
                                     Text(length.toInt().toString(), style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace), color = MaterialTheme.colorScheme.primary)
                                 }
@@ -285,8 +285,8 @@ fun ConfigToggle(iconLabel: String, title: String, checked: Boolean, onCheckedCh
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF08132A).copy(alpha=0.4f), RoundedCornerShape(8.dp))
-            .border(1.dp, Color.White.copy(alpha=0.05f), RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha=0.4f), RoundedCornerShape(8.dp))
+            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.05f), RoundedCornerShape(8.dp))
             .padding(16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -296,7 +296,7 @@ fun ConfigToggle(iconLabel: String, title: String, checked: Boolean, onCheckedCh
                 modifier = Modifier
                     .size(32.dp)
                     .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp))
-                    .border(1.dp, Color.White.copy(alpha=0.1f), RoundedCornerShape(4.dp)),
+                    .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.1f), RoundedCornerShape(4.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(iconLabel, style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace), color = MaterialTheme.colorScheme.primary)

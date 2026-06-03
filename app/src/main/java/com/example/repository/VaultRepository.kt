@@ -94,10 +94,29 @@ class VaultRepository(
         val decryptedTitle = cryptoManager.decrypt(entity.titleEnc)
         val hasFailed = entity.titleEnc.isNotEmpty() && decryptedTitle == null
         
+        val decryptedUsername = cryptoManager.decrypt(entity.usernameEnc) ?: ""
+        val decryptedPassword = cryptoManager.decrypt(entity.passwordEnc) ?: ""
+        val decryptedCustomFieldsStr = cryptoManager.decrypt(entity.customFieldsEnc) ?: "[]"
+        
+        val customFieldsList: List<CustomField> = try {
+            Json.decodeFromString(decryptedCustomFieldsStr)
+        } catch(e: Exception) { emptyList() }
+        
+        val credentials = listOfNotNull(
+            decryptedUsername.takeIf { it.isNotBlank() },
+            decryptedPassword.takeIf { it.isNotBlank() }
+        ) + customFieldsList.map { it.value }.filter { it.isNotBlank() }
+        
+        val preview = if (credentials.size == 1) {
+            "Hidden for privacy"
+        } else {
+            credentials.firstOrNull() ?: ""
+        }
+        
         return VaultListEntry(
             id = entity.id,
             title = if (hasFailed) "Decryption Failed" else decryptedTitle ?: "",
-            username = cryptoManager.decrypt(entity.usernameEnc) ?: "",
+            username = preview,
             isFavorite = entity.isFavorite,
             isDecryptionFailed = hasFailed
         )

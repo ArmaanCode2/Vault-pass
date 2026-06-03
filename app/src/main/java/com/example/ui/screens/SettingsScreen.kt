@@ -345,9 +345,9 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("APPEARANCE", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp))
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF112240)),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         shape = RoundedCornerShape(16.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.1f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.1f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column {
@@ -441,7 +441,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                     }
                                 }
                             }
-                            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                             SettingsRow(
                                 title = "Hide Passwords by Default",
                                 subtitle = "Obscure passwords in lists",
@@ -460,9 +460,9 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("SECURITY", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp))
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF112240)),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         shape = RoundedCornerShape(16.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.1f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.1f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column {
@@ -541,7 +541,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                     ) 
                                 }
                             )
-                            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                             SettingsRow(
                                 title = "Disable Screenshots",
                                 subtitle = "Prevent screen capture & recents",
@@ -552,53 +552,53 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                     Switch(checked = disableScreenshots, onCheckedChange = { scope.launch { viewModel.settingsRepository.setDisableScreenshots(it) } }) 
                                 }
                             )
-                            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                             SettingsRow(
                                 title = "Auto Lock",
                                 subtitle = autoLockOptions[autoLockTimer] ?: "Unknown",
                                 icon = Icons.Default.Timer,
                                 iconColor = MaterialTheme.colorScheme.tertiary,
                                 iconBgColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.2f),
-                                trailingContent = {
-                                    Icon(
-                                        if (autoLockExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        contentDescription = null
-                                    )
-                                },
-                                onClick = { autoLockExpanded = !autoLockExpanded }
+                                trailingContent = {},
+                                onClick = { autoLockExpanded = true }
                             )
-                            androidx.compose.animation.AnimatedVisibility(visible = autoLockExpanded) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    ExposedDropdownMenuBox(
-                                        expanded = autoLockExpanded,
-                                        onExpandedChange = { autoLockExpanded = !autoLockExpanded }
-                                    ) {
-                                        OutlinedTextField(
-                                            value = autoLockOptions[autoLockTimer] ?: "1 Minute",
-                                            onValueChange = {},
-                                            readOnly = true,
-                                            label = { Text("Auto Lock Timeout") },
-                                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = autoLockExpanded) },
-                                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                                            modifier = Modifier.menuAnchor().fillMaxWidth()
-                                        )
-                                        ExposedDropdownMenu(
-                                            expanded = autoLockExpanded,
-                                            onDismissRequest = { autoLockExpanded = false }
-                                        ) {
+                            if (autoLockExpanded) {
+                                AlertDialog(
+                                    onDismissRequest = { autoLockExpanded = false },
+                                    title = { Text("Choose Auto Lock Time") },
+                                    text = {
+                                        Column {
                                             autoLockOptions.forEach { (time, label) ->
-                                                DropdownMenuItem(
-                                                    text = { Text(label) },
-                                                    onClick = {
-                                                        scope.launch { viewModel.settingsRepository.setAutoLockTimer(time) }
-                                                        autoLockExpanded = false
-                                                    }
-                                                )
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable {
+                                                            scope.launch { viewModel.settingsRepository.setAutoLockTimer(time) }
+                                                            autoLockExpanded = false
+                                                        }
+                                                        .padding(vertical = 12.dp, horizontal = 8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    RadioButton(
+                                                        selected = (time == autoLockTimer),
+                                                        onClick = {
+                                                            scope.launch { viewModel.settingsRepository.setAutoLockTimer(time) }
+                                                            autoLockExpanded = false
+                                                        }
+                                                    )
+                                                    Spacer(modifier = Modifier.width(12.dp))
+                                                    Text(label, style = MaterialTheme.typography.bodyLarge)
+                                                }
                                             }
                                         }
+                                    },
+                                    confirmButton = {},
+                                    dismissButton = {
+                                        TextButton(onClick = { autoLockExpanded = false }) {
+                                            Text("Cancel")
+                                        }
                                     }
-                                }
+                                )
                             }
                         }
                     }
@@ -608,9 +608,9 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("DATA BACKUP", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp))
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF112240)),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         shape = RoundedCornerShape(16.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.1f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.1f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column {
@@ -625,7 +625,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                     showExportPasswordDialog = true
                                 }
                             )
-                            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                             SettingsRow(
                                 title = "Import JSON",
                                 subtitle = "Restore entries from backup",

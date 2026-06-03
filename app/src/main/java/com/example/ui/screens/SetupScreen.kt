@@ -81,9 +81,9 @@ fun SetupScreen(viewModel: VaultViewModel) {
             Spacer(modifier = Modifier.height(40.dp))
             
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF112240)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 shape = RoundedCornerShape(16.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.1f)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.1f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -91,8 +91,8 @@ fun SetupScreen(viewModel: VaultViewModel) {
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     val textFieldColors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color(0xFF08132A).copy(alpha=0.5f),
-                        unfocusedContainerColor = Color(0xFF08132A).copy(alpha=0.3f),
+                        focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha=0.5f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha=0.3f),
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
                         focusedTextColor = MaterialTheme.colorScheme.onSurface,
@@ -105,7 +105,7 @@ fun SetupScreen(viewModel: VaultViewModel) {
                         placeholder = { Text("Master Password", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(1.dp, Color.White.copy(alpha=0.05f), RoundedCornerShape(8.dp)),
+                            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.05f), RoundedCornerShape(8.dp)),
                         shape = RoundedCornerShape(8.dp),
                         singleLine = true,
                         colors = textFieldColors,
@@ -128,7 +128,7 @@ fun SetupScreen(viewModel: VaultViewModel) {
                         placeholder = { Text("Confirm Password", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(1.dp, Color.White.copy(alpha=0.05f), RoundedCornerShape(8.dp)),
+                            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.05f), RoundedCornerShape(8.dp)),
                         shape = RoundedCornerShape(8.dp),
                         singleLine = true,
                         colors = textFieldColors,
