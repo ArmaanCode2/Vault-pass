@@ -167,10 +167,7 @@ fun LockScreen(
                         Text("Unlock", style = MaterialTheme.typography.titleMedium)
                     }
                     
-                    Spacer(modifier = Modifier.height(24.dp))
-                    TextButton(onClick = { /* Forgot password logic */ }) {
-                        Text("Forgot Master Password?", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+
                 }
             }
             

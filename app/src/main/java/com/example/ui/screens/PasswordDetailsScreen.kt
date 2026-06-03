@@ -197,7 +197,7 @@ fun PasswordDetailsScreen(
                                     label = field.key,
                                     value = field.value,
                                     onCopy = { viewModel.copyToClipboard(context, field.key, field.value) },
-                                    isPassword = false
+                                    isPassword = true
                                 )
                             }
                         }
@@ -315,14 +315,7 @@ fun CredentialField(label: String, value: String, onCopy: () -> Unit, isPassword
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
             Text(label.uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
             if (isPassword) {
-                Row(
-                    modifier = Modifier.background(MaterialTheme.colorScheme.primaryContainer.copy(alpha=0.1f), RoundedCornerShape(12.dp)).padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
-                    Text("Strong", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                }
+                // The badge was removed here based on user request.
             }
         }
         
