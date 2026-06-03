@@ -152,6 +152,8 @@ fun SetupScreen(viewModel: VaultViewModel) {
                         onClick = {
                             if (password.length < 8) {
                                 errorMessage = "Password must be at least 8 characters"
+                            } else if (password.length > 250) {
+                                errorMessage = "Password must not exceed 250 characters"
                             } else if (password != confirmPassword) {
                                 errorMessage = "Passwords do not match"
                             } else {

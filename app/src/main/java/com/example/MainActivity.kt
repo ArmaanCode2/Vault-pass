@@ -55,13 +55,21 @@ class MainActivity : FragmentActivity() {
 
         setContent {
             val themeMode by viewModel.settingsRepository.themeMode.collectAsStateWithLifecycle(initialValue = 0)
+            val accentColorName by viewModel.settingsRepository.accentColor.collectAsStateWithLifecycle(initialValue = "BLUE")
+            
             val isDarkTheme = when (themeMode) {
                 1 -> false
                 2 -> true
                 else -> isSystemInDarkTheme()
             }
+            
+            val accentColor = try {
+                com.example.ui.theme.AccentColor.valueOf(accentColorName)
+            } catch (e: Exception) {
+                com.example.ui.theme.AccentColor.BLUE
+            }
 
-            MyApplicationTheme(darkTheme = isDarkTheme) {
+            MyApplicationTheme(darkTheme = isDarkTheme, accentColor = accentColor) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -93,22 +101,77 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun showBiometricPrompt() {
-        val executor = ContextCompat.getMainExecutor(this)
-        val biometricPrompt = BiometricPrompt(this, executor,
-            object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    super.onAuthenticationSucceeded(result)
-                    viewModel.unlockWithBiometrics()
+        lifecycleScope.launch {
+            val dekBioWrapped = viewModel.settingsRepository.getDekBioWrappedSync()
+            var cryptoObject: BiometricPrompt.CryptoObject? = null
+            var challenge: ByteArray? = null
+
+            if (dekBioWrapped != null) {
+                // User has migrated, use AES Cipher to unwrap DEK
+                val combined = android.util.Base64.decode(dekBioWrapped, android.util.Base64.NO_WRAP)
+                if (combined.size > 12) {
+                    val iv = combined.copyOfRange(0, 12)
+                    val cipher = com.example.security.BiometricCryptoHelper.getDecryptCipherForBiometric(iv)
+                    if (cipher != null) {
+                        cryptoObject = BiometricPrompt.CryptoObject(cipher)
+                    }
                 }
-            })
+            } else {
+                // User has NOT migrated, use EC Signature challenge-response
+                val signature = com.example.security.BiometricCryptoHelper.getSignatureForBiometric()
+                if (signature != null) {
+                    cryptoObject = BiometricPrompt.CryptoObject(signature)
+                    challenge = ByteArray(32)
+                    java.security.SecureRandom().nextBytes(challenge)
+                }
+            }
 
-        val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Unlock VaultPass")
-            .setSubtitle("Log in using your biometric credential")
-            .setNegativeButtonText("Use Master Password")
-            .build()
+            if (cryptoObject == null) {
+                android.widget.Toast.makeText(
+                    this@MainActivity,
+                    "Biometric key missing or invalidated. Please use Master Password and re-enable in Settings.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                return@launch
+            }
 
-        biometricPrompt.authenticate(promptInfo)
+            val executor = ContextCompat.getMainExecutor(this@MainActivity)
+            val biometricPrompt = BiometricPrompt(this@MainActivity, executor,
+                object : BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                        super.onAuthenticationSucceeded(result)
+                        try {
+                            if (result.cryptoObject?.cipher != null && dekBioWrapped != null) {
+                                // Unwrap DEK
+                                val combined = android.util.Base64.decode(dekBioWrapped, android.util.Base64.NO_WRAP)
+                                val encryptedData = combined.copyOfRange(12, combined.size)
+                                val dek = result.cryptoObject!!.cipher!!.doFinal(encryptedData)
+                                viewModel.unlockWithBiometrics(dek)
+                            } else if (result.cryptoObject?.signature != null && challenge != null) {
+                                // Challenge-Response
+                                val authSignature = result.cryptoObject!!.signature!!
+                                authSignature.update(challenge)
+                                val signatureBytes = authSignature.sign()
+                                val unlocked = viewModel.unlockWithBiometrics(challenge, signatureBytes)
+                                if (!unlocked) {
+                                    android.widget.Toast.makeText(this@MainActivity, "Biometric verification failed", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            android.widget.Toast.makeText(this@MainActivity, "Authentication error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                })
+
+            val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                .setTitle("Unlock VaultPass")
+                .setSubtitle("Log in using your biometric credential")
+                .setNegativeButtonText("Use Master Password")
+                .build()
+
+            biometricPrompt.authenticate(promptInfo, cryptoObject)
+        }
     }
 }
 

@@ -16,7 +16,14 @@ object PasswordHashHelper {
         return Base64.encodeToString(salt, Base64.NO_WRAP)
     }
 
-    fun hashPassword(password: String, saltBase64: String): String {
+        fun deriveMasterKey(password: String, saltBase64: String): ByteArray {
+            val salt = Base64.decode(saltBase64, Base64.NO_WRAP)
+            val spec = PBEKeySpec(password.toCharArray(), salt, ITERATIONS, KEY_LENGTH)
+            val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+            return factory.generateSecret(spec).encoded
+        }
+
+        fun hashPassword(password: String, saltBase64: String): String {
         val salt = Base64.decode(saltBase64, Base64.NO_WRAP)
         val spec = PBEKeySpec(password.toCharArray(), salt, ITERATIONS, KEY_LENGTH)
         val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")

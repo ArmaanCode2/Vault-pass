@@ -94,37 +94,6 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                     )
                 )
             },
-            bottomBar = {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
-                    tonalElevation = 8.dp
-                ) {
-                    NavigationBarItem(
-                        selected = true,
-                        onClick = { },
-                        icon = { Icon(Icons.Default.Lock, contentDescription = "Vault") },
-                        label = { Text("Vault") }
-                    )
-                    NavigationBarItem(
-                        selected = false,
-                        onClick = { navController.navigate("security") { launchSingleTop = true } },
-                        icon = { Icon(Icons.Default.Shield, contentDescription = "Security") },
-                        label = { Text("Security") }
-                    )
-                    NavigationBarItem(
-                        selected = false,
-                        onClick = { navController.navigate("generator") },
-                        icon = { Icon(Icons.Default.VpnKey, contentDescription = "Generator") },
-                        label = { Text("Generator") }
-                    )
-                    NavigationBarItem(
-                        selected = false,
-                        onClick = { navController.navigate("settings") },
-                        icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                        label = { Text("Settings") }
-                    )
-                }
-            },
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = { navController.navigate("add_entry") },
@@ -183,8 +152,8 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         StatCard(modifier = Modifier.weight(1f).clickable { viewModel.setDashboardFilter(DashboardFilter.ALL) }, count = securityStats?.totalPasswords?.toString() ?: "0", label = "TOTAL", color = MaterialTheme.colorScheme.primary)
-                        StatCard(modifier = Modifier.weight(1f).clickable { viewModel.setDashboardFilter(DashboardFilter.WEAK) }, count = securityStats?.weakPasswords?.toString() ?: "0", label = "WEAK", color = MaterialTheme.colorScheme.error)
-                        StatCard(modifier = Modifier.weight(1f).clickable { viewModel.setDashboardFilter(DashboardFilter.REUSED) }, count = securityStats?.reusedPasswords?.toString() ?: "0", label = "REUSED", color = MaterialTheme.colorScheme.tertiary)
+                        StatCard(modifier = Modifier.weight(1f).clickable { viewModel.setDashboardFilter(DashboardFilter.WEAK) }, count = securityStats?.weakPasswordCount?.toString() ?: "0", label = "WEAK", color = MaterialTheme.colorScheme.error)
+                        StatCard(modifier = Modifier.weight(1f).clickable { viewModel.setDashboardFilter(DashboardFilter.REUSED) }, count = securityStats?.reusedPasswordCount?.toString() ?: "0", label = "REUSED", color = MaterialTheme.colorScheme.tertiary)
                     }
                 }
 

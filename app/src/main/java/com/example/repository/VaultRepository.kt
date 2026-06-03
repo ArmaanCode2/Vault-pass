@@ -18,11 +18,27 @@ class VaultRepository(
     private val vaultDao: VaultDao,
     private val cryptoManager: CryptoManager
 ) {
-    val allRawEntities: Flow<List<VaultEntryEntity>> = vaultDao.getAllEntries()
+    val allEntries = vaultDao.getAllEntries()
+        .map { list -> list.map { decryptEntity(it) } }
+        .flowOn(Dispatchers.IO)
 
-    val allEntries: Flow<List<VaultEntry>> = vaultDao.getAllEntries().map { entities ->
-        entities.map { decryptEntity(it) }
-    }.flowOn(Dispatchers.IO)
+    val allRawEntities = vaultDao.getAllEntries()
+
+    suspend fun getAllEntriesSync(): List<VaultEntry> = withContext(Dispatchers.IO) {
+        vaultDao.getAllEntriesSync().map { decryptEntity(it) }
+    }
+
+    fun injectSoftwareDek(dek: ByteArray) {
+        cryptoManager.injectSoftwareDek(dek)
+    }
+
+    fun getSoftwareDek(): ByteArray? {
+        return cryptoManager.getSoftwareDek()
+    }
+
+    fun clearSoftwareDek() {
+        cryptoManager.clearSoftwareDek()
+    }
 
     suspend fun getEntryById(id: Int): VaultEntry? = withContext(Dispatchers.IO) {
         val entity = vaultDao.getEntryById(id) ?: return@withContext null
@@ -38,7 +54,20 @@ class VaultRepository(
     }
 
     suspend fun updateEntry(entry: VaultEntry) = withContext(Dispatchers.IO) {
+        if (entry.isDecryptionFailed) {
+            throw IllegalStateException("Cannot update an entry that failed decryption. Preventing data loss.")
+        }
         vaultDao.updateEntry(encryptEntry(entry))
+    }
+
+    suspend fun updateEntries(entries: List<VaultEntry>) = withContext(Dispatchers.IO) {
+        val entities = entries.map {
+            if (it.isDecryptionFailed) {
+                throw IllegalStateException("Cannot update an entry that failed decryption. Preventing data loss.")
+            }
+            encryptEntry(it)
+        }
+        vaultDao.updateEntries(entities)
     }
 
     suspend fun deleteEntry(id: Int) = withContext(Dispatchers.IO) {
@@ -63,49 +92,69 @@ class VaultRepository(
 
     fun decryptLightweight(entity: VaultEntryEntity): VaultListEntry {
         val decryptedTitle = cryptoManager.decrypt(entity.titleEnc)
+        val hasFailed = entity.titleEnc.isNotEmpty() && decryptedTitle == null
+        
         return VaultListEntry(
             id = entity.id,
-            title = if (entity.titleEnc.isNotEmpty() && decryptedTitle.isEmpty()) "[Decryption Failed]" else decryptedTitle,
-            username = cryptoManager.decrypt(entity.usernameEnc),
-            isFavorite = entity.isFavorite
+            title = if (hasFailed) "Decryption Failed" else decryptedTitle ?: "",
+            username = cryptoManager.decrypt(entity.usernameEnc) ?: "",
+            isFavorite = entity.isFavorite,
+            isDecryptionFailed = hasFailed
         )
     }
 
     fun decryptEntity(entity: VaultEntryEntity): VaultEntry {
         val decryptedTitle = cryptoManager.decrypt(entity.titleEnc)
+        val decryptedUsername = cryptoManager.decrypt(entity.usernameEnc)
+        val decryptedPassword = cryptoManager.decrypt(entity.passwordEnc)
+        val decryptedWebsite = cryptoManager.decrypt(entity.websiteEnc)
+        val decryptedNotes = cryptoManager.decrypt(entity.notesEnc)
+        val decryptedCategory = cryptoManager.decrypt(entity.categoryEnc)
+        val decryptedTagsStr = cryptoManager.decrypt(entity.tagsEnc)
+        val decryptedCustomFieldsStr = cryptoManager.decrypt(entity.customFieldsEnc)
         
-        // encrypt("") returns "", so if titleEnc is not empty but decryptedTitle is empty, decryption failed
-        if (entity.titleEnc.isNotEmpty() && decryptedTitle.isEmpty()) {
+        val hasFailure = (entity.titleEnc.isNotEmpty() && decryptedTitle == null) ||
+                         (entity.usernameEnc.isNotEmpty() && decryptedUsername == null) ||
+                         (entity.passwordEnc.isNotEmpty() && decryptedPassword == null) ||
+                         (entity.websiteEnc.isNotEmpty() && decryptedWebsite == null) ||
+                         (entity.notesEnc.isNotEmpty() && decryptedNotes == null) ||
+                         (entity.categoryEnc.isNotEmpty() && decryptedCategory == null) ||
+                         (entity.tagsEnc.isNotEmpty() && decryptedTagsStr == null) ||
+                         (entity.customFieldsEnc.isNotEmpty() && decryptedCustomFieldsStr == null)
+        
+        if (hasFailure) {
             return VaultEntry(
                 id = entity.id,
-                title = "[Decryption Failed]",
+                title = "Decryption Failed",
                 username = "",
                 password = "",
                 website = "",
-                notes = "This entry could not be decrypted. The data might be corrupted or the encryption key was lost.",
+                notes = "This entry could not be decrypted. The data might be corrupted or the encryption key was lost. Editing this entry has been disabled to prevent permanent data loss.",
                 category = "Error",
                 tags = emptyList(),
                 customFields = emptyList(),
                 isFavorite = entity.isFavorite,
-                timestamp = entity.timestamp
+                timestamp = entity.timestamp,
+                isDecryptionFailed = true
             )
         }
         
-        val tagsStr = cryptoManager.decrypt(entity.tagsEnc).takeIf { it.isNotEmpty() } ?: "[]"
-        val customFieldsStr = cryptoManager.decrypt(entity.customFieldsEnc).takeIf { it.isNotEmpty() } ?: "[]"
+        val tagsStr = decryptedTagsStr.takeIf { !it.isNullOrEmpty() } ?: "[]"
+        val customFieldsStr = decryptedCustomFieldsStr.takeIf { !it.isNullOrEmpty() } ?: "[]"
         
         return VaultEntry(
             id = entity.id,
-            title = decryptedTitle,
-            username = cryptoManager.decrypt(entity.usernameEnc),
-            password = cryptoManager.decrypt(entity.passwordEnc),
-            website = cryptoManager.decrypt(entity.websiteEnc),
-            notes = cryptoManager.decrypt(entity.notesEnc),
-            category = cryptoManager.decrypt(entity.categoryEnc),
+            title = decryptedTitle ?: "",
+            username = decryptedUsername ?: "",
+            password = decryptedPassword ?: "",
+            website = decryptedWebsite ?: "",
+            notes = decryptedNotes ?: "",
+            category = decryptedCategory ?: "",
             tags = Json.decodeFromString(tagsStr),
             customFields = Json.decodeFromString(customFieldsStr),
             isFavorite = entity.isFavorite,
-            timestamp = entity.timestamp
+            timestamp = entity.timestamp,
+            isDecryptionFailed = false
         )
     }
 }

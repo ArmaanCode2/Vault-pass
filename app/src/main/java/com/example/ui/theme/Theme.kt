@@ -59,9 +59,15 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun MyApplicationTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    accentColor: AccentColor = AccentColor.BLUE,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val baseColorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    
+    val colorScheme = baseColorScheme.copy(
+        primary = if (darkTheme) accentColor.darkPrimary else accentColor.lightPrimary,
+        primaryContainer = if (darkTheme) accentColor.darkPrimaryContainer else accentColor.lightPrimaryContainer
+    )
 
     val view = LocalView.current
     if (!view.isInEditMode) {

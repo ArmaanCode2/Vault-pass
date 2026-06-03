@@ -12,7 +12,8 @@ data class VaultListEntry(
     val id: Int,
     val title: String,
     val username: String,
-    val isFavorite: Boolean
+    val isFavorite: Boolean,
+    val isDecryptionFailed: Boolean = false
 )
 
 @Serializable
@@ -27,5 +28,6 @@ data class VaultEntry(
     val tags: List<String> = emptyList(),
     val customFields: List<CustomField> = emptyList(),
     val isFavorite: Boolean = false,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val isDecryptionFailed: Boolean = false
 )

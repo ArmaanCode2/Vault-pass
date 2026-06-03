@@ -64,43 +64,45 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
     
     val isImporting by viewModel.isImporting.collectAsStateWithLifecycle()
     val themeMode by viewModel.settingsRepository.themeMode.collectAsStateWithLifecycle(initialValue = 0)
-    var showThemeDialog by remember { mutableStateOf(false) }
+    val accentColorName by viewModel.settingsRepository.accentColor.collectAsStateWithLifecycle(initialValue = "BLUE")
     val themeOptions = listOf("System Default", "Light Mode", "Dark Mode")
+    var isAppearanceExpanded by remember { mutableStateOf(false) }
     
     var previewEntries by remember { mutableStateOf<List<VaultEntry>?>(null) }
     var invalidCount by remember { mutableStateOf(0) }
+    
+    var showExportPasswordDialog by remember { mutableStateOf(false) }
+    var exportPassword by remember { mutableStateOf("") }
+    
+    var showImportPasswordDialog by remember { mutableStateOf(false) }
+    var importPassword by remember { mutableStateOf("") }
+    var pendingImportBytes by remember { mutableStateOf<ByteArray?>(null) }
+
+    fun processDecodedImport(jsonString: String) {
+        try {
+            val (validEntries, localInvalidCount) = viewModel.decodeImportPayload(jsonString)
+            previewEntries = validEntries
+            invalidCount = localInvalidCount
+        } catch (e: Exception) {
+            Toast.makeText(context, "Import parsing failed: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
     
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
         Log.d("VaultPass", "Export launcher returned URI: $uri")
         uri?.let {
             scope.launch {
                 try {
-                    val entries = viewModel.getAllEntriesDecrypted()
-                    val exportMap = mutableMapOf<String, List<String>>()
-                    entries.forEach { entry ->
-                        val values = mutableListOf<String>()
-                        values.add(entry.username)
-                        values.add(entry.password)
-                        entry.customFields.forEach { customField -> values.add(customField.value) }
-                        
-                        // Handle duplicate titles by appending a number if necessary
-                        var key = entry.title
-                        var counter = 1
-                        while (exportMap.containsKey(key)) {
-                            key = "${entry.title} ($counter)"
-                            counter++
-                        }
-                        exportMap[key] = values
-                    }
-                    val jsonString = Json.encodeToString(exportMap)
+                    val payload = viewModel.generateExportPayload(exportPassword)
                     withContext(Dispatchers.IO) {
                         context.contentResolver.openOutputStream(it)?.use { out ->
-                            out.write(jsonString.toByteArray(Charsets.UTF_8))
+                            out.write(payload)
                         }
                     }
                     val fileName = getFileName(context, uri)
-                    Log.d("VaultPass", "Export successful to file: $fileName")
-                    Toast.makeText(context, "Export completed\nSaved to: $fileName", Toast.LENGTH_LONG).show()
+                    Log.d("VaultPass", "Secure export successful to file: $fileName")
+                    Toast.makeText(context, "Secure export completed\nSaved to: $fileName", Toast.LENGTH_LONG).show()
+                    exportPassword = ""
                 } catch (e: Exception) {
                     Log.e("VaultPass", "Exception during export data generation/write", e)
                     Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -114,40 +116,26 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
         uri?.let {
             scope.launch {
                 try {
-                    val jsonString = withContext(Dispatchers.IO) {
+                    val fileContent = withContext(Dispatchers.IO) {
                         context.contentResolver.openInputStream(it)?.bufferedReader()?.use { reader ->
                             reader.readText()
                         } ?: ""
                     }
                     
-                    val map = Json.decodeFromString<Map<String, List<String>>>(jsonString)
-                    val validEntries = mutableListOf<VaultEntry>()
-                    var localInvalidCount = 0
-                    
-                    for ((key, values) in map) {
-                        if (values.isEmpty()) {
-                            localInvalidCount++
-                            continue
+                    try {
+                        // Test if it's plaintext JSON
+                        Json.decodeFromString<Map<String, List<String>>>(fileContent)
+                        processDecodedImport(fileContent)
+                    } catch (e: Exception) {
+                        // Probably encrypted Base64
+                        try {
+                            val bytes = android.util.Base64.decode(fileContent, android.util.Base64.NO_WRAP)
+                            pendingImportBytes = bytes
+                            showImportPasswordDialog = true
+                        } catch (e2: Exception) {
+                            Toast.makeText(context, "Invalid backup file format", Toast.LENGTH_SHORT).show()
                         }
-                        val username = values.getOrNull(0) ?: ""
-                        val password = values.getOrNull(1) ?: ""
-                        val customFields = mutableListOf<CustomField>()
-                        if (values.size > 2) {
-                            for (i in 2 until values.size) {
-                                customFields.add(CustomField(key = "Field ${i - 1}", value = values[i]))
-                            }
-                        }
-                        validEntries.add(VaultEntry(
-                            title = key,
-                            username = username,
-                            password = password,
-                            customFields = customFields
-                        ))
                     }
-                    
-                    previewEntries = validEntries
-                    invalidCount = localInvalidCount
-                    Log.d("VaultPass", "Import preview ready. Valid: ${validEntries.size}, Invalid: $localInvalidCount")
                     
                 } catch (e: Exception) {
                     Log.e("VaultPass", "Exception during import parsing", e)
@@ -162,6 +150,91 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        if (showExportPasswordDialog) {
+            AlertDialog(
+                onDismissRequest = { showExportPasswordDialog = false },
+                title = { Text("Secure Export") },
+                text = {
+                    Column {
+                        Text("Enter a password to encrypt this backup. You will need this password to import it later.")
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = exportPassword,
+                            onValueChange = { exportPassword = it },
+                            label = { Text("Backup Password") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            if (exportPassword.isNotEmpty()) {
+                                showExportPasswordDialog = false
+                                try {
+                                    exportLauncher.launch("vaultpass_backup.json")
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Launch failed: ${e.message}", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Export")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showExportPasswordDialog = false; exportPassword = "" }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        if (showImportPasswordDialog) {
+            AlertDialog(
+                onDismissRequest = { showImportPasswordDialog = false },
+                title = { Text("Unlock Backup") },
+                text = {
+                    Column {
+                        Text("This backup is encrypted. Enter the password used during export.")
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = importPassword,
+                            onValueChange = { importPassword = it },
+                            label = { Text("Backup Password") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            if (importPassword.isNotEmpty() && pendingImportBytes != null) {
+                                val jsonString = com.example.security.CryptoManager.decryptBackup(pendingImportBytes!!, importPassword)
+                                if (jsonString != null) {
+                                    showImportPasswordDialog = false
+                                    importPassword = ""
+                                    pendingImportBytes = null
+                                    processDecodedImport(jsonString)
+                                } else {
+                                    Toast.makeText(context, "Incorrect password or corrupted backup", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Unlock & Import")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showImportPasswordDialog = false; importPassword = ""; pendingImportBytes = null }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+        
         if (isImporting) {
             AlertDialog(
                 onDismissRequest = {},
@@ -214,40 +287,6 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
             )
         }
         
-        if (showThemeDialog) {
-            AlertDialog(
-                onDismissRequest = { showThemeDialog = false },
-                title = { Text("Choose Theme") },
-                text = {
-                    Column {
-                        themeOptions.forEachIndexed { index, option ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        scope.launch { viewModel.settingsRepository.setThemeMode(index) }
-                                        showThemeDialog = false
-                                    }
-                                    .padding(vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(
-                                    selected = (themeMode == index),
-                                    onClick = null
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text(option)
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showThemeDialog = false }) {
-                        Text("Cancel")
-                    }
-                }
-            )
-        }
 
         Column(
             modifier = Modifier
@@ -298,14 +337,95 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                     ) {
                         Column {
                             SettingsRow(
-                                title = "Theme",
-                                subtitle = themeOptions[themeMode],
+                                title = "Appearance",
+                                subtitle = "Theme and Accent Color",
                                 icon = Icons.Default.Palette,
                                 iconColor = MaterialTheme.colorScheme.primary,
                                 iconBgColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
-                                trailingContent = { Icon(Icons.Default.ChevronRight, tint = MaterialTheme.colorScheme.onSurfaceVariant, contentDescription = null) },
-                                onClick = { showThemeDialog = true }
+                                trailingContent = {
+                                    Icon(
+                                        if (isAppearanceExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        contentDescription = null
+                                    )
+                                },
+                                onClick = { isAppearanceExpanded = !isAppearanceExpanded }
                             )
+                            androidx.compose.animation.AnimatedVisibility(visible = isAppearanceExpanded) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    // Theme Mode Dropdown
+                                    var themeExpanded by remember { mutableStateOf(false) }
+                                    ExposedDropdownMenuBox(
+                                        expanded = themeExpanded,
+                                        onExpandedChange = { themeExpanded = !themeExpanded }
+                                    ) {
+                                        OutlinedTextField(
+                                            value = themeOptions[themeMode],
+                                            onValueChange = {},
+                                            readOnly = true,
+                                            label = { Text("Theme Mode") },
+                                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = themeExpanded) },
+                                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                                        )
+                                        ExposedDropdownMenu(
+                                            expanded = themeExpanded,
+                                            onDismissRequest = { themeExpanded = false }
+                                        ) {
+                                            themeOptions.forEachIndexed { index, option ->
+                                                DropdownMenuItem(
+                                                    text = { Text(option) },
+                                                    onClick = {
+                                                        scope.launch { viewModel.settingsRepository.setThemeMode(index) }
+                                                        themeExpanded = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    
+                                    // Accent Color Dropdown
+                                    var accentExpanded by remember { mutableStateOf(false) }
+                                    val accentOptions = com.example.ui.theme.AccentColor.values()
+                                    val currentAccent = try { com.example.ui.theme.AccentColor.valueOf(accentColorName) } catch (e: Exception) { com.example.ui.theme.AccentColor.BLUE }
+                                    
+                                    ExposedDropdownMenuBox(
+                                        expanded = accentExpanded,
+                                        onExpandedChange = { accentExpanded = !accentExpanded }
+                                    ) {
+                                        OutlinedTextField(
+                                            value = currentAccent.title,
+                                            onValueChange = {},
+                                            readOnly = true,
+                                            label = { Text("Accent Color") },
+                                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = accentExpanded) },
+                                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                                        )
+                                        ExposedDropdownMenu(
+                                            expanded = accentExpanded,
+                                            onDismissRequest = { accentExpanded = false }
+                                        ) {
+                                            accentOptions.forEach { colorOption ->
+                                                DropdownMenuItem(
+                                                    text = { 
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            Box(modifier = Modifier.size(16.dp).background(colorOption.lightPrimary, RoundedCornerShape(8.dp)))
+                                                            Spacer(modifier = Modifier.width(12.dp))
+                                                            Text(colorOption.title) 
+                                                        }
+                                                    },
+                                                    onClick = {
+                                                        scope.launch { viewModel.settingsRepository.setAccentColor(colorOption.name) }
+                                                        accentExpanded = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
                             SettingsRow(
                                 title = "Hide Passwords by Default",
@@ -338,7 +458,25 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                 iconColor = MaterialTheme.colorScheme.primary,
                                 iconBgColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
                                 trailingContent = { 
-                                    Switch(checked = isBiometricEnabled, onCheckedChange = { scope.launch { viewModel.settingsRepository.setBiometricEnabled(it) } }) 
+                                    Switch(
+                                        checked = isBiometricEnabled, 
+                                        onCheckedChange = { isEnabled -> 
+                                            scope.launch { 
+                                                if (isEnabled) {
+                                                    try {
+                                                        com.example.security.BiometricCryptoHelper.generateBiometricKey()
+                                                        com.example.security.BiometricCryptoHelper.generateBiometricAesKey()
+                                                        viewModel.wrapDekForBiometrics()
+                                                    } catch (e: Exception) {
+                                                        e.printStackTrace()
+                                                        android.widget.Toast.makeText(context, "Failed to generate biometric key: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                                                        return@launch
+                                                    }
+                                                }
+                                                viewModel.settingsRepository.setBiometricEnabled(isEnabled) 
+                                            } 
+                                        }
+                                    ) 
                                 }
                             )
                             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
@@ -374,11 +512,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                 iconBgColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
                                 trailingContent = { Icon(Icons.Default.ChevronRight, tint = MaterialTheme.colorScheme.onSurfaceVariant, contentDescription = null) },
                                 onClick = { 
-                                    try {
-                                        exportLauncher.launch("vaultpass_backup.json")
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "Launch failed: ${e.message}", Toast.LENGTH_LONG).show()
-                                    }
+                                    showExportPasswordDialog = true
                                 }
                             )
                             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))

@@ -85,40 +85,46 @@ fun PasswordEntryScreen(
     }
 
     val copyToClipboard: (String, String) -> Unit = { label, text ->
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText(label, text)
-        clipboard.setPrimaryClip(clip)
-        Toast.makeText(context, "$label copied", Toast.LENGTH_SHORT).show()
-        
-        coroutineScope.launch {
-            val timer = viewModel.settingsRepository.clipboardClearTimer.first()
-            delay(timer)
-            // clear clipboard
-            if (clipboard.primaryClip?.getItemAt(0)?.text == text) {
-                clipboard.clearPrimaryClip()
-            }
-        }
+        viewModel.copyToClipboard(context, label, text)
     }
 
     val isEditing = entryId != null
+    
+    val titleError = if (title.length > 100) "Max 100 characters" else if (title.isBlank()) "Title is required" else null
+    val usernameError = if (username.length > 150) "Max 150 characters" else null
+    val passwordError = if (password.length > 500) "Max 500 characters" else null
+    val websiteError = if (website.length > 250) "Max 250 characters" else null
+    val notesError = if (notes.length > 2000) "Max 2000 characters" else null
+    
+    val customFieldsErrors = customFields.map { 
+        if (it.key.length > 50) "Key max 50 characters" 
+        else if (it.value.length > 200) "Value max 200 characters" 
+        else null
+    }
+    val hasCustomFieldsError = customFieldsErrors.any { it != null } || customFields.size > 20
+    
+    val hasErrors = titleError != null || usernameError != null || passwordError != null || websiteError != null || notesError != null || hasCustomFieldsError
+
     val saveEntry = {
-        val newEntry = VaultEntry(
-            id = entryId ?: 0,
-            title = title.takeIf { it.isNotBlank() } ?: "Untitled",
-            username = username,
-            password = password,
-            website = website,
-            notes = notes,
-            category = category.takeIf { it.isNotBlank() } ?: "Personal",
-            customFields = customFields,
-            isFavorite = isFavorite
-        )
-        if (isEditing) {
-            viewModel.updateEntry(newEntry)
-        } else {
-            viewModel.addEntry(newEntry)
+        if (!hasErrors) {
+            val newEntry = VaultEntry(
+                id = entryId ?: 0,
+                title = title.trim().takeIf { it.isNotBlank() } ?: "Untitled",
+                username = username.trim(),
+                password = password,
+                website = website.trim(),
+                notes = notes,
+                category = category.takeIf { it.isNotBlank() } ?: "Personal",
+                customFields = customFields,
+                isFavorite = isFavorite
+            )
+            if (isEditing) {
+                viewModel.updateEntry(newEntry)
+            } else {
+                viewModel.addEntry(newEntry)
+            }
+            navController.popBackStack()
         }
-        navController.popBackStack()
         Unit
     }
 
@@ -151,10 +157,11 @@ fun PasswordEntryScreen(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
-                TextButton(onClick = saveEntry) {
-                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                TextButton(onClick = saveEntry, enabled = !hasErrors) {
+                    val tintColor = if (!hasErrors) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha=0.5f)
+                    Icon(Icons.Default.Check, contentDescription = null, tint = tintColor)
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Save", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium)
+                    Text("Save", color = tintColor, style = MaterialTheme.typography.titleMedium)
                 }
             }
 
@@ -200,8 +207,8 @@ fun PasswordEntryScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        EntryTextField(label = "Title", value = title, onValueChange = { title = it }, icon = Icons.Default.Title, placeholder = "e.g. My Bank")
-                        EntryTextField(label = "Website (URI)", value = website, onValueChange = { website = it }, icon = Icons.Default.Language, placeholder = "https://")
+                        EntryTextField(label = "Title", value = title, onValueChange = { title = it }, icon = Icons.Default.Title, placeholder = "e.g. My Bank", isError = titleError != null, errorMessage = titleError)
+                        EntryTextField(label = "Website (URI)", value = website, onValueChange = { website = it }, icon = Icons.Default.Language, placeholder = "https://", isError = websiteError != null, errorMessage = websiteError)
                     }
                 }
 
@@ -219,6 +226,8 @@ fun PasswordEntryScreen(
                             onValueChange = { username = it },
                             icon = Icons.Default.Person,
                             placeholder = "Username",
+                            isError = usernameError != null,
+                            errorMessage = usernameError,
                             trailingIcon = {
                                 IconButton(onClick = { copyToClipboard("Username", username) }) {
                                     Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -233,6 +242,8 @@ fun PasswordEntryScreen(
                             placeholder = "Password",
                             isPassword = true,
                             passwordVisible = passwordVisible,
+                            isError = passwordError != null,
+                            errorMessage = passwordError,
                             trailingIcon = {
                                 Row {
                                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
@@ -282,6 +293,8 @@ fun PasswordEntryScreen(
                                 onValueChange = { notes = it },
                                 placeholder = { Text("Add any extra details, recovery codes, or hints here...", style = MaterialTheme.typography.bodyMedium) },
                                 modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 100.dp),
+                                isError = notesError != null,
+                                supportingText = notesError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
                                 colors = TextFieldDefaults.colors(
                                     focusedContainerColor = Color(0xFF16274B),
                                     unfocusedContainerColor = Color(0xFF16274B),
@@ -295,49 +308,57 @@ fun PasswordEntryScreen(
                         if (customFields.isNotEmpty()) {
                             HorizontalDivider(color = Color.White.copy(alpha=0.05f))
                             customFields.forEachIndexed { index, field ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    TextField(
-                                        value = field.key,
-                                        onValueChange = { 
+                                val rowError = customFieldsErrors.getOrNull(index)
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        TextField(
+                                            value = field.key,
+                                            onValueChange = { 
+                                                val mut = customFields.toMutableList()
+                                                mut[index] = field.copy(key = it)
+                                                customFields = mut
+                                            },
+                                            placeholder = { Text("Key") },
+                                            modifier = Modifier.weight(0.4f),
+                                            isError = field.key.length > 50,
+                                            colors = TextFieldDefaults.colors(
+                                                focusedContainerColor = Color(0xFF16274B), unfocusedContainerColor = Color(0xFF16274B),
+                                                focusedIndicatorColor = MaterialTheme.colorScheme.primaryContainer, unfocusedIndicatorColor = Color.Transparent
+                                            ),
+                                            shape = RoundedCornerShape(8.dp),
+                                            singleLine = true
+                                        )
+                                        TextField(
+                                            value = field.value,
+                                            onValueChange = { 
+                                                val mut = customFields.toMutableList()
+                                                mut[index] = field.copy(value = it)
+                                                customFields = mut
+                                            },
+                                            placeholder = { Text("Value") },
+                                            modifier = Modifier.weight(0.6f),
+                                            isError = field.value.length > 200,
+                                            colors = TextFieldDefaults.colors(
+                                                focusedContainerColor = Color(0xFF16274B), unfocusedContainerColor = Color(0xFF16274B),
+                                                focusedIndicatorColor = MaterialTheme.colorScheme.primaryContainer, unfocusedIndicatorColor = Color.Transparent
+                                            ),
+                                            shape = RoundedCornerShape(8.dp),
+                                            singleLine = true
+                                        )
+                                        IconButton(onClick = {
                                             val mut = customFields.toMutableList()
-                                            mut[index] = field.copy(key = it)
+                                            mut.removeAt(index)
                                             customFields = mut
-                                        },
-                                        placeholder = { Text("Key") },
-                                        modifier = Modifier.weight(0.4f),
-                                        colors = TextFieldDefaults.colors(
-                                            focusedContainerColor = Color(0xFF16274B), unfocusedContainerColor = Color(0xFF16274B),
-                                            focusedIndicatorColor = MaterialTheme.colorScheme.primaryContainer, unfocusedIndicatorColor = Color.Transparent
-                                        ),
-                                        shape = RoundedCornerShape(8.dp),
-                                        singleLine = true
-                                    )
-                                    TextField(
-                                        value = field.value,
-                                        onValueChange = { 
-                                            val mut = customFields.toMutableList()
-                                            mut[index] = field.copy(value = it)
-                                            customFields = mut
-                                        },
-                                        placeholder = { Text("Value") },
-                                        modifier = Modifier.weight(0.6f),
-                                        colors = TextFieldDefaults.colors(
-                                            focusedContainerColor = Color(0xFF16274B), unfocusedContainerColor = Color(0xFF16274B),
-                                            focusedIndicatorColor = MaterialTheme.colorScheme.primaryContainer, unfocusedIndicatorColor = Color.Transparent
-                                        ),
-                                        shape = RoundedCornerShape(8.dp),
-                                        singleLine = true
-                                    )
-                                    IconButton(onClick = {
-                                        val mut = customFields.toMutableList()
-                                        mut.removeAt(index)
-                                        customFields = mut
-                                    }) {
-                                        Icon(Icons.Default.RemoveCircleOutline, contentDescription = "Remove", tint = MaterialTheme.colorScheme.error)
+                                        }) {
+                                            Icon(Icons.Default.RemoveCircleOutline, contentDescription = "Remove", tint = MaterialTheme.colorScheme.error)
+                                        }
+                                    }
+                                    if (rowError != null) {
+                                        Text(rowError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 2.dp, start = 8.dp))
                                     }
                                 }
                             }
@@ -410,6 +431,8 @@ fun EntryTextField(
     placeholder: String,
     isPassword: Boolean = false,
     passwordVisible: Boolean = false,
+    isError: Boolean = false,
+    errorMessage: String? = null,
     trailingIcon: @Composable (() -> Unit)? = null
 ) {
     Column {
@@ -424,6 +447,8 @@ fun EntryTextField(
             visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
+            isError = isError,
+            supportingText = errorMessage?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color(0xFF16274B),
                 unfocusedContainerColor = Color(0xFF16274B),

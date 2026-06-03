@@ -44,37 +44,6 @@ fun SecurityScreen(viewModel: VaultViewModel, navController: NavController) {
                     containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
                 )
             )
-        },
-        bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
-                tonalElevation = 8.dp
-            ) {
-                NavigationBarItem(
-                    selected = false,
-                    onClick = { navController.navigate("dashboard") { launchSingleTop = true } },
-                    icon = { Icon(Icons.Default.Lock, contentDescription = "Vault") },
-                    label = { Text("Vault") }
-                )
-                NavigationBarItem(
-                    selected = true,
-                    onClick = { },
-                    icon = { Icon(Icons.Default.Shield, contentDescription = "Security") },
-                    label = { Text("Security") }
-                )
-                NavigationBarItem(
-                    selected = false,
-                    onClick = { navController.navigate("generator") { launchSingleTop = true } },
-                    icon = { Icon(Icons.Default.VpnKey, contentDescription = "Generator") },
-                    label = { Text("Generator") }
-                )
-                NavigationBarItem(
-                    selected = false,
-                    onClick = { navController.navigate("settings") { launchSingleTop = true } },
-                    icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                    label = { Text("Settings") }
-                )
-            }
         }
     ) { paddingValues ->
         LazyColumn(
@@ -133,9 +102,9 @@ fun SecurityScreen(viewModel: VaultViewModel, navController: NavController) {
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             val total = securityStats?.totalPasswords ?: 0
-                            val weak = securityStats?.weakPasswords ?: 0
-                            val medium = securityStats?.mediumPasswords ?: 0
-                            val strong = securityStats?.strongPasswords ?: 0
+                            val weak = securityStats?.weakPasswordCount ?: 0
+                            val medium = securityStats?.mediumPasswordCount ?: 0
+                            val strong = securityStats?.strongPasswordCount ?: 0
 
                             val weakPct = if (total > 0) (weak.toFloat() / total) else 0f
                             val mediumPct = if (total > 0) (medium.toFloat() / total) else 0f
@@ -207,7 +176,7 @@ fun SecurityScreen(viewModel: VaultViewModel, navController: NavController) {
                                     Text("Easily guessable passwords", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
-                            Text(securityStats?.weakPasswords?.toString() ?: "0", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                            Text(securityStats?.weakPasswordCount?.toString() ?: "0", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -226,7 +195,7 @@ fun SecurityScreen(viewModel: VaultViewModel, navController: NavController) {
                             Icon(Icons.Default.ContentCopy, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
                             Spacer(modifier = Modifier.width(16.dp))
                             Column {
-                                val count = securityStats?.reusedPasswords ?: 0
+                                val count = securityStats?.reusedPasswordCount ?: 0
                                 Text("Reused Passwords: $count", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
                                 Text("Same password used across accounts", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
@@ -247,7 +216,7 @@ fun SecurityScreen(viewModel: VaultViewModel, navController: NavController) {
                             Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                             Spacer(modifier = Modifier.width(16.dp))
                             Column {
-                                val count = securityStats?.missingPasswords ?: 0
+                                val count = securityStats?.missingPasswordCount ?: 0
                                 Text("Missing Passwords: $count", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
                                 Text("Incomplete credential entries", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
@@ -261,7 +230,10 @@ fun SecurityScreen(viewModel: VaultViewModel, navController: NavController) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Recommendations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
                     
-                    val recs = securityStats?.recommendations ?: emptyList()
+                    val weakCount = securityStats?.weakPasswordCount ?: 0
+                    val reusedCount = securityStats?.reusedPasswordCount ?: 0
+                    val missingCount = securityStats?.missingPasswordCount ?: 0
+                    val recs = com.example.domain.security.RecommendationEngine.generateRecommendations(weakCount, reusedCount, missingCount)
                     if (recs.isEmpty()) {
                         Card(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),

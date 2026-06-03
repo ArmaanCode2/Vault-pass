@@ -10,11 +10,13 @@ import com.example.repository.VaultRepository
 import com.example.security.PasswordHashHelper
 import com.example.domain.security.SecurityAnalyzer
 import com.example.domain.security.SecurityStats
+import com.example.domain.security.SecurityStatsSummary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
 
 enum class DashboardFilter { ALL, WEAK, REUSED }
 
@@ -40,32 +42,85 @@ class VaultViewModel(
         _activeFilter.value = filter
     }
 
-    private val allDecryptedEntries: StateFlow<List<VaultEntry>?> = vaultRepository.allEntries
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private val allDecryptedEntries: StateFlow<List<VaultEntry>?> = _isUnlocked
+        .flatMapLatest { unlocked ->
+            if (unlocked) {
+                vaultRepository.allEntries
+            } else {
+                kotlinx.coroutines.flow.flowOf(null)
+            }
+        }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    val securityStats: StateFlow<SecurityStats?> = allDecryptedEntries
+    private var isRecalculating = false
+
+    val securityStats: StateFlow<SecurityStatsSummary?> = kotlinx.coroutines.flow.combine(
+        settingsRepository.securityStatsSummary,
+        vaultRepository.allRawEntities
+    ) { cachedStats, rawEntities ->
+        if (rawEntities.isEmpty()) {
+            com.example.domain.security.SecurityStatsSummary.Empty 
+        } else if (cachedStats != null && rawEntities.size != cachedStats.totalPasswords) {
+            if (!isRecalculating) {
+                isRecalculating = true
+                recalculateSecurityStats()
+            }
+            cachedStats.copy(securityStatus = "Analyzing...")
+        } else {
+            cachedStats
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    private val detailedSecurityStats: Flow<SecurityStats?> = allDecryptedEntries
         .filterNotNull()
         .map { SecurityAnalyzer.analyze(it) }
         .flowOn(Dispatchers.Default)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    fun recalculateSecurityStats() {
+        viewModelScope.launch(Dispatchers.Default) {
+            try {
+                val entries = vaultRepository.getAllEntriesSync()
+                if (entries.isEmpty()) {
+                    settingsRepository.saveSecurityStatsSummary(com.example.domain.security.SecurityStatsSummary.Empty)
+                    return@launch
+                }
+                val stats = SecurityAnalyzer.analyze(entries)
+                val summary = SecurityStatsSummary(
+                    securityScore = stats.securityScore,
+                    totalPasswords = stats.totalPasswords,
+                    strongPasswordCount = stats.strongPasswords,
+                    mediumPasswordCount = stats.mediumPasswords,
+                    weakPasswordCount = stats.weakPasswords,
+                    reusedPasswordCount = stats.reusedPasswords,
+                    missingPasswordCount = stats.missingPasswords,
+                    securityStatus = stats.securityStatus,
+                    lastUpdatedTimestamp = System.currentTimeMillis()
+                )
+                settingsRepository.saveSecurityStatsSummary(summary)
+            } finally {
+                isRecalculating = false
+            }
+        }
+    }
 
     val weakEntriesList: StateFlow<List<WeakEntryData>?> = combine(
         allDecryptedEntries,
-        securityStats
+        detailedSecurityStats
     ) { decrypted, stats ->
         if (decrypted == null || stats == null) return@combine null
         decrypted.filter { stats.weakEntryIds.contains(it.id) }.map { full ->
             WeakEntryData(
                 entry = VaultListEntry(full.id, full.title, full.username, full.isFavorite),
-                score = SecurityAnalyzer.scorePassword(full.password),
-                reasons = SecurityAnalyzer.getWeaknessReasons(full.password)
+                score = stats.passwordScores[full.id] ?: 0,
+                reasons = stats.passwordReasons[full.id] ?: emptyList()
             )
         }.sortedBy { it.score }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val reusedEntriesGroups: StateFlow<List<ReusedGroupData>?> = combine(
         allDecryptedEntries,
-        securityStats
+        detailedSecurityStats
     ) { decrypted, stats ->
         if (decrypted == null || stats == null) return@combine null
         
@@ -74,7 +129,7 @@ class VaultViewModel(
         
         grouped.map { (pwd, entries) ->
             ReusedGroupData(
-                passwordScore = SecurityAnalyzer.scorePassword(pwd),
+                passwordScore = stats.passwordScores[entries.first().id] ?: 0,
                 entries = entries.map { VaultListEntry(it.id, it.title, it.username, it.isFavorite) }
             )
         }.sortedByDescending { it.entries.size }
@@ -82,7 +137,7 @@ class VaultViewModel(
 
     val missingEntriesList: StateFlow<List<VaultListEntry>?> = combine(
         allDecryptedEntries,
-        securityStats
+        detailedSecurityStats
     ) { decrypted, stats ->
         if (decrypted == null || stats == null) return@combine null
         decrypted.filter { stats.missingEntryIds.contains(it.id) }.map { full ->
@@ -90,21 +145,38 @@ class VaultViewModel(
         }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    private val allLightweightEntries: StateFlow<List<VaultListEntry>?> = vaultRepository.allRawEntities
-        .map { rawList ->
-            rawList.map { vaultRepository.decryptLightweight(it) }
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private val allLightweightEntries: StateFlow<List<VaultListEntry>?> = _isUnlocked
+        .flatMapLatest { unlocked ->
+            if (unlocked) {
+                vaultRepository.allRawEntities
+                    .map { list -> list.map { vaultRepository.decryptLightweight(it) } }
+                    .flowOn(Dispatchers.Default)
+            } else {
+                kotlinx.coroutines.flow.flowOf(null)
+            }
         }
-        .flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    val dashboardEntries: StateFlow<List<VaultListEntry>?> = combine(
-        allLightweightEntries.filterNotNull(),
-        allDecryptedEntries,
-        _searchQuery,
-        _activeFilter,
-        securityStats
-    ) { lightEntities, decryptedEntities, query, filter, stats ->
-        
+    val dashboardEntries: StateFlow<List<VaultListEntry>?> = _activeFilter.flatMapLatest { filter ->
+        if (filter == DashboardFilter.ALL) {
+            combine(allLightweightEntries.filterNotNull(), allDecryptedEntries, _searchQuery) { lightEntities, decryptedEntities, query ->
+                processDashboardEntries(lightEntities, decryptedEntities, query, filter, null)
+            }
+        } else {
+            combine(allLightweightEntries.filterNotNull(), allDecryptedEntries, _searchQuery, detailedSecurityStats) { lightEntities, decryptedEntities, query, stats ->
+                processDashboardEntries(lightEntities, decryptedEntities, query, filter, stats)
+            }
+        }
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    private fun processDashboardEntries(
+        lightEntities: List<VaultListEntry>,
+        decryptedEntities: List<VaultEntry>?,
+        query: String,
+        filter: DashboardFilter,
+        stats: SecurityStats?
+    ): List<VaultListEntry> {
         var list = lightEntities
         
         if (filter == DashboardFilter.WEAK && stats != null) {
@@ -114,14 +186,14 @@ class VaultViewModel(
         }
 
         if (query.isBlank()) {
-            return@combine list
+            return list
         }
         
         val keywords = query.lowercase().split("\\s+".toRegex()).filter { it.isNotBlank() }
         
         // If full decryption hasn't finished yet in the background, fallback to lightweight matching
         if (decryptedEntities == null) {
-            list.filter { light ->
+            return list.filter { light ->
                 keywords.all { q ->
                     light.title.lowercase().contains(q) || light.username.lowercase().contains(q)
                 }
@@ -135,13 +207,12 @@ class VaultViewModel(
                     full.notes.lowercase().contains(q) ||
                     full.category.lowercase().contains(q) ||
                     full.tags.any { t -> t.lowercase().contains(q) } ||
-                    full.customFields.any { f -> f.key.lowercase().contains(q) || f.value.lowercase().contains(q) }
+                    full.customFields.any { cf -> cf.value.lowercase().contains(q) }
                 }
             }.map { it.id }.toSet()
-            
-            list.filter { fullMatchIds.contains(it.id) }
+            return list.filter { fullMatchIds.contains(it.id) }
         }
-    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    }
 
     // First launch properties
     val masterHash = settingsRepository.masterPasswordHash.stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -149,18 +220,168 @@ class VaultViewModel(
     
     val isFirstLaunch: StateFlow<Boolean?> = settingsRepository.masterPasswordHash.map { it == null }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    private fun performMigration(password: String, salt: String) {
+        viewModelScope.launch {
+            try {
+                // 1. Generate new software DEK
+                val newDek = ByteArray(32)
+                java.security.SecureRandom().nextBytes(newDek)
+
+                // 2. Wrap new DEK with Master Password KEK
+                val mpKek = PasswordHashHelper.deriveMasterKey(password, salt)
+                val dekMpWrapped = com.example.security.CryptoManager.wrapDekWithKek(newDek, mpKek)
+                
+                // 3. (Removed Biometric Wrapping in Background: Requires User Authentication)
+
+                // 4. PREPARE PHASE: Save pending wrapped DEKs
+                settingsRepository.savePendingDekMpWrappedSync(dekMpWrapped)
+
+                // 5. COMMIT PHASE (DB): Translate Data
+                // Read all current entries using OLD Keystore key (CryptoManager hasn't been injected yet)
+                val currentEntries = vaultRepository.allEntries.first()
+                
+                // Inject new DEK
+                vaultRepository.injectSoftwareDek(newDek)
+
+                // Rewrite all entries to trigger encryption with new DEK
+                vaultRepository.updateEntries(currentEntries)
+
+                // 6. FINALIZE PHASE: Commit permanent keys and clear pending
+                settingsRepository.saveDekMpWrappedSync(dekMpWrapped)
+                settingsRepository.clearPendingKeysSync()
+                
+                recalculateSecurityStats()
+                _isUnlocked.value = true
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     fun unlockWithPassword(password: String): Boolean {
         val hash = masterHash.value ?: return false
         val salt = masterSalt.value ?: return false
         val isValid = PasswordHashHelper.verifyPassword(password, salt, hash)
         if (isValid) {
+            val mpWrapped = settingsRepository.getDekMpWrappedSync()
+            if (mpWrapped != null) {
+                // User is migrated, unwrap DEK
+                val kek = PasswordHashHelper.deriveMasterKey(password, salt)
+                val dek = com.example.security.CryptoManager.unwrapDekWithKek(mpWrapped, kek)
+                if (dek != null) {
+                    vaultRepository.injectSoftwareDek(dek)
+                    _isUnlocked.value = true
+                    return true
+                }
+                return false
+            } else {
+                val pendingMpWrapped = settingsRepository.getPendingDekMpWrappedSync()
+                if (pendingMpWrapped != null) {
+                    // MIGRATION CRASH RECOVERY
+                    recoverMigration(password, salt, pendingMpWrapped)
+                } else {
+                    // User has NOT migrated, trigger migration
+                    performMigration(password, salt)
+                }
+            }
+            return true
+        }
+        return false
+    }
+
+    private fun recoverMigration(password: String, salt: String, pendingMpWrapped: String) {
+        viewModelScope.launch {
+            val kek = PasswordHashHelper.deriveMasterKey(password, salt)
+            val dek = com.example.security.CryptoManager.unwrapDekWithKek(pendingMpWrapped, kek)
+            if (dek != null) {
+                vaultRepository.injectSoftwareDek(dek)
+                
+                val testEntry = vaultRepository.allRawEntities.first().firstOrNull()
+                var dbUpdateSucceeded = true
+                if (testEntry != null) {
+                    val decrypted = vaultRepository.decryptEntity(testEntry)
+                    if (decrypted.isDecryptionFailed) {
+                        dbUpdateSucceeded = false
+                    }
+                }
+
+                if (dbUpdateSucceeded) {
+                    // DB was updated successfully. Finalize migration.
+                    settingsRepository.saveDekMpWrappedSync(pendingMpWrapped)
+                    val pendingBioWrapped = settingsRepository.getPendingDekBioWrappedSync()
+                    if (pendingBioWrapped != null) {
+                        settingsRepository.saveDekBioWrappedSync(pendingBioWrapped)
+                    }
+                    settingsRepository.clearPendingKeysSync()
+                    _isUnlocked.value = true
+                } else {
+                    // DB was NOT updated (transaction rolled back). 
+                    // Clear pending keys and start migration again.
+                    settingsRepository.clearPendingKeysSync()
+                    vaultRepository.clearSoftwareDek()
+                    performMigration(password, salt)
+                }
+            } else {
+                // If we can't unwrap pending DEK, clear and restart
+                settingsRepository.clearPendingKeysSync()
+                performMigration(password, salt)
+            }
+        }
+    }
+    
+    fun unlockWithBiometrics(challenge: ByteArray, signature: ByteArray): Boolean {
+        val isValid = com.example.security.BiometricCryptoHelper.verifySignature(challenge, signature)
+        if (isValid) {
             _isUnlocked.value = true
         }
         return isValid
     }
-    
-    fun unlockWithBiometrics() {
+
+    fun unlockWithBiometrics(dek: ByteArray): Boolean {
+        vaultRepository.injectSoftwareDek(dek)
         _isUnlocked.value = true
+        return true
+    }
+
+    suspend fun wrapDekForBiometrics() {
+        val softwareDek = vaultRepository.getSoftwareDek() ?: return
+        val cipher = com.example.security.BiometricCryptoHelper.getEncryptCipherForBiometric()
+        if (cipher != null) {
+            val iv = cipher.iv
+            val encryptedData = cipher.doFinal(softwareDek)
+            val combined = iv + encryptedData
+            val dekBioWrapped = android.util.Base64.encodeToString(combined, android.util.Base64.NO_WRAP)
+            settingsRepository.saveDekBioWrappedSync(dekBioWrapped)
+        }
+    }
+
+    private var clipboardJob: kotlinx.coroutines.Job? = null
+
+    fun copyToClipboard(context: android.content.Context, label: String, text: String) {
+        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        val clip = android.content.ClipData.newPlainText(label, text)
+        clipboard.setPrimaryClip(clip)
+        android.widget.Toast.makeText(context, "$label copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+
+        clipboardJob?.cancel()
+        val appContext = context.applicationContext
+        clipboardJob = viewModelScope.launch {
+            val delayMs = settingsRepository.clipboardClearTimer.first()
+            if (delayMs > 0) {
+                kotlinx.coroutines.delay(delayMs)
+                val currentClip = clipboard.primaryClip
+                if (currentClip != null && currentClip.itemCount > 0) {
+                    val currentText = currentClip.getItemAt(0).text?.toString()
+                    if (currentText == text) {
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                            clipboard.clearPrimaryClip()
+                        } else {
+                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("", ""))
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fun lock() {
@@ -169,9 +390,25 @@ class VaultViewModel(
 
     fun setupMasterPassword(password: String) {
         viewModelScope.launch {
+            // 1. Generate salt and hash for master password
             val salt = PasswordHashHelper.generateSalt()
             val hash = PasswordHashHelper.hashPassword(password, salt)
             settingsRepository.saveMasterPasswordData(hash, salt)
+            
+            // 2. Generate the Software DEK
+            val newDek = ByteArray(32)
+            java.security.SecureRandom().nextBytes(newDek)
+            
+            // 3. Wrap DEK with Master Password KEK
+            val mpKek = PasswordHashHelper.deriveMasterKey(password, salt)
+            val dekMpWrapped = com.example.security.CryptoManager.wrapDekWithKek(newDek, mpKek)
+            
+            // 4. Save the wrapped DEK
+            settingsRepository.saveDekMpWrappedSync(dekMpWrapped)
+            
+            // 5. Inject the DEK so it's ready for immediate use
+            vaultRepository.injectSoftwareDek(newDek)
+            
             _isUnlocked.value = true
         }
     }
@@ -185,11 +422,66 @@ class VaultViewModel(
     }
 
     fun addEntry(entry: VaultEntry) {
-        viewModelScope.launch { vaultRepository.insertEntry(entry) }
+        viewModelScope.launch { 
+            vaultRepository.insertEntry(entry)
+            recalculateSecurityStats()
+        }
     }
 
     suspend fun addEntries(entries: List<VaultEntry>) {
         vaultRepository.insertEntries(entries)
+        recalculateSecurityStats()
+    }
+
+    suspend    fun generateExportPayload(password: String): ByteArray {
+        val entries = getAllEntriesDecrypted()
+        val exportMap = mutableMapOf<String, List<String>>()
+        entries.forEach { entry ->
+            val values = mutableListOf<String>()
+            values.add(entry.username)
+            values.add(entry.password)
+            entry.customFields.forEach { customField -> values.add(customField.value) }
+            
+            var key = entry.title
+            var counter = 1
+            while (exportMap.containsKey(key)) {
+                key = "${entry.title} ($counter)"
+                counter++
+            }
+            exportMap[key] = values
+        }
+        val jsonString = kotlinx.serialization.json.Json.encodeToString(exportMap)
+        val backupData = com.example.security.CryptoManager.encryptBackup(jsonString, password)
+        val base64Backup = android.util.Base64.encodeToString(backupData, android.util.Base64.NO_WRAP)
+        return base64Backup.toByteArray(Charsets.UTF_8)
+    }
+
+    fun decodeImportPayload(jsonString: String): Pair<List<VaultEntry>, Int> {
+        val map = kotlinx.serialization.json.Json.decodeFromString<Map<String, List<String>>>(jsonString)
+        val validEntries = mutableListOf<VaultEntry>()
+        var localInvalidCount = 0
+        
+        for ((key, values) in map) {
+            if (values.isEmpty()) {
+                localInvalidCount++
+                continue
+            }
+            val username = values.getOrNull(0) ?: ""
+            val password = values.getOrNull(1) ?: ""
+            val customFields = mutableListOf<com.example.domain.models.CustomField>()
+            if (values.size > 2) {
+                for (i in 2 until values.size) {
+                    customFields.add(com.example.domain.models.CustomField(key = "Field ${i - 1}", value = values[i]))
+                }
+            }
+            validEntries.add(VaultEntry(
+                title = key,
+                username = username,
+                password = password,
+                customFields = customFields
+            ))
+        }
+        return Pair(validEntries, localInvalidCount)
     }
 
     suspend fun getAllEntriesDecrypted(): List<VaultEntry> {
@@ -201,11 +493,17 @@ class VaultViewModel(
     }
 
     fun updateEntry(entry: VaultEntry) {
-        viewModelScope.launch { vaultRepository.updateEntry(entry) }
+        viewModelScope.launch { 
+            vaultRepository.updateEntry(entry)
+            recalculateSecurityStats()
+        }
     }
 
     fun deleteEntry(id: Int) {
-        viewModelScope.launch { vaultRepository.deleteEntry(id) }
+        viewModelScope.launch { 
+            vaultRepository.deleteEntry(id)
+            recalculateSecurityStats()
+        }
     }
 }
 

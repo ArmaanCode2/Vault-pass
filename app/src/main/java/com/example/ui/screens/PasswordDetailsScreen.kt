@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -92,8 +93,12 @@ fun PasswordDetailsScreen(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text("VaultPass", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                IconButton(onClick = { navController.navigate("edit_entry/${entry.id}") }) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (!entry.isDecryptionFailed) {
+                    IconButton(onClick = { navController.navigate("edit_entry/${entry.id}") }) {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(48.dp))
                 }
             }
 
@@ -106,6 +111,24 @@ fun PasswordDetailsScreen(
                     .padding(horizontal = 20.dp, vertical = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
+                if (entry.isDecryptionFailed) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(
+                                "This entry could not be decrypted. It has been marked as read-only to prevent permanent data loss.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                }
+
                 // Header Section
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -155,7 +178,7 @@ fun PasswordDetailsScreen(
                             CredentialField(
                                 label = "Username / Email",
                                 value = entry.username,
-                                onCopy = { copyToClipboard(context, "Username", entry.username) },
+                                onCopy = { viewModel.copyToClipboard(context, "Username", entry.username) },
                                 isPassword = false
                             )
                         }
@@ -163,7 +186,7 @@ fun PasswordDetailsScreen(
                             CredentialField(
                                 label = "Password",
                                 value = entry.password,
-                                onCopy = { copyToClipboard(context, "Password", entry.password) },
+                                onCopy = { viewModel.copyToClipboard(context, "Password", entry.password) },
                                 isPassword = true
                             )
                         }
@@ -173,7 +196,7 @@ fun PasswordDetailsScreen(
                                 CredentialField(
                                     label = field.key,
                                     value = field.value,
-                                    onCopy = { copyToClipboard(context, field.key, field.value) },
+                                    onCopy = { viewModel.copyToClipboard(context, field.key, field.value) },
                                     isPassword = false
                                 )
                             }
@@ -251,14 +274,16 @@ fun PasswordDetailsScreen(
                     Text("Delete", style = MaterialTheme.typography.titleMedium)
                 }
                 
-                Button(
-                    onClick = { navController.navigate("edit_entry/${entry.id}") },
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
-                ) {
-                    Icon(Icons.Default.Edit, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Edit Entry", style = MaterialTheme.typography.titleMedium)
+                if (!entry.isDecryptionFailed) {
+                    Button(
+                        onClick = { navController.navigate("edit_entry/${entry.id}") },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Edit Entry", style = MaterialTheme.typography.titleMedium)
+                    }
                 }
             }
         }
@@ -329,9 +354,3 @@ fun CredentialField(label: String, value: String, onCopy: () -> Unit, isPassword
     }
 }
 
-fun copyToClipboard(context: Context, label: String, text: String) {
-    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    val clip = ClipData.newPlainText(label, text)
-    clipboard.setPrimaryClip(clip)
-    Toast.makeText(context, "$label copied to clipboard", Toast.LENGTH_SHORT).show()
-}

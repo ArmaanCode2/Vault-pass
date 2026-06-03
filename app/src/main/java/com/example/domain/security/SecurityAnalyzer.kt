@@ -2,6 +2,33 @@ package com.example.domain.security
 
 import com.example.domain.models.VaultEntry
 
+data class SecurityStatsSummary(
+    val securityScore: Int,
+    val totalPasswords: Int,
+    val strongPasswordCount: Int,
+    val mediumPasswordCount: Int,
+    val weakPasswordCount: Int,
+    val reusedPasswordCount: Int,
+    val missingPasswordCount: Int,
+    val securityStatus: String,
+    val lastUpdatedTimestamp: Long
+) {
+    companion object {
+        val Empty = SecurityStatsSummary(
+            securityScore = 0,
+            totalPasswords = 0,
+            strongPasswordCount = 0,
+            mediumPasswordCount = 0,
+            weakPasswordCount = 0,
+            reusedPasswordCount = 0,
+            missingPasswordCount = 0,
+            securityStatus = "No passwords stored",
+            lastUpdatedTimestamp = 0L
+        )
+    }
+}
+
+
 data class SecurityStats(
     val securityScore: Int,
     val totalPasswords: Int,
@@ -14,8 +41,29 @@ data class SecurityStats(
     val weakEntryIds: Set<Int> = emptySet(),
     val reusedEntryIds: Set<Int> = emptySet(),
     val missingEntryIds: Set<Int> = emptySet(),
-    val recommendations: List<SecurityRecommendation> = emptyList()
-)
+    val recommendations: List<SecurityRecommendation> = emptyList(),
+    val passwordScores: Map<Int, Int> = emptyMap(),
+    val passwordReasons: Map<Int, List<String>> = emptyMap()
+) {
+    companion object {
+        val Empty = SecurityStats(
+            securityScore = 0,
+            totalPasswords = 0,
+            strongPasswords = 0,
+            mediumPasswords = 0,
+            weakPasswords = 0,
+            reusedPasswords = 0,
+            missingPasswords = 0,
+            securityStatus = "No passwords stored",
+            weakEntryIds = emptySet(),
+            reusedEntryIds = emptySet(),
+            missingEntryIds = emptySet(),
+            recommendations = emptyList(),
+            passwordScores = emptyMap(),
+            passwordReasons = emptyMap()
+        )
+    }
+}
 
 enum class RecommendationAction { FIX_WEAK, FIX_REUSED, FIX_MISSING }
 
@@ -70,24 +118,9 @@ object RecommendationEngine {
 object SecurityAnalyzer {
 
     fun analyze(entries: List<VaultEntry>): SecurityStats {
+        if (entries.isEmpty()) return SecurityStats.Empty
+        
         val total = entries.size
-
-        if (total == 0) {
-            return SecurityStats(
-                securityScore = 0,
-                totalPasswords = 0,
-                strongPasswords = 0,
-                mediumPasswords = 0,
-                weakPasswords = 0,
-                reusedPasswords = 0,
-                missingPasswords = 0,
-                securityStatus = "No passwords stored",
-                weakEntryIds = emptySet(),
-                reusedEntryIds = emptySet(),
-                missingEntryIds = emptySet(),
-                recommendations = emptyList()
-            )
-        }
 
         var totalScore = 0
         var weakCount = 0
@@ -99,6 +132,8 @@ object SecurityAnalyzer {
         val reusedEntryIds = mutableSetOf<Int>()
         val missingEntryIds = mutableSetOf<Int>()
         val passwordCounts = mutableMapOf<String, Int>()
+        val passwordScores = mutableMapOf<Int, Int>()
+        val passwordReasons = mutableMapOf<Int, List<String>>()
 
         // Pass 1: Count frequency of each password and calculate strength
         for (entry in entries) {
@@ -106,6 +141,8 @@ object SecurityAnalyzer {
             if (pwd.isEmpty()) {
                 missingCount++
                 missingEntryIds.add(entry.id)
+                passwordScores[entry.id] = 0
+                passwordReasons[entry.id] = listOf("Empty password")
                 continue
             }
 
@@ -113,10 +150,12 @@ object SecurityAnalyzer {
 
             val score = scorePassword(pwd)
             totalScore += score
+            passwordScores[entry.id] = score
             
             if (score <= 40) {
                 weakCount++
                 weakEntryIds.add(entry.id)
+                passwordReasons[entry.id] = getWeaknessReasons(pwd)
             } else if (score <= 70) {
                 mediumCount++
             } else {
@@ -166,7 +205,9 @@ object SecurityAnalyzer {
             weakEntryIds = weakEntryIds,
             reusedEntryIds = reusedEntryIds,
             missingEntryIds = missingEntryIds,
-            recommendations = RecommendationEngine.generateRecommendations(weakCount, reusedCount, missingCount)
+            recommendations = RecommendationEngine.generateRecommendations(weakCount, reusedCount, missingCount),
+            passwordScores = passwordScores,
+            passwordReasons = passwordReasons
         )
     }
 

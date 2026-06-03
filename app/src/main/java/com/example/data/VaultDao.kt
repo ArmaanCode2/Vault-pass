@@ -13,6 +13,9 @@ interface VaultDao {
     @Query("SELECT * FROM vault_entries ORDER BY timestamp DESC")
     fun getAllEntries(): Flow<List<VaultEntryEntity>>
 
+    @Query("SELECT * FROM vault_entries ORDER BY timestamp DESC")
+    suspend fun getAllEntriesSync(): List<VaultEntryEntity>
+
     @Query("SELECT * FROM vault_entries WHERE id = :id")
     suspend fun getEntryById(id: Int): VaultEntryEntity?
 
@@ -24,6 +27,9 @@ interface VaultDao {
 
     @Update
     suspend fun updateEntry(entry: VaultEntryEntity)
+
+    @Update
+    suspend fun updateEntries(entries: List<VaultEntryEntity>)
 
     @Query("DELETE FROM vault_entries WHERE id = :id")
     suspend fun deleteEntry(id: Int)
