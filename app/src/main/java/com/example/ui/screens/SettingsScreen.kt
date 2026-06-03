@@ -84,6 +84,9 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
     
     var showExportPasswordDialog by remember { mutableStateOf(false) }
     var exportPassword by remember { mutableStateOf("") }
+    var showExportFormatDialog by remember { mutableStateOf(false) }
+    var pendingExportFormat by remember { mutableStateOf("vpex") }
+    var exportPasswordVisible by remember { mutableStateOf(false) }
     
     var showImportPasswordDialog by remember { mutableStateOf(false) }
     var importPassword by remember { mutableStateOf("") }
@@ -99,13 +102,17 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
         }
     }
     
-    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri: Uri? ->
         viewModel.setPerformingSystemOperation(false)
         Log.d("VaultPass", "Export launcher returned URI: $uri")
         uri?.let {
             scope.launch {
                 try {
-                    val payload = viewModel.generateExportPayload(exportPassword)
+                    val payload = when (pendingExportFormat) {
+                        "txt" -> viewModel.generateTxtExportPayload()
+                        "json" -> viewModel.generateSimplifiedJsonExportPayload()
+                        else -> viewModel.generateVpexExportPayload(exportPassword)
+                    }
                     withContext(Dispatchers.IO) {
                         context.contentResolver.openOutputStream(it)?.use { out ->
                             out.write(payload)
@@ -136,9 +143,12 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                     }
                     
                     try {
-                        // Test if it's plaintext JSON
-                        Json.decodeFromString<Map<String, List<String>>>(fileContent)
-                        processDecodedImport(fileContent)
+                        // Test if it's plaintext JSON or TXT
+                        if (fileContent.trimStart().startsWith("{") || fileContent.trimStart().startsWith("Title:") || fileContent.trimStart().startsWith("[")) {
+                            processDecodedImport(fileContent)
+                        } else {
+                            throw Exception("Not plaintext")
+                        }
                     } catch (e: Exception) {
                         // Probably encrypted Base64
                         try {
@@ -163,6 +173,70 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        if (showExportFormatDialog) {
+            AlertDialog(
+                onDismissRequest = { showExportFormatDialog = false },
+                title = { Text("Choose Export Format") },
+                text = {
+                    val formats = listOf(
+                        "txt" to "Plain Text (.txt)",
+                        "json" to "Simplified JSON (.json)",
+                        "vpex" to "Encrypted JSON (.vpex)"
+                    )
+                    Column {
+                        formats.forEach { (formatKey, label) ->
+                            val isSelected = (pendingExportFormat == formatKey)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp)
+                                    .background(
+                                        color = if (isSelected) MaterialTheme.colorScheme.surfaceVariant else androidx.compose.ui.graphics.Color.Transparent,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable {
+                                        pendingExportFormat = formatKey
+                                        showExportFormatDialog = false
+                                        if (formatKey == "vpex") {
+                                            showExportPasswordDialog = true
+                                        } else {
+                                            try {
+                                                viewModel.setPerformingSystemOperation(true)
+                                                exportLauncher.launch("vaultpass_backup.$formatKey")
+                                            } catch (e: Exception) {}
+                                        }
+                                    }
+                                    .padding(vertical = 12.dp, horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = isSelected,
+                                    onClick = {
+                                        pendingExportFormat = formatKey
+                                        showExportFormatDialog = false
+                                        if (formatKey == "vpex") {
+                                            showExportPasswordDialog = true
+                                        } else {
+                                            try {
+                                                viewModel.setPerformingSystemOperation(true)
+                                                exportLauncher.launch("vaultpass_backup.$formatKey")
+                                            } catch (e: Exception) {}
+                                        }
+                                    }
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text(label, style = MaterialTheme.typography.bodyLarge)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {},
+                dismissButton = {
+                    TextButton(onClick = { showExportFormatDialog = false }) { Text("Cancel") }
+                }
+            )
+        }
+
         if (showExportPasswordDialog) {
             AlertDialog(
                 onDismissRequest = { showExportPasswordDialog = false },
@@ -176,6 +250,15 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                             onValueChange = { exportPassword = it },
                             label = { Text("Backup Password") },
                             singleLine = true,
+                            visualTransformation = if (exportPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { exportPasswordVisible = !exportPasswordVisible }) {
+                                    Icon(
+                                        imageVector = if (exportPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = if (exportPasswordVisible) "Hide password" else "Show password"
+                                    )
+                                }
+                            },
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -183,15 +266,17 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            if (exportPassword.isNotEmpty()) {
+                            if (exportPassword.length >= 6) {
                                 showExportPasswordDialog = false
                                 try {
                                     viewModel.setPerformingSystemOperation(true)
-                                    exportLauncher.launch("vaultpass_backup.json")
+                                    exportLauncher.launch("vaultpass_backup.vpex")
                                 } catch (e: Exception) {
                                     viewModel.setPerformingSystemOperation(false)
                                     Toast.makeText(context, "Launch failed: ${e.message}", Toast.LENGTH_LONG).show()
                                 }
+                            } else {
+                                Toast.makeText(context, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show()
                             }
                         }
                     ) {
@@ -569,24 +654,32 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                     text = {
                                         Column {
                                             autoLockOptions.forEach { (time, label) ->
+                                                val isSelected = (time == autoLockTimer)
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .clickable {
-                                                            scope.launch { viewModel.settingsRepository.setAutoLockTimer(time) }
-                                                            autoLockExpanded = false
-                                                        }
-                                                        .padding(vertical = 12.dp, horizontal = 8.dp),
+                                                        .padding(horizontal = 4.dp)
+                                                        .background(
+                                                            color = if (isSelected) MaterialTheme.colorScheme.surfaceVariant else androidx.compose.ui.graphics.Color.Transparent,
+                                                            shape = RoundedCornerShape(8.dp)
+                                                        )
+                                                        .clickable(
+                                                            onClick = {
+                                                                scope.launch { viewModel.settingsRepository.setAutoLockTimer(time) }
+                                                                autoLockExpanded = false
+                                                            }
+                                                        )
+                                                        .padding(vertical = 12.dp, horizontal = 12.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
                                                     RadioButton(
-                                                        selected = (time == autoLockTimer),
+                                                        selected = isSelected,
                                                         onClick = {
                                                             scope.launch { viewModel.settingsRepository.setAutoLockTimer(time) }
                                                             autoLockExpanded = false
                                                         }
                                                     )
-                                                    Spacer(modifier = Modifier.width(12.dp))
+                                                    Spacer(modifier = Modifier.width(16.dp))
                                                     Text(label, style = MaterialTheme.typography.bodyLarge)
                                                 }
                                             }
@@ -594,9 +687,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                     },
                                     confirmButton = {},
                                     dismissButton = {
-                                        TextButton(onClick = { autoLockExpanded = false }) {
-                                            Text("Cancel")
-                                        }
+                                        TextButton(onClick = { autoLockExpanded = false }) { Text("Cancel") }
                                     }
                                 )
                             }
@@ -622,7 +713,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                 iconBgColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
                                 trailingContent = { Icon(Icons.Default.ChevronRight, tint = MaterialTheme.colorScheme.onSurfaceVariant, contentDescription = null) },
                                 onClick = { 
-                                    showExportPasswordDialog = true
+                                    showExportFormatDialog = true
                                 }
                             )
                             HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
@@ -636,7 +727,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                 onClick = { 
                                     try {
                                         viewModel.setPerformingSystemOperation(true)
-                                        importLauncher.launch(arrayOf("application/json"))
+                                        importLauncher.launch(arrayOf("*/*"))
                                     } catch (e: Exception) {
                                         viewModel.setPerformingSystemOperation(false)
                                         Toast.makeText(context, "Launch failed: ${e.message}", Toast.LENGTH_LONG).show()

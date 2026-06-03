@@ -20,8 +20,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
-
-
+import kotlinx.serialization.json.*
 
 class VaultViewModel(
     val vaultRepository: VaultRepository,
@@ -495,88 +494,258 @@ class VaultViewModel(
         recalculateSecurityStats()
     }
 
-    suspend fun generateExportPayload(password: String): ByteArray {
+    suspend fun generateTxtExportPayload(): ByteArray {
         val entries = getAllEntriesDecrypted()
-        
-        // Ensure unique titles since they are visually important, even in the new array format
-        val titleCounts = mutableMapOf<String, Int>()
-        val exportList = entries.map { entry ->
-            var finalTitle = entry.title
-            var count = titleCounts[finalTitle] ?: 0
-            if (count > 0) {
-                do {
-                    count++
-                    finalTitle = "${entry.title} ($count)"
-                } while (titleCounts.containsKey(finalTitle))
+        val builder = StringBuilder()
+        for (entry in entries) {
+            builder.appendLine("Title: ${entry.title}")
+            builder.appendLine()
+            builder.appendLine("Username:")
+            builder.appendLine(entry.username)
+            builder.appendLine()
+            builder.appendLine("Password:")
+            builder.appendLine(entry.password)
+            builder.appendLine()
+            if (entry.isFavorite) {
+                builder.appendLine("Favorite:")
+                builder.appendLine("Yes")
+                builder.appendLine()
             }
-            titleCounts[finalTitle] = count.takeIf { it > 0 } ?: 1
-            
-            VaultExportDto(
-                title = finalTitle,
-                username = entry.username,
-                password = entry.password,
-                customFields = entry.customFields.map { it.value },
-                isFavorite = entry.isFavorite
-            )
+            if (entry.website.isNotEmpty()) {
+                builder.appendLine("Website:")
+                builder.appendLine(entry.website)
+                builder.appendLine()
+            }
+            if (entry.notes.isNotEmpty()) {
+                builder.appendLine("Notes:")
+                builder.appendLine(entry.notes)
+                builder.appendLine()
+            }
+            if (entry.category != "Personal") {
+                builder.appendLine("Category:")
+                builder.appendLine(entry.category)
+                builder.appendLine()
+            }
+            if (entry.tags.isNotEmpty()) {
+                builder.appendLine("Tags:")
+                builder.appendLine(entry.tags.joinToString(", "))
+                builder.appendLine()
+            }
+            if (entry.customFields.isNotEmpty()) {
+                for (field in entry.customFields) {
+                    builder.appendLine("${field.key}:")
+                    builder.appendLine(field.value)
+                    builder.appendLine()
+                }
+            }
+            builder.appendLine("---")
+            builder.appendLine()
         }
+        return builder.toString().toByteArray(Charsets.UTF_8)
+    }
+
+    suspend fun generateSimplifiedJsonExportPayload(): ByteArray {
+        val entries = getAllEntriesDecrypted()
+        val titleCounts = mutableMapOf<String, Int>()
         
-        val jsonString = kotlinx.serialization.json.Json.encodeToString(exportList)
+        val rootObj = buildJsonObject {
+            for (entry in entries) {
+                var finalTitle = entry.title
+                var count = titleCounts[finalTitle] ?: 0
+                if (count > 0) {
+                    do {
+                        count++
+                        finalTitle = "${entry.title} ($count)"
+                    } while (titleCounts.containsKey(finalTitle))
+                }
+                titleCounts[finalTitle] = count.takeIf { it > 0 } ?: 1
+                
+                putJsonArray(finalTitle) {
+                    add(entry.username)
+                    add(entry.password)
+                    
+                    val hasMetadata = entry.isFavorite || entry.website.isNotEmpty() || entry.notes.isNotEmpty() || entry.tags.isNotEmpty() || entry.customFields.isNotEmpty() || entry.category != "Personal"
+                    
+                    if (hasMetadata) {
+                        addJsonObject {
+                            if (entry.isFavorite) put("isFavorite", true)
+                            if (entry.website.isNotEmpty()) put("website", entry.website)
+                            if (entry.category != "Personal") put("category", entry.category)
+                            if (entry.notes.isNotEmpty()) put("notes", entry.notes)
+                            if (entry.tags.isNotEmpty()) {
+                                putJsonArray("tags") { entry.tags.forEach { add(it) } }
+                            }
+                            if (entry.customFields.isNotEmpty()) {
+                                putJsonObject("customFields") {
+                                    entry.customFields.forEach { put(it.key, it.value) }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return rootObj.toString().toByteArray(Charsets.UTF_8)
+    }
+
+    suspend fun generateVpexExportPayload(password: String): ByteArray {
+        val jsonString = String(generateSimplifiedJsonExportPayload(), Charsets.UTF_8)
         val backupData = com.example.security.CryptoManager.encryptBackup(jsonString, password)
         val base64Backup = android.util.Base64.encodeToString(backupData, android.util.Base64.NO_WRAP)
         return base64Backup.toByteArray(Charsets.UTF_8)
     }
 
-    fun decodeImportPayload(jsonString: String): Pair<List<VaultEntry>, Int> {
+    fun decodeImportPayload(fileContent: String): Pair<List<VaultEntry>, Int> {
+        if (fileContent.trimStart().startsWith("Title:")) {
+            return decodeTxtImportPayload(fileContent)
+        }
+        return decodeSimplifiedJsonImportPayload(fileContent)
+    }
+
+    private fun decodeTxtImportPayload(text: String): Pair<List<VaultEntry>, Int> {
         val validEntries = mutableListOf<VaultEntry>()
         var localInvalidCount = 0
-
-        // 1. Try New Format
-        try {
-            val list = kotlinx.serialization.json.Json.decodeFromString<List<VaultExportDto>>(jsonString)
-            for (dto in list) {
-                val customFields = dto.customFields.mapIndexed { index, value ->
-                    com.example.domain.models.CustomField(key = "Field ${index + 1}", value = value)
+        
+        val blocks = text.split("---")
+        for (block in blocks) {
+            val lines = block.lines().map { it.trim() }.filter { it.isNotEmpty() }
+            if (lines.isEmpty()) continue
+            
+            var title = ""
+            var username = ""
+            var password = ""
+            var isFavorite = false
+            var website = ""
+            var notes = ""
+            var category = "Personal"
+            val tags = mutableListOf<String>()
+            val customFields = mutableListOf<com.example.domain.models.CustomField>()
+            
+            var i = 0
+            while (i < lines.size) {
+                val line = lines[i]
+                if (line.startsWith("Title:")) {
+                    title = line.substringAfter("Title:").trim()
+                } else if (line == "Username:" && i + 1 < lines.size) {
+                    username = lines[i+1]
+                    i++
+                } else if (line == "Password:" && i + 1 < lines.size) {
+                    password = lines[i+1]
+                    i++
+                } else if (line == "Favorite:" && i + 1 < lines.size) {
+                    isFavorite = (lines[i+1] == "Yes")
+                    i++
+                } else if (line == "Website:" && i + 1 < lines.size) {
+                    website = lines[i+1]
+                    i++
+                } else if (line == "Notes:" && i + 1 < lines.size) {
+                    notes = lines[i+1]
+                    i++
+                } else if (line == "Category:" && i + 1 < lines.size) {
+                    category = lines[i+1]
+                    i++
+                } else if (line == "Tags:" && i + 1 < lines.size) {
+                    lines[i+1].split(",").forEach { tags.add(it.trim()) }
+                    i++
+                } else if (line.endsWith(":") && i + 1 < lines.size) {
+                    val key = line.dropLast(1)
+                    customFields.add(com.example.domain.models.CustomField(key = key, value = lines[i+1]))
+                    i++
                 }
-                validEntries.add(VaultEntry(
-                    title = dto.title,
-                    username = dto.username,
-                    password = dto.password,
-                    customFields = customFields,
-                    isFavorite = dto.isFavorite
-                ))
+                i++
             }
-            return Pair(validEntries, localInvalidCount)
-        } catch (e: Exception) {
-            // Fallback to legacy map format
-        }
-
-        // 2. Try Legacy Format
-        try {
-            val map = kotlinx.serialization.json.Json.decodeFromString<Map<String, List<String>>>(jsonString)
-            for ((key, values) in map) {
-                if (values.isEmpty()) {
-                    localInvalidCount++
-                    continue
-                }
-                val username = values.getOrNull(0) ?: ""
-                val password = values.getOrNull(1) ?: ""
-                val customFields = mutableListOf<com.example.domain.models.CustomField>()
-                if (values.size > 2) {
-                    for (i in 2 until values.size) {
-                        customFields.add(com.example.domain.models.CustomField(key = "Field ${i - 1}", value = values[i]))
-                    }
-                }
+            
+            if (title.isNotEmpty()) {
                 validEntries.add(VaultEntry(
-                    title = key,
+                    title = title,
                     username = username,
                     password = password,
+                    isFavorite = isFavorite,
+                    website = website,
+                    notes = notes,
+                    category = category,
+                    tags = tags,
                     customFields = customFields
                 ))
+            } else {
+                localInvalidCount++
+            }
+        }
+        return Pair(validEntries, localInvalidCount)
+    }
+
+    private fun decodeSimplifiedJsonImportPayload(jsonString: String): Pair<List<VaultEntry>, Int> {
+        val validEntries = mutableListOf<VaultEntry>()
+        var localInvalidCount = 0
+        try {
+            val rootObj = kotlinx.serialization.json.Json.parseToJsonElement(jsonString).jsonObject
+            for ((title, element) in rootObj) {
+                try {
+                    val array = element.jsonArray
+                    val username = array.getOrNull(0)?.jsonPrimitive?.content ?: ""
+                    val password = array.getOrNull(1)?.jsonPrimitive?.content ?: ""
+                    
+                    var isFavorite = false
+                    var website = ""
+                    var notes = ""
+                    var category = "Personal"
+                    val tags = mutableListOf<String>()
+                    val customFields = mutableListOf<com.example.domain.models.CustomField>()
+                    
+                    val meta = array.getOrNull(2)?.jsonObject
+                    if (meta != null) {
+                        isFavorite = meta["isFavorite"]?.jsonPrimitive?.booleanOrNull ?: false
+                        website = meta["website"]?.jsonPrimitive?.content ?: ""
+                        notes = meta["notes"]?.jsonPrimitive?.content ?: ""
+                        category = meta["category"]?.jsonPrimitive?.content ?: "Personal"
+                        
+                        meta["tags"]?.jsonArray?.forEach { tags.add(it.jsonPrimitive.content) }
+                        
+                        meta["customFields"]?.jsonObject?.forEach { (key, value) ->
+                            customFields.add(com.example.domain.models.CustomField(key = key, value = value.jsonPrimitive.content))
+                        }
+                    } else if (array.size > 2) {
+                        // Legacy support for older simple lists
+                        for (i in 2 until array.size) {
+                            customFields.add(com.example.domain.models.CustomField(key = "Field ${i - 1}", value = array[i].jsonPrimitive.content))
+                        }
+                    }
+                    
+                    validEntries.add(VaultEntry(
+                        title = title,
+                        username = username,
+                        password = password,
+                        website = website,
+                        notes = notes,
+                        category = category,
+                        tags = tags,
+                        customFields = customFields,
+                        isFavorite = isFavorite
+                    ))
+                } catch (e: Exception) {
+                    localInvalidCount++
+                }
             }
         } catch (e: Exception) {
-            localInvalidCount++ // Total failure
+            // Legacy format fallback: VaultExportDto array
+            try {
+                val list = kotlinx.serialization.json.Json.decodeFromString<List<VaultExportDto>>(jsonString)
+                for (dto in list) {
+                    val customFields = dto.customFields.mapIndexed { index, value ->
+                        com.example.domain.models.CustomField(key = "Field ${index + 1}", value = value)
+                    }
+                    validEntries.add(VaultEntry(
+                        title = dto.title,
+                        username = dto.username,
+                        password = dto.password,
+                        customFields = customFields,
+                        isFavorite = dto.isFavorite
+                    ))
+                }
+            } catch (e2: Exception) {
+                localInvalidCount++
+            }
         }
-        
         return Pair(validEntries, localInvalidCount)
     }
 

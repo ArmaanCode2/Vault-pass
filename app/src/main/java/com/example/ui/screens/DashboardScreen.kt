@@ -113,7 +113,6 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                 item {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("Welcome back", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
-                        Text(securityStats?.securityStatus ?: "Analyzing...", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         
                         Spacer(modifier = Modifier.height(16.dp))
                         
