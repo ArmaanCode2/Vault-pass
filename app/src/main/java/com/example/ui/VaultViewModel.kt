@@ -1,5 +1,8 @@
 package com.example.ui
 
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -23,7 +26,41 @@ import kotlinx.serialization.encodeToString
 class VaultViewModel(
     val vaultRepository: VaultRepository,
     val settingsRepository: SettingsRepository
-) : ViewModel() {
+) : ViewModel(), DefaultLifecycleObserver {
+
+    private var autoLockJob: kotlinx.coroutines.Job? = null
+
+    init {
+        ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        ProcessLifecycleOwner.get().lifecycle.removeObserver(this)
+    }
+
+    override fun onStop(owner: LifecycleOwner) {
+        super.onStop(owner)
+        // App backgrounded
+        viewModelScope.launch {
+            val timeout = settingsRepository.autoLockTimer.firstOrNull() ?: 60000L
+            if (timeout == 0L) {
+                lock()
+            } else if (timeout > 0L) {
+                autoLockJob?.cancel()
+                autoLockJob = launch {
+                    kotlinx.coroutines.delay(timeout)
+                    lock()
+                }
+            }
+        }
+    }
+
+    override fun onStart(owner: LifecycleOwner) {
+        super.onStart(owner)
+        // App foregrounded
+        autoLockJob?.cancel()
+    }
 
     // Auth State
     private val _isUnlocking = MutableStateFlow(false)
@@ -388,6 +425,8 @@ class VaultViewModel(
 
     fun lock() {
         _isUnlocked.value = false
+        vaultRepository.clearSoftwareDek()
+        autoLockJob?.cancel()
     }
 
     fun setupMasterPassword(password: String) {

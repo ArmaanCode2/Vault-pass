@@ -72,7 +72,7 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { it[ACCENT_COLOR] = color }
     }
 
-    val autoLockTimer: Flow<Long> = data.map { it[AUTO_LOCK_TIMER] ?: 300000L } // default 5 mins
+    val autoLockTimer: Flow<Long> = data.map { it[AUTO_LOCK_TIMER] ?: 60000L } // default 1 min
     suspend fun setAutoLockTimer(timer: Long) {
         context.dataStore.edit { it[AUTO_LOCK_TIMER] = timer }
     }

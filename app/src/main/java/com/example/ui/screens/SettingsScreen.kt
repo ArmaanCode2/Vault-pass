@@ -67,6 +67,17 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
     val accentColorName by viewModel.settingsRepository.accentColor.collectAsStateWithLifecycle(initialValue = "BLUE")
     val themeOptions = listOf("System Default", "Light Mode", "Dark Mode")
     var isAppearanceExpanded by remember { mutableStateOf(false) }
+
+    var autoLockExpanded by remember { mutableStateOf(false) }
+    val autoLockTimer by viewModel.settingsRepository.autoLockTimer.collectAsStateWithLifecycle(initialValue = 60000L)
+    val autoLockOptions = mapOf(
+        0L to "Immediately",
+        30000L to "30 Seconds",
+        60000L to "1 Minute",
+        300000L to "5 Minutes",
+        900000L to "15 Minutes",
+        -1L to "Never"
+    )
     
     var previewEntries by remember { mutableStateOf<List<VaultEntry>?>(null) }
     var invalidCount by remember { mutableStateOf(0) }
@@ -490,6 +501,54 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                     Switch(checked = disableScreenshots, onCheckedChange = { scope.launch { viewModel.settingsRepository.setDisableScreenshots(it) } }) 
                                 }
                             )
+                            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+                            SettingsRow(
+                                title = "Auto Lock",
+                                subtitle = autoLockOptions[autoLockTimer] ?: "Unknown",
+                                icon = Icons.Default.Timer,
+                                iconColor = MaterialTheme.colorScheme.tertiary,
+                                iconBgColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.2f),
+                                trailingContent = {
+                                    Icon(
+                                        if (autoLockExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        contentDescription = null
+                                    )
+                                },
+                                onClick = { autoLockExpanded = !autoLockExpanded }
+                            )
+                            androidx.compose.animation.AnimatedVisibility(visible = autoLockExpanded) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    ExposedDropdownMenuBox(
+                                        expanded = autoLockExpanded,
+                                        onExpandedChange = { autoLockExpanded = !autoLockExpanded }
+                                    ) {
+                                        OutlinedTextField(
+                                            value = autoLockOptions[autoLockTimer] ?: "1 Minute",
+                                            onValueChange = {},
+                                            readOnly = true,
+                                            label = { Text("Auto Lock Timeout") },
+                                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = autoLockExpanded) },
+                                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                                        )
+                                        ExposedDropdownMenu(
+                                            expanded = autoLockExpanded,
+                                            onDismissRequest = { autoLockExpanded = false }
+                                        ) {
+                                            autoLockOptions.forEach { (time, label) ->
+                                                DropdownMenuItem(
+                                                    text = { Text(label) },
+                                                    onClick = {
+                                                        scope.launch { viewModel.settingsRepository.setAutoLockTimer(time) }
+                                                        autoLockExpanded = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
