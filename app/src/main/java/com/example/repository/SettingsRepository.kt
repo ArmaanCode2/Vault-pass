@@ -38,6 +38,9 @@ class SettingsRepository(private val context: Context) {
         val SECURITY_STATUS = stringPreferencesKey("security_status")
         val SECURITY_LAST_UPDATED = longPreferencesKey("security_last_updated")
         
+        val FAILED_AUTH_ATTEMPTS = intPreferencesKey("failed_auth_attempts")
+        val LAST_FAILED_AUTH_TIMESTAMP = longPreferencesKey("last_failed_auth_timestamp")
+        
         private const val PREFS_NAME = "vaultpass_sync_prefs"
         private const val DEK_MP_WRAPPED_PREF = "dek_mp_wrapped"
         private const val DEK_BIO_WRAPPED_PREF = "dek_bio_wrapped"
@@ -80,6 +83,24 @@ class SettingsRepository(private val context: Context) {
             prefs[MASTER_KDF_VERSION] = version
             prefs[MASTER_KDF_ITERATIONS] = iterations
             prefs[MASTER_KDF_ALGORITHM] = algorithm
+        }
+    }
+
+    val failedAuthAttempts: Flow<Int> = data.map { it[FAILED_AUTH_ATTEMPTS] ?: 0 }
+    val lastFailedAuthTimestamp: Flow<Long> = data.map { it[LAST_FAILED_AUTH_TIMESTAMP] ?: 0L }
+
+    suspend fun incrementFailedAttempts(timestamp: Long) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[FAILED_AUTH_ATTEMPTS] ?: 0
+            prefs[FAILED_AUTH_ATTEMPTS] = current + 1
+            prefs[LAST_FAILED_AUTH_TIMESTAMP] = timestamp
+        }
+    }
+
+    suspend fun resetFailedAttempts() {
+        context.dataStore.edit { prefs ->
+            prefs.remove(FAILED_AUTH_ATTEMPTS)
+            prefs.remove(LAST_FAILED_AUTH_TIMESTAMP)
         }
     }
 

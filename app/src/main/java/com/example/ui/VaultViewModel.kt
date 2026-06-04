@@ -22,6 +22,12 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 
+enum class AuthResult {
+    SUCCESS,
+    INVALID_PASSWORD,
+    LOCKED_OUT
+}
+
 class VaultViewModel(
     val vaultRepository: VaultRepository,
     val settingsRepository: SettingsRepository
@@ -85,6 +91,24 @@ class VaultViewModel(
     // Auth State
     private val _isUnlocking = MutableStateFlow(false)
     val isUnlocking: StateFlow<Boolean> = _isUnlocking.asStateFlow()
+
+    private fun getLockoutDurationMs(attempts: Int): Long {
+        return when {
+            attempts >= 20 -> 15 * 60 * 1000L
+            attempts >= 15 -> 5 * 60 * 1000L
+            attempts >= 10 -> 60 * 1000L
+            attempts >= 5 -> 30 * 1000L
+            else -> 0L
+        }
+    }
+
+    val lockoutEndTime: StateFlow<Long> = combine(
+        settingsRepository.failedAuthAttempts,
+        settingsRepository.lastFailedAuthTimestamp
+    ) { attempts, lastAttemptTime ->
+        val duration = getLockoutDurationMs(attempts)
+        if (duration > 0) lastAttemptTime + duration else 0L
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
 
     private val _isUnlocked = MutableStateFlow(false)
     val isUnlocked: StateFlow<Boolean> = _isUnlocked.asStateFlow()
@@ -295,13 +319,19 @@ class VaultViewModel(
         }
     }
 
-    suspend fun unlockWithPassword(password: String): Boolean {
-        if (_isUnlocking.value) return false
+    suspend fun unlockWithPassword(password: String): AuthResult {
+        if (_isUnlocking.value) return AuthResult.INVALID_PASSWORD
+        
+        val end = lockoutEndTime.value
+        if (System.currentTimeMillis() < end) {
+            return AuthResult.LOCKED_OUT
+        }
+        
         _isUnlocking.value = true
         return withContext(Dispatchers.Default) {
             try {
-                val hash = masterHash.value ?: return@withContext false
-                val salt = masterSalt.value ?: return@withContext false
+                val hash = masterHash.value ?: return@withContext AuthResult.INVALID_PASSWORD
+                val salt = masterSalt.value ?: return@withContext AuthResult.INVALID_PASSWORD
                 val iterations = settingsRepository.masterKdfIterations.firstOrNull() ?: 100000
                 val algorithm = settingsRepository.masterKdfAlgorithm.firstOrNull() ?: "PBKDF2WithHmacSHA256"
 
@@ -327,6 +357,7 @@ class VaultViewModel(
                         }
 
                         if (dek != null) {
+                            settingsRepository.resetFailedAttempts()
                             vaultRepository.injectSoftwareDek(dek)
                             _isUnlocked.value = true
                             
@@ -335,9 +366,10 @@ class VaultViewModel(
                                 launch { performKdfMigration(password) }
                             }
                             
-                            return@withContext true
+                            return@withContext AuthResult.SUCCESS
                         }
-                        return@withContext false
+                        settingsRepository.incrementFailedAttempts(System.currentTimeMillis())
+                        return@withContext AuthResult.INVALID_PASSWORD
                     } else {
                         val pendingMpWrapped = settingsRepository.getPendingDekMpWrappedSync()
                         if (pendingMpWrapped != null) {
@@ -348,9 +380,11 @@ class VaultViewModel(
                             performMigration(password, salt)
                         }
                     }
-                    return@withContext true
+                    settingsRepository.resetFailedAttempts()
+                    return@withContext AuthResult.SUCCESS
                 }
-                return@withContext false
+                settingsRepository.incrementFailedAttempts(System.currentTimeMillis())
+                return@withContext AuthResult.INVALID_PASSWORD
             } finally {
                 _isUnlocking.value = false
             }

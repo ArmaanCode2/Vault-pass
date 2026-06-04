@@ -47,6 +47,24 @@ fun LockScreen(
         }
     }
 
+    val lockoutEndTime by viewModel.lockoutEndTime.collectAsStateWithLifecycle()
+    var lockoutSeconds by remember { mutableStateOf(0) }
+
+    LaunchedEffect(lockoutEndTime) {
+        while (true) {
+            val remainingMs = lockoutEndTime - System.currentTimeMillis()
+            if (remainingMs > 0) {
+                lockoutSeconds = (remainingMs / 1000).toInt() + 1
+                kotlinx.coroutines.delay(500)
+            } else {
+                lockoutSeconds = 0
+                break
+            }
+        }
+    }
+
+    val isLockedOut = lockoutSeconds > 0
+
     // Premium UI Background Effect (Optional ambient glows could be added to Box/Surface)
     Box(
         modifier = Modifier
@@ -126,12 +144,14 @@ fun LockScreen(
                         leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
+                        enabled = !isLockedOut,
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primaryContainer,
                             unfocusedBorderColor = Color.Transparent,
                             unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                            focusedContainerColor = MaterialTheme.colorScheme.surface
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
                         ),
                         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         trailingIcon = {
@@ -142,7 +162,13 @@ fun LockScreen(
                         }
                     )
 
-                    if (errorMessage != null) {
+                    if (isLockedOut) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        val minutes = lockoutSeconds / 60
+                        val seconds = lockoutSeconds % 60
+                        val formattedTime = String.format("%02d:%02d", minutes, seconds)
+                        Text("Too many failed attempts. Try again in $formattedTime", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    } else if (errorMessage != null) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(errorMessage!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
@@ -155,13 +181,13 @@ fun LockScreen(
                     Button(
                         onClick = {
                             coroutineScope.launch {
-                                val success = viewModel.unlockWithPassword(password)
-                                if (!success) {
+                                val result = viewModel.unlockWithPassword(password)
+                                if (result == com.example.ui.AuthResult.INVALID_PASSWORD) {
                                     errorMessage = "Incorrect master password"
                                 }
                             }
                         },
-                        enabled = !isUnlocking,
+                        enabled = !isUnlocking && !isLockedOut,
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
