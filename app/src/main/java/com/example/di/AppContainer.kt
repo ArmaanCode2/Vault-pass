@@ -22,4 +22,8 @@ class AppContainer(private val context: Context) {
     val vaultRepository: VaultRepository by lazy {
         VaultRepository(appDatabase.vaultDao(), cryptoManager)
     }
+    
+    val autofillDiagnosticsRepository: com.example.repository.AutofillDiagnosticsRepository by lazy {
+        com.example.repository.AutofillDiagnosticsRepository()
+    }
 }

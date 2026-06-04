@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -647,6 +648,50 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                 trailingContent = {},
                                 onClick = { autoLockExpanded = true }
                             )
+                            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                            val autofillManager = context.getSystemService(android.view.autofill.AutofillManager::class.java)
+                            val isAutofillEnabled = autofillManager?.hasEnabledAutofillServices() == true
+                            
+                            SettingsRow(
+                                title = "Enable Autofill",
+                                subtitle = if (isAutofillEnabled) "Enabled" else "Allow VaultPass to fill passwords",
+                                icon = Icons.Default.Edit,
+                                iconColor = if (isAutofillEnabled) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary,
+                                iconBgColor = if (isAutofillEnabled) Color(0xFF2E7D32).copy(alpha = 0.2f) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
+                                trailingContent = { Icon(Icons.Default.ChevronRight, tint = MaterialTheme.colorScheme.onSurfaceVariant, contentDescription = null) },
+                                onClick = {
+                                    if (isAutofillEnabled) {
+                                        android.widget.Toast.makeText(context, "VaultPass is already your Autofill provider!", android.widget.Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        val intent = android.content.Intent(android.provider.Settings.ACTION_REQUEST_SET_AUTOFILL_SERVICE)
+                                        intent.data = android.net.Uri.parse("package:${context.packageName}")
+                                        try {
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            android.widget.Toast.makeText(context, "Cannot open autofill settings", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 24.dp, end = 24.dp, top = 4.dp, bottom = 12.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Icon(
+                                    Icons.Default.WarningAmber,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Autofill is an experimental feature. Compatibility may vary across apps, browsers, and Android versions.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                )
+                            }
                             if (autoLockExpanded) {
                                 AlertDialog(
                                     onDismissRequest = { autoLockExpanded = false },
@@ -744,6 +789,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun SettingsRow(
     title: String,
@@ -752,12 +798,20 @@ fun SettingsRow(
     iconColor: Color = MaterialTheme.colorScheme.primary,
     iconBgColor: Color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
     trailingContent: @Composable () -> Unit,
-    onClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = onClick != null) { onClick?.invoke() }
+            .then(
+                if (onClick != null || onLongClick != null) {
+                    Modifier.combinedClickable(
+                        onClick = { onClick?.invoke() },
+                        onLongClick = { onLongClick?.invoke() }
+                    )
+                } else Modifier
+            )
             .padding(16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
