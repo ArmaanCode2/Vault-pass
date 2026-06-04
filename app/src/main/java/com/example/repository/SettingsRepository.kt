@@ -16,6 +16,9 @@ class SettingsRepository(private val context: Context) {
     companion object {
         val MASTER_HASH = stringPreferencesKey("master_hash")
         val MASTER_SALT = stringPreferencesKey("master_salt")
+        val MASTER_KDF_VERSION = intPreferencesKey("master_kdf_version")
+        val MASTER_KDF_ITERATIONS = intPreferencesKey("master_kdf_iterations")
+        val MASTER_KDF_ALGORITHM = stringPreferencesKey("master_kdf_algorithm")
         val BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
         val THEME_MODE = intPreferencesKey("theme_mode") // 0 = System, 1 = Light, 2 = Dark
         val ACCENT_COLOR = stringPreferencesKey("accent_color")
@@ -40,6 +43,7 @@ class SettingsRepository(private val context: Context) {
         private const val DEK_BIO_WRAPPED_PREF = "dek_bio_wrapped"
         private const val PENDING_DEK_MP_WRAPPED_PREF = "pending_dek_mp_wrapped"
         private const val PENDING_DEK_BIO_WRAPPED_PREF = "pending_dek_bio_wrapped"
+        private const val PENDING_DEK_MP_WRAPPED_V2_PREF = "pending_dek_mp_wrapped_v2"
     }
 
     suspend fun saveMasterPasswordData(hash: String, salt: String) {
@@ -56,6 +60,28 @@ class SettingsRepository(private val context: Context) {
 
     val masterPasswordHash: Flow<String?> = data.map { it[MASTER_HASH] }
     val masterPasswordSalt: Flow<String?> = data.map { it[MASTER_SALT] }
+
+    val masterKdfVersion: Flow<Int> = data.map { it[MASTER_KDF_VERSION] ?: 1 }
+    val masterKdfIterations: Flow<Int> = data.map { it[MASTER_KDF_ITERATIONS] ?: 100000 }
+    val masterKdfAlgorithm: Flow<String> = data.map { it[MASTER_KDF_ALGORITHM] ?: "PBKDF2_SHA256" }
+
+    suspend fun saveMasterKdfMetadata(version: Int, iterations: Int, algorithm: String) {
+        context.dataStore.edit { prefs ->
+            prefs[MASTER_KDF_VERSION] = version
+            prefs[MASTER_KDF_ITERATIONS] = iterations
+            prefs[MASTER_KDF_ALGORITHM] = algorithm
+        }
+    }
+
+    suspend fun saveMasterPasswordAndKdfMetadata(hash: String, salt: String, version: Int, iterations: Int, algorithm: String) {
+        context.dataStore.edit { prefs ->
+            prefs[MASTER_HASH] = hash
+            prefs[MASTER_SALT] = salt
+            prefs[MASTER_KDF_VERSION] = version
+            prefs[MASTER_KDF_ITERATIONS] = iterations
+            prefs[MASTER_KDF_ALGORITHM] = algorithm
+        }
+    }
 
     val isBiometricEnabled: Flow<Boolean> = data.map { it[BIOMETRIC_ENABLED] ?: false }
     suspend fun setBiometricEnabled(enabled: Boolean) {
@@ -171,6 +197,17 @@ class SettingsRepository(private val context: Context) {
         prefs.edit()
             .remove(PENDING_DEK_MP_WRAPPED_PREF)
             .remove(PENDING_DEK_BIO_WRAPPED_PREF)
+            .remove(PENDING_DEK_MP_WRAPPED_V2_PREF)
             .apply()
+    }
+
+    fun getPendingDekMpWrappedV2Sync(): String? {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getString(PENDING_DEK_MP_WRAPPED_V2_PREF, null)
+    }
+
+    fun savePendingDekMpWrappedV2Sync(wrappedBase64: String) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putString(PENDING_DEK_MP_WRAPPED_V2_PREF, wrappedBase64).apply()
     }
 }

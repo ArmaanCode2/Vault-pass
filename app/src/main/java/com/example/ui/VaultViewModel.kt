@@ -302,16 +302,39 @@ class VaultViewModel(
             try {
                 val hash = masterHash.value ?: return@withContext false
                 val salt = masterSalt.value ?: return@withContext false
-                val isValid = PasswordHashHelper.verifyPassword(password, salt, hash)
+                val iterations = settingsRepository.masterKdfIterations.firstOrNull() ?: 100000
+                val algorithm = settingsRepository.masterKdfAlgorithm.firstOrNull() ?: "PBKDF2WithHmacSHA256"
+
+                val isValid = PasswordHashHelper.verifyPassword(password, salt, hash, iterations, algorithm)
                 if (isValid) {
                     val mpWrapped = settingsRepository.getDekMpWrappedSync()
                     if (mpWrapped != null) {
                         // User is migrated, unwrap DEK
-                        val kek = PasswordHashHelper.deriveMasterKey(password, salt)
-                        val dek = com.example.security.CryptoManager.unwrapDekWithKek(mpWrapped, kek)
+                        val kek = PasswordHashHelper.deriveMasterKey(password, salt, iterations, algorithm)
+                        var dek = com.example.security.CryptoManager.unwrapDekWithKek(mpWrapped, kek)
+                        
+                        // KDF MIGRATION CRASH RECOVERY
+                        if (dek == null) {
+                            val pendingV2 = settingsRepository.getPendingDekMpWrappedV2Sync()
+                            if (pendingV2 != null) {
+                                dek = com.example.security.CryptoManager.unwrapDekWithKek(pendingV2, kek)
+                                if (dek != null) {
+                                    // Recover split-brain: Finalize phase 3 quietly
+                                    settingsRepository.saveDekMpWrappedSync(pendingV2)
+                                    settingsRepository.clearPendingKeysSync()
+                                }
+                            }
+                        }
+
                         if (dek != null) {
                             vaultRepository.injectSoftwareDek(dek)
                             _isUnlocked.value = true
+                            
+                            // Check if KDF Migration is needed
+                            if (iterations < com.example.security.SecurityPolicy.CURRENT_KDF_ITERATIONS) {
+                                launch { performKdfMigration(password) }
+                            }
+                            
                             return@withContext true
                         }
                         return@withContext false
@@ -331,6 +354,42 @@ class VaultViewModel(
             } finally {
                 _isUnlocking.value = false
             }
+        }
+    }
+
+    private suspend fun performKdfMigration(password: String) {
+        try {
+            val targetIterations = com.example.security.SecurityPolicy.CURRENT_KDF_ITERATIONS
+            val targetVersion = com.example.security.SecurityPolicy.CURRENT_KDF_VERSION
+            val targetAlgorithm = com.example.security.SecurityPolicy.CURRENT_KDF_ALGORITHM
+
+            // 1. Generate new salt & KEK
+            val newSaltBase64 = PasswordHashHelper.generateSalt()
+            val newKek = PasswordHashHelper.deriveMasterKey(password, newSaltBase64, targetIterations, targetAlgorithm)
+            
+            // 2. Generate new master hash
+            val newHashBase64 = PasswordHashHelper.hashPassword(password, newSaltBase64, targetIterations, targetAlgorithm)
+            
+            // 3. Fetch active DEK
+            val activeDek = vaultRepository.getSoftwareDek() ?: return
+            
+            // 4. Wrap DEK with new KEK
+            val newDekMpWrapped = com.example.security.CryptoManager.wrapDekWithKek(activeDek, newKek)
+            
+            // 5. PHASE 1: PREPARE (SharedPreferences)
+            settingsRepository.savePendingDekMpWrappedV2Sync(newDekMpWrapped)
+            
+            // 6. PHASE 2: COMMIT (DataStore)
+            settingsRepository.saveMasterPasswordAndKdfMetadata(newHashBase64, newSaltBase64, targetVersion, targetIterations, targetAlgorithm)
+            
+            // 7. PHASE 3: FINALIZE (SharedPreferences)
+            kotlinx.coroutines.delay(500)
+            settingsRepository.saveDekMpWrappedSync(newDekMpWrapped)
+            settingsRepository.clearPendingKeysSync()
+            
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Migration silently aborts, DataStore rolls back, no harm done.
         }
     }
 
@@ -451,17 +510,21 @@ class VaultViewModel(
 
     fun setupMasterPassword(password: String) {
         viewModelScope.launch {
+            val targetIterations = com.example.security.SecurityPolicy.CURRENT_KDF_ITERATIONS
+            val targetVersion = com.example.security.SecurityPolicy.CURRENT_KDF_VERSION
+            val targetAlgorithm = com.example.security.SecurityPolicy.CURRENT_KDF_ALGORITHM
+
             // 1. Generate salt and hash for master password
             val salt = PasswordHashHelper.generateSalt()
-            val hash = PasswordHashHelper.hashPassword(password, salt)
-            settingsRepository.saveMasterPasswordData(hash, salt)
+            val hash = PasswordHashHelper.hashPassword(password, salt, targetIterations, targetAlgorithm)
+            settingsRepository.saveMasterPasswordAndKdfMetadata(hash, salt, targetVersion, targetIterations, targetAlgorithm)
             
             // 2. Generate the Software DEK
             val newDek = ByteArray(32)
             java.security.SecureRandom().nextBytes(newDek)
             
             // 3. Wrap DEK with Master Password KEK
-            val mpKek = PasswordHashHelper.deriveMasterKey(password, salt)
+            val mpKek = PasswordHashHelper.deriveMasterKey(password, salt, targetIterations, targetAlgorithm)
             val dekMpWrapped = com.example.security.CryptoManager.wrapDekWithKek(newDek, mpKek)
             
             // 4. Save the wrapped DEK
