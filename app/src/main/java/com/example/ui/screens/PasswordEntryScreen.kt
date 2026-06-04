@@ -296,8 +296,8 @@ fun PasswordEntryScreen(
                                 isError = notesError != null,
                                 supportingText = notesError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
                                 colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = Color(0xFF16274B),
-                                    unfocusedContainerColor = Color(0xFF16274B),
+                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                                     focusedIndicatorColor = MaterialTheme.colorScheme.primaryContainer,
                                     unfocusedIndicatorColor = Color.Transparent
                                 ),
@@ -326,7 +326,7 @@ fun PasswordEntryScreen(
                                             modifier = Modifier.weight(0.4f),
                                             isError = field.key.length > 50,
                                             colors = TextFieldDefaults.colors(
-                                                focusedContainerColor = Color(0xFF16274B), unfocusedContainerColor = Color(0xFF16274B),
+                                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant, unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                                                 focusedIndicatorColor = MaterialTheme.colorScheme.primaryContainer, unfocusedIndicatorColor = Color.Transparent
                                             ),
                                             shape = RoundedCornerShape(8.dp),
@@ -343,7 +343,7 @@ fun PasswordEntryScreen(
                                             modifier = Modifier.weight(0.6f),
                                             isError = field.value.length > 200,
                                             colors = TextFieldDefaults.colors(
-                                                focusedContainerColor = Color(0xFF16274B), unfocusedContainerColor = Color(0xFF16274B),
+                                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant, unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                                                 focusedIndicatorColor = MaterialTheme.colorScheme.primaryContainer, unfocusedIndicatorColor = Color.Transparent
                                             ),
                                             shape = RoundedCornerShape(8.dp),
@@ -450,8 +450,8 @@ fun EntryTextField(
             isError = isError,
             supportingText = errorMessage?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color(0xFF16274B),
-                unfocusedContainerColor = Color(0xFF16274B),
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                 focusedIndicatorColor = MaterialTheme.colorScheme.primaryContainer,
                 unfocusedIndicatorColor = Color.Transparent
             ),
