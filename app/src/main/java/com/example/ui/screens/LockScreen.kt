@@ -51,8 +51,10 @@ fun LockScreen(
     var lockoutSeconds by remember { mutableStateOf(0) }
 
     LaunchedEffect(lockoutEndTime) {
+        android.util.Log.d("BruteForceDebug", "LockScreen: LaunchedEffect(lockoutEndTime=$lockoutEndTime) triggered")
         while (true) {
             val remainingMs = lockoutEndTime - System.currentTimeMillis()
+            android.util.Log.d("BruteForceDebug", "LockScreen: remainingMs=$remainingMs")
             if (remainingMs > 0) {
                 lockoutSeconds = (remainingMs / 1000).toInt() + 1
                 kotlinx.coroutines.delay(500)
@@ -177,6 +179,8 @@ fun LockScreen(
 
                     val isUnlocking by viewModel.isUnlocking.collectAsStateWithLifecycle()
                     val coroutineScope = rememberCoroutineScope()
+                    val isButtonDisabled = isUnlocking || isLockedOut
+                    android.util.Log.d("BruteForceDebug", "LockScreen: Recomposition - isUnlocking=$isUnlocking, isLockedOut=$isLockedOut, isButtonDisabled=$isButtonDisabled")
 
                     Button(
                         onClick = {
@@ -187,7 +191,7 @@ fun LockScreen(
                                 }
                             }
                         },
-                        enabled = !isUnlocking && !isLockedOut,
+                        enabled = !isButtonDisabled,
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(

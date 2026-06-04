@@ -86,21 +86,34 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
-    val failedAuthAttempts: Flow<Int> = data.map { it[FAILED_AUTH_ATTEMPTS] ?: 0 }
-    val lastFailedAuthTimestamp: Flow<Long> = data.map { it[LAST_FAILED_AUTH_TIMESTAMP] ?: 0L }
+    val failedAuthAttempts: Flow<Int> = data.map { 
+        val v = it[FAILED_AUTH_ATTEMPTS] ?: 0
+        android.util.Log.d("BruteForceDebug", "SettingsRepository: emitted FAILED_AUTH_ATTEMPTS = $v")
+        v
+    }
+    val lastFailedAuthTimestamp: Flow<Long> = data.map { 
+        val v = it[LAST_FAILED_AUTH_TIMESTAMP] ?: 0L
+        android.util.Log.d("BruteForceDebug", "SettingsRepository: emitted LAST_FAILED_AUTH_TIMESTAMP = $v")
+        v
+    }
 
     suspend fun incrementFailedAttempts(timestamp: Long) {
         context.dataStore.edit { prefs ->
             val current = prefs[FAILED_AUTH_ATTEMPTS] ?: 0
+            android.util.Log.d("BruteForceDebug", "SettingsRepository: incrementing from $current")
             prefs[FAILED_AUTH_ATTEMPTS] = current + 1
             prefs[LAST_FAILED_AUTH_TIMESTAMP] = timestamp
+            android.util.Log.d("BruteForceDebug", "SettingsRepository: incremented to ${current + 1} at $timestamp")
         }
     }
 
     suspend fun resetFailedAttempts() {
         context.dataStore.edit { prefs ->
+            val before = prefs[FAILED_AUTH_ATTEMPTS] ?: 0
+            android.util.Log.d("BruteForceDebug", "SettingsRepository: reset attempts. Before: $before")
             prefs.remove(FAILED_AUTH_ATTEMPTS)
             prefs.remove(LAST_FAILED_AUTH_TIMESTAMP)
+            android.util.Log.d("BruteForceDebug", "SettingsRepository: attempts reset to 0")
         }
     }
 
