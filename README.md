@@ -28,14 +28,14 @@ Your data remains on your device and is accessible without an internet connectio
 
 ## Features
 
-### 🔐 Secure Vault
+### Secure Vault
 
 - Master password protected vault
 - Local encrypted storage
 - Offline-first design
 - No account creation required
 
-### 📝 Password Management
+### Password Management
 
 - Create password entries
 - Edit existing entries
@@ -43,7 +43,7 @@ Your data remains on your device and is accessible without an internet connectio
 - Favorite important entries
 - Organize credentials efficiently
 
-### 🧩 Custom Fields
+### Custom Fields
 
 VaultPass supports unlimited custom fields for every entry.
 
@@ -56,7 +56,7 @@ Examples:
 - Security Questions
 - Notes
 
-### 🔎 Search
+### Search
 
 Quickly search through stored entries using the built-in search functionality.
 
@@ -67,13 +67,13 @@ Search supports:
 - Categories
 - Custom fields
 
-### 📥 Import JSON
+### Import JSON
 
 Import credentials from JSON files directly into the vault.
 
 Supported JSON formats can be imported and converted into VaultPass entries.
 
-### 📤 Export JSON
+### Export JSON
 
 Export vault entries to JSON format for:
 
@@ -81,11 +81,11 @@ Export vault entries to JSON format for:
 - Migration
 - Data portability
 
-### ⭐ Favorites
+### Favorites
 
 Mark frequently used entries as favorites for faster access.
 
-### 📂 Categories
+### Categories
 
 Organize entries into categories such as:
 
@@ -96,13 +96,13 @@ Organize entries into categories such as:
 - Gaming
 - Custom Categories
 
-### 🎨 Themes
+### Themes
 
 - Light Theme
 - Dark Theme
 - System Theme
 
-### 🌐 Offline Operation
+### Offline Operation
 
 VaultPass does not require:
 
