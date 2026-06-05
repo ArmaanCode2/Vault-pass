@@ -1,219 +1,121 @@
 # VaultPass
 
-> ⚠️ This project is under active development. Always maintain independent backups of your vault data.
+> Note: This project is under active development. Maintain independent backups of your vault data.
 
-VaultPass is a secure, offline-first Android password manager built with Kotlin and Jetpack Compose.
-
-The application is designed for users who want full control over their credentials without relying on cloud services, online accounts, or third-party synchronization.
-
-All password data is stored locally on the user's device, allowing the vault to function completely offline.
-
----
-
-## Why VaultPass?
-
-Many password managers require cloud accounts, subscriptions, or internet connectivity.
-
-VaultPass focuses on:
-
-- Offline password storage
-- Local-first architecture
-- Fast password retrieval
-- Secure vault management
-- Simple and modern user experience
-
-Your data remains on your device and is accessible without an internet connection.
-
----
+VaultPass is an offline Android password manager built with Kotlin and Jetpack Compose. It stores credentials locally and does not use cloud services or third-party synchronization. Cryptographic operations and data persistence occur on the device.
 
 ## Features
 
-### Secure Vault
-
-- Master password protected vault
-- Local encrypted storage
-- Offline-first design
-- No account creation required
-
-### Password Management
-
-- Create password entries
-- Edit existing entries
-- Delete existing entries
-- Favorite important entries
-- Organize credentials efficiently
-
-### Custom Fields
-
-VaultPass supports unlimited custom fields for every entry.
-
-Examples:
-
-- API Keys
-- Recovery Codes
-- License Keys
-- Server Credentials
-- Security Questions
-- Notes
-
-### Search
-
-Quickly search through stored entries using the built-in search functionality.
-
-Search supports:
-
-- Titles
-- Usernames
-- Categories
-- Custom fields
-
-### Import JSON
-
-Import credentials from JSON files directly into the vault.
-
-Supported JSON formats can be imported and converted into VaultPass entries.
-
-### Export JSON
-
-Export vault entries to JSON format for:
-
-- Backups
-- Migration
-- Data portability
-
-### Favorites
-
-Mark frequently used entries as favorites for faster access.
-
-### Categories
-
-Organize entries into categories such as:
-
-- Email
-- Social Media
-- Work
-- Banking
-- Gaming
-- Custom Categories
-
-### Themes
-
-- Light Theme
-- Dark Theme
-- System Theme
-
-### Offline Operation
-
-VaultPass does not require:
-
-- Internet access
-- Cloud synchronization
-- Online accounts
-- External services
-
----
-
-
-## Installation
-
-### APK Installation
-
-1. Download the latest APK from the Releases page.
-2. Transfer the APK to your Android device.
-3. Install the APK.
-4. Launch VaultPass.
-5. Create a master password.
-6. Start storing credentials.
-
----
-
-## Privacy
-
-VaultPass is designed to operate locally on your device.
-
-The application:
-
-- Does not require an account
-- Does not use cloud synchronization
-- Does not upload vault data
-- Does not require internet access for core functionality
-
----
-
-# Development
-
-## Requirements
-
-- Android Studio
-- Android SDK
-- JDK 17 or newer
-- Gradle
-
----
-
-## Clone Repository
-
-```bash
-git clone https://github.com/ArmaanCode2/VaultPass.git
-cd VaultPass
-```
-
----
-
-## Open Project
-
-1. Open Android Studio.
-2. Select **Open Project**.
-3. Choose the VaultPass project folder.
-4. Wait for Gradle Sync to complete.
-
----
-
-## Build APK
-
-Inside Android Studio:
-
-```text
-Build → Assemble Project
-```
-
-Generated APK location:
-
-```text
-app/build/outputs/apk/debug/
-```
-
----
-
-## Run on Emulator
-
-1. Open Device Manager.
-2. Create an Android Virtual Device.
-3. Start the emulator.
-4. Press Run.
-
----
-
-## Run on Physical Device
-
-1. Enable Developer Options.
-2. Enable USB Debugging.
-3. Connect device to your computer.
-4. Allow USB debugging.
-5. Press Run in Android Studio.
-
----
-
-## Contributing
-
-Contributions are welcome.
-
-1. Fork the repository.
-2. Create a feature branch.
-3. Make your changes.
-4. Test your changes.
-5. Submit a Pull Request.
-
-Bug reports and feature requests can be submitted through GitHub Issues.
-
----
+### Authentication
+* Master password authentication
+* Biometric unlock via Android Keystore
+* Versioned Key Derivation Function (KDF) architecture
+* Background KDF migration
+
+### Security
+* AES-GCM vault encryption
+* Dynamic KDF metadata storage
+* Auto-lock mechanism
+* FLAG_SECURE implementation
+* Clipboard auto-clear
+* In-memory DEK zeroization on lock
+
+### Vault Management
+* Create, read, update, and delete credentials
+* Unlimited custom fields
+* Password generator
+* Search (titles, usernames, categories, custom fields)
+* Categories and favorites
+
+### Autofill
+* Android Autofill Service integration
+* DOM traversal via BFS
+* Matching heuristics (domain, app label, package name)
+* Gatekeeper logic to ignore non-input layout containers
+
+### Import / Export
+* Import formats: JSON, TXT, encrypted VPEX
+* Export formats: Encrypted VPEX (Base64 AES-GCM)
+* Fallback parser for legacy backups
+
+### Security Center
+* Password hygiene tracking
+* Weak password tracking
+* Reused password tracking
+* Missing password tracking
+* Dashboard privacy masking
+
+### User Experience
+* Jetpack Compose UI
+* Material 3 dynamic theming (Light, Dark, System)
+
+## Security Architecture
+
+* **Master Password**: Verified with constant-time MessageDigest.isEqual().
+* **PBKDF2-HMAC-SHA256**: Default KDF.
+* **Dynamic KDF metadata**: Dynamic storage for iteration counts, versioning, and algorithms.
+* **KDF versioning**: Schema versioning for backward compatibility.
+* **Automatic migration**: Background migration of legacy vaults using a Two-Phase Commit pattern.
+* **Software DEK**: In-memory Data Encryption Key (DEK) for AES-GCM operations; zeroized on lock.
+* **Password-wrapped DEK**: DEK wrapped with PBKDF2-derived KEK.
+* **Biometric-wrapped DEK**: DEK wrapped using Android Keystore for biometric unlock.
+* **Android Keystore**: Anchors biometric authentication to hardware.
+* **AES-GCM**: Encrypts Room database payloads.
+* **Auto-lock**: Enforced via ProcessLifecycleOwner and Activity hooks.
+
+## Authentication & Protection
+
+Local brute-force protection:
+
+* **Constant-time password verification**: Mitigates timing attacks.
+* **Failed-attempt tracking**: Failed attempts tracked in DataStore.
+* **Cooldown enforcement**: Incremental lockout timers (5 failures = 30s, 20+ failures = 15m).
+* **Biometric unlock**: Secondary DEK unwrap method.
+* **Counter reset**: Counters reset upon successful password or biometric authentication.
+
+## Technology Stack
+
+* Language: Kotlin
+* UI Toolkit: Jetpack Compose, Material 3
+* Architecture: MVVM (Model-View-ViewModel)
+* Local Storage: Room Database, Jetpack DataStore, SharedPreferences
+* Cryptography: javax.crypto (AES-GCM, PBKDF2), Android Keystore (BiometricPrompt)
+* System Integration: Android Autofill Framework
+
+## Project Status
+
+### Implemented
+* Versioned KDF architecture
+* Dynamic KDF configuration
+* KDF migration framework
+* Constant-time password verification
+* Brute-force protection and cooldowns
+* Hardware-backed biometric unlock
+* Multi-format Import/Export
+* Autofill DOM traversal and heuristics
+* Security Center hygiene tracking
+* Dynamic Material 3 theming
+
+### Planned
+* Cross-device synchronization via encrypted cloud providers
+* Native Windows/Desktop companion application
+* Expanded Autofill dataset capabilities (e.g., credit cards, addresses)
+* Automated scheduled background backups
+
+## Notes
+
+VaultPass operates offline. It does not require an account, does not use network communication, and stores all encrypted data locally.
+
+## Installation and Development
+
+### Requirements
+* Android Studio
+* Android SDK
+* JDK 17 or newer
+* Gradle
+
+### Build Instructions
+1. Clone the repository.
+2. Open the project in Android Studio.
+3. Allow Gradle Sync to complete.
+4. Build and run via Assemble Project.
