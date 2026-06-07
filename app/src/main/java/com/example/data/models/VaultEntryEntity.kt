@@ -15,5 +15,7 @@ data class VaultEntryEntity(
     val tagsEnc: String, // JSON Array of strings (encrypted)
     val customFieldsEnc: String, // JSON Array of custom fields (encrypted)
     val isFavorite: Boolean,
-    val timestamp: Long
+    val timestamp: Long,
+    val isDeleted: Boolean = false,
+    val deletedAt: Long? = null
 )

@@ -13,7 +13,9 @@ data class VaultListEntry(
     val title: String,
     val username: String,
     val isFavorite: Boolean,
-    val isDecryptionFailed: Boolean = false
+    val isDecryptionFailed: Boolean = false,
+    val isDeleted: Boolean = false,
+    val deletedAt: Long? = null
 )
 
 @Serializable
@@ -29,5 +31,7 @@ data class VaultEntry(
     val customFields: List<CustomField> = emptyList(),
     val isFavorite: Boolean = false,
     val timestamp: Long = System.currentTimeMillis(),
-    val isDecryptionFailed: Boolean = false
+    val isDecryptionFailed: Boolean = false,
+    val isDeleted: Boolean = false,
+    val deletedAt: Long? = null
 )

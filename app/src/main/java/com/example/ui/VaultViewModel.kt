@@ -42,6 +42,7 @@ class VaultViewModel(
 
     init {
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+        viewModelScope.launch { vaultRepository.cleanupRecycleBin() }
     }
 
     override fun onCleared() {
@@ -243,6 +244,17 @@ class VaultViewModel(
         processDashboardEntries(lightEntities, decryptedEntities, query)
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val recycleBinEntries: StateFlow<List<VaultListEntry>?> = _isUnlocked
+        .flatMapLatest { unlocked ->
+            if (unlocked) {
+                vaultRepository.recycleBinEntries
+            } else {
+                kotlinx.coroutines.flow.flowOf(null)
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
     private fun processDashboardEntries(
         lightEntities: List<VaultListEntry>,
         decryptedEntities: List<VaultEntry>?,
@@ -370,6 +382,7 @@ class VaultViewModel(
                             android.util.Log.d("BruteForceDebug", "VaultViewModel: Success! Before=$before, After=$after")
                             vaultRepository.injectSoftwareDek(dek)
                             _isUnlocked.value = true
+                            launch { vaultRepository.cleanupRecycleBin() }
                             
                             // Check if KDF Migration is needed
                             if (iterations < com.example.security.SecurityPolicy.CURRENT_KDF_ITERATIONS) {
@@ -399,6 +412,7 @@ class VaultViewModel(
                     settingsRepository.resetFailedAttempts()
                     val after2 = settingsRepository.failedAuthAttempts.firstOrNull() ?: 0
                     android.util.Log.d("BruteForceDebug", "VaultViewModel: Success! Before=$before2, After=$after2")
+                    launch { vaultRepository.cleanupRecycleBin() }
                     return@withContext AuthResult.SUCCESS
                 }
                 val before3 = settingsRepository.failedAuthAttempts.firstOrNull() ?: 0
@@ -474,6 +488,7 @@ class VaultViewModel(
                 }
                 settingsRepository.clearPendingKeysSync()
                 _isUnlocked.value = true
+                viewModelScope.launch { vaultRepository.cleanupRecycleBin() }
             } else {
                 // DB was NOT updated (transaction rolled back). 
                 // Clear pending keys and start migration again.
@@ -497,6 +512,7 @@ class VaultViewModel(
                 if (isValid) {
                     settingsRepository.resetFailedAttempts()
                     _isUnlocked.value = true
+                    launch { vaultRepository.cleanupRecycleBin() }
                 }
                 return@withContext isValid
             } finally {
@@ -513,6 +529,7 @@ class VaultViewModel(
                 vaultRepository.injectSoftwareDek(dek)
                 settingsRepository.resetFailedAttempts()
                 _isUnlocked.value = true
+                launch { vaultRepository.cleanupRecycleBin() }
                 return@withContext true
             } finally {
                 _isUnlocking.value = false
@@ -613,6 +630,7 @@ class VaultViewModel(
 
     suspend fun addEntries(entries: List<VaultEntry>) {
         vaultRepository.insertEntries(entries)
+        vaultRepository.cleanupRecycleBin()
         recalculateSecurityStats()
     }
 
@@ -889,6 +907,20 @@ class VaultViewModel(
     fun deleteEntry(id: Int) {
         viewModelScope.launch { 
             vaultRepository.deleteEntry(id)
+            recalculateSecurityStats()
+        }
+    }
+
+    fun permanentlyDeleteEntry(id: Int) {
+        viewModelScope.launch {
+            vaultRepository.permanentlyDeleteEntry(id)
+            recalculateSecurityStats()
+        }
+    }
+
+    fun restoreEntry(id: Int) {
+        viewModelScope.launch {
+            vaultRepository.restoreEntry(id)
             recalculateSecurityStats()
         }
     }

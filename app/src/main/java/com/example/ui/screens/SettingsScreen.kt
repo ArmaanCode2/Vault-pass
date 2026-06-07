@@ -751,6 +751,16 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                     ) {
                         Column {
                             SettingsRow(
+                                title = "Recycle Bin",
+                                subtitle = "Restore or permanently delete items",
+                                icon = Icons.Default.DeleteOutline,
+                                iconColor = MaterialTheme.colorScheme.error,
+                                iconBgColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
+                                trailingContent = { Icon(Icons.Default.ChevronRight, tint = MaterialTheme.colorScheme.onSurfaceVariant, contentDescription = null) },
+                                onClick = { navController.navigate("recycle_bin") }
+                            )
+                            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                            SettingsRow(
                                 title = "Export Vault",
                                 subtitle = "Save encrypted JSON to device",
                                 icon = Icons.Default.Upload,

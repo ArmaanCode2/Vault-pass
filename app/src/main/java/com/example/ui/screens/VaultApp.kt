@@ -72,6 +72,9 @@ fun VaultApp(
                     composable("add_entry") {
                         PasswordEntryScreen(viewModel = viewModel, navController = navController, entryId = null)
                     }
+                    composable("recycle_bin") {
+                        RecycleBinScreen(viewModel = viewModel, navController = navController)
+                    }
                     composable("entry_details/{entryId}") { backStackEntry ->
                         val id = backStackEntry.arguments?.getString("entryId")?.toIntOrNull()
                         PasswordDetailsScreen(viewModel = viewModel, navController = navController, entryId = id)

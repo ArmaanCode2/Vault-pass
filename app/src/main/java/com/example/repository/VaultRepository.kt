@@ -22,6 +22,10 @@ class VaultRepository(
         .map { list -> list.map { decryptEntity(it) } }
         .flowOn(Dispatchers.IO)
 
+    val recycleBinEntries = vaultDao.getRecycleBinEntries()
+        .map { list -> list.map { decryptLightweight(it) } }
+        .flowOn(Dispatchers.IO)
+
     val allRawEntities = vaultDao.getAllEntries()
 
     suspend fun getAllEntriesSync(): List<VaultEntry> = withContext(Dispatchers.IO) {
@@ -71,7 +75,20 @@ class VaultRepository(
     }
 
     suspend fun deleteEntry(id: Int) = withContext(Dispatchers.IO) {
-        vaultDao.deleteEntry(id)
+        vaultDao.softDeleteEntry(id, System.currentTimeMillis())
+    }
+
+    suspend fun permanentlyDeleteEntry(id: Int) = withContext(Dispatchers.IO) {
+        vaultDao.permanentlyDeleteEntry(id)
+    }
+
+    suspend fun restoreEntry(id: Int) = withContext(Dispatchers.IO) {
+        vaultDao.restoreEntry(id)
+    }
+
+    suspend fun cleanupRecycleBin() = withContext(Dispatchers.IO) {
+        val cutoff = System.currentTimeMillis() - (7L * 24 * 60 * 60 * 1000L) // 7 days
+        vaultDao.deleteOldRecycleBinEntries(cutoff)
     }
 
     private fun encryptEntry(entry: VaultEntry): VaultEntryEntity {
@@ -86,7 +103,9 @@ class VaultRepository(
             tagsEnc = cryptoManager.encrypt(Json.encodeToString(entry.tags)),
             customFieldsEnc = cryptoManager.encrypt(Json.encodeToString(entry.customFields)),
             isFavorite = entry.isFavorite,
-            timestamp = entry.timestamp
+            timestamp = entry.timestamp,
+            isDeleted = entry.isDeleted,
+            deletedAt = entry.deletedAt
         )
     }
 
@@ -118,7 +137,9 @@ class VaultRepository(
             title = if (hasFailed) "Decryption Failed" else decryptedTitle ?: "",
             username = preview,
             isFavorite = entity.isFavorite,
-            isDecryptionFailed = hasFailed
+            isDecryptionFailed = hasFailed,
+            isDeleted = entity.isDeleted,
+            deletedAt = entity.deletedAt
         )
     }
 
@@ -154,7 +175,9 @@ class VaultRepository(
                 customFields = emptyList(),
                 isFavorite = entity.isFavorite,
                 timestamp = entity.timestamp,
-                isDecryptionFailed = true
+                isDecryptionFailed = true,
+                isDeleted = entity.isDeleted,
+                deletedAt = entity.deletedAt
             )
         }
         
@@ -173,7 +196,9 @@ class VaultRepository(
             customFields = Json.decodeFromString(customFieldsStr),
             isFavorite = entity.isFavorite,
             timestamp = entity.timestamp,
-            isDecryptionFailed = false
+            isDecryptionFailed = false,
+            isDeleted = entity.isDeleted,
+            deletedAt = entity.deletedAt
         )
     }
 }
