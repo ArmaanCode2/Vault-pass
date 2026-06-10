@@ -16,7 +16,7 @@ VaultPass does not require user registration or account creation. There is no ce
 All data you input into VaultPass is stored strictly and entirely on your local device. 
 * **No Cloud Synchronization:** The App does not sync your data to any proprietary or third-party cloud servers. 
 * **No Remote Databases:** There are no backend servers associated with the App that receive your data.
-* **No Telemetry or Analytics:** The App does not monitor your behavior, log your actions, or send usage statistics or crash reports to us or any third parties.
+* **No external telemetry or analytics:** The App does not monitor your behavior, log your actions, or send usage statistics or crash reports to us or any third parties.
 
 ## 4. Encryption and Security
 Your data is protected using AES-GCM encryption before it is saved to your device's local storage. VaultPass encrypts vault data locally on the device before it is written to storage.
@@ -46,7 +46,7 @@ VaultPass is built to function independently of third-party network services.
 VaultPass does not knowingly collect any personal information from children or any other users. Because the App operates entirely offline and requires no registration, it can be used by individuals of any age. However, parents and guardians should be aware that the App stores sensitive information locally on the device. VaultPass is not directed toward children under the age of 13. The application does not knowingly collect personal information from children or any other users.
 
 ## 9. Data Retention
-Because VaultPass stores data exclusively on your device, you maintain complete control over data retention. Your data is retained for as long as you keep the App installed or keep your exported backup files. You can delete all your data at any time by securely deleting the App and any associated backup files from your device.
+Because VaultPass stores data exclusively on your device, you maintain complete control over data retention. Your data is retained for as long as you keep the App installed or keep your exported backup files. You can delete all your data at any time by securely deleting the App and any associated backup files from your device. Copied credentials may be automatically removed from the system clipboard after a short period.
 
 *(Note: The App features a Recycle Bin that soft-deletes items. Items in the Recycle Bin are permanently and automatically removed from your local device after 7 days, or they can be manually permanently deleted by you at any time).*
 
