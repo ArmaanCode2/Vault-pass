@@ -28,11 +28,11 @@ While VaultPass employs strong, industry-standard cryptographic practices to pro
 
 ## 5. Import and Export Features
 VaultPass provides utilities to import and export your vault data (in TXT, JSON, or encrypted VPEX formats) for your own backup purposes. 
-* When you export your data, the file is saved directly to your device's local storage. 
+* When you export your data, files are written to the location selected by the user through Android's file picker. 
 * You are solely responsible for securing the exported files. If you export your vault in unencrypted formats (TXT or JSON), the information will be readable by anyone who gains access to that file. Encrypted VPEX exports remain encrypted until successfully imported and decrypted using the appropriate password.
 
 ## 6. Biometric Authentication
-VaultPass supports biometric authentication (such as fingerprint or facial recognition) to unlock your vault, leveraging the Android Keystore system. 
+VaultPass supports biometric authentication (such as fingerprint or other supported biometric authentication methods) to unlock your vault, leveraging the Android Keystore system. 
 * Biometric data (e.g., your fingerprint data) is managed entirely by your device’s operating system and hardware. 
 * VaultPass requests the operating system to verify your identity; the App never collects, stores, or transmits your actual biometric data.
 
