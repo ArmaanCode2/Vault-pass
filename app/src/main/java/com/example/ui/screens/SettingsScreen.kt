@@ -794,6 +794,26 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                 }
 
                 Spacer(modifier = Modifier.height(40.dp))
+
+                Text(
+                    text = "Privacy Policy",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            try {
+                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(com.example.util.Constants.PRIVACY_POLICY_URL))
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+                        .padding(16.dp)
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }

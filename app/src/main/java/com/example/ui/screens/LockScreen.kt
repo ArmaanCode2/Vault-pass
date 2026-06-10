@@ -222,6 +222,21 @@ fun LockScreen(
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("End-to-End Encrypted", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha=0.5f))
             }
+            Spacer(modifier = Modifier.height(16.dp))
+            val context = androidx.compose.ui.platform.LocalContext.current
+            Text(
+                text = "Privacy Policy",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.clickable {
+                    try {
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(com.example.util.Constants.PRIVACY_POLICY_URL))
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            )
         }
     }
 }
