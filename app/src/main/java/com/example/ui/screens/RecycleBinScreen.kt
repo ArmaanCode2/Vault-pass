@@ -7,18 +7,21 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.example.R
 import com.example.domain.models.VaultListEntry
 import com.example.ui.VaultViewModel
 import java.text.SimpleDateFormat
@@ -51,12 +54,12 @@ fun RecycleBinScreen(viewModel: VaultViewModel, navController: NavController) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Recycle Bin", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.recycle_bin_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
             }
 
             if (entries.isNullOrEmpty()) {
@@ -75,13 +78,13 @@ fun RecycleBinScreen(viewModel: VaultViewModel, navController: NavController) {
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        "Recycle Bin is Empty",
+                        stringResource(R.string.recycle_bin_empty),
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Deleted items will appear here for 7 days before being permanently removed.",
+                        stringResource(R.string.recycle_bin_empty_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                         textAlign = TextAlign.Center
@@ -116,8 +119,8 @@ fun RecycleBinScreen(viewModel: VaultViewModel, navController: NavController) {
                     entryToDelete = null
                 },
                 icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                title = { Text("Delete Forever?") },
-                text = { Text("Are you sure you want to permanently delete '${entryToDelete?.title}'? This action cannot be undone.") },
+                title = { Text(stringResource(R.string.recycle_bin_delete_dialog_title)) },
+                text = { Text(stringResource(R.string.recycle_bin_delete_dialog_message, entryToDelete?.title ?: "")) },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -127,7 +130,7 @@ fun RecycleBinScreen(viewModel: VaultViewModel, navController: NavController) {
                         },
                         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                     ) {
-                        Text("Delete Forever")
+                        Text(stringResource(R.string.recycle_bin_permanent_delete))
                     }
                 },
                 dismissButton = {
@@ -135,7 +138,7 @@ fun RecycleBinScreen(viewModel: VaultViewModel, navController: NavController) {
                         showDeleteDialog = false
                         entryToDelete = null 
                     }) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.common_cancel))
                     }
                 }
             )
@@ -181,12 +184,12 @@ fun RecycleBinItem(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Deleted: $deletedDate",
+                    text = stringResource(R.string.recycle_bin_deleted_date, deletedDate),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "$daysRemaining days remaining",
+                    text = stringResource(R.string.recycle_bin_days_remaining, daysRemaining),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (daysRemaining <= 1) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                 )
@@ -199,7 +202,7 @@ fun RecycleBinItem(
                         .size(40.dp)
                         .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp))
                 ) {
-                    Icon(Icons.Default.Restore, contentDescription = "Restore", tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Icon(Icons.Default.Restore, contentDescription = stringResource(R.string.recycle_bin_restore), tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
                 
                 IconButton(
@@ -208,7 +211,7 @@ fun RecycleBinItem(
                         .size(40.dp)
                         .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(8.dp))
                 ) {
-                    Icon(Icons.Default.DeleteForever, contentDescription = "Delete Forever", tint = MaterialTheme.colorScheme.error)
+                    Icon(Icons.Default.DeleteForever, contentDescription = stringResource(R.string.recycle_bin_permanent_delete), tint = MaterialTheme.colorScheme.error)
                 }
             }
         }

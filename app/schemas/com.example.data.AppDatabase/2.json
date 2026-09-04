@@ -1,0 +1,102 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "451a7a08eb23a530ae0605e373734fe9",
+    "entities": [
+      {
+        "tableName": "vault_entries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `titleEnc` TEXT NOT NULL, `usernameEnc` TEXT NOT NULL, `passwordEnc` TEXT NOT NULL, `websiteEnc` TEXT NOT NULL, `notesEnc` TEXT NOT NULL, `categoryEnc` TEXT NOT NULL, `tagsEnc` TEXT NOT NULL, `customFieldsEnc` TEXT NOT NULL, `isFavorite` INTEGER NOT NULL, `timestamp` INTEGER NOT NULL, `isDeleted` INTEGER NOT NULL, `deletedAt` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "titleEnc",
+            "columnName": "titleEnc",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "usernameEnc",
+            "columnName": "usernameEnc",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "passwordEnc",
+            "columnName": "passwordEnc",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "websiteEnc",
+            "columnName": "websiteEnc",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notesEnc",
+            "columnName": "notesEnc",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "categoryEnc",
+            "columnName": "categoryEnc",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tagsEnc",
+            "columnName": "tagsEnc",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "customFieldsEnc",
+            "columnName": "customFieldsEnc",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isFavorite",
+            "columnName": "isFavorite",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isDeleted",
+            "columnName": "isDeleted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '451a7a08eb23a530ae0605e373734fe9')"
+    ]
+  }
+}

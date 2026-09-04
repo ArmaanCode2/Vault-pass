@@ -20,7 +20,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
+import com.example.R
 import com.example.domain.models.VaultListEntry
 import com.example.ui.VaultViewModel
 
@@ -52,14 +54,14 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                     onSearch = { isSearchActive = false },
                     expanded = true,
                     onExpandedChange = { if (!it) isSearchActive = false },
-                    placeholder = { Text("Search vault...") },
+                    placeholder = { Text(stringResource(R.string.dashboard_search_placeholder)) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     trailingIcon = {
                         IconButton(onClick = {
                             viewModel.updateSearchQuery("")
                             isSearchActive = false
                         }) {
-                            Icon(Icons.Default.Close, contentDescription = "Close search")
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.common_close))
                         }
                     }
                 )
@@ -78,15 +80,15 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("VaultPass", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Text(stringResource(R.string.app_name), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         }
                     },
                     actions = {
                         IconButton(onClick = { isSearchActive = true }) {
-                            Icon(Icons.Default.Search, contentDescription = "Search")
+                            Icon(Icons.Default.Search, contentDescription = stringResource(R.string.dashboard_action_search))
                         }
                         IconButton(onClick = { viewModel.lock() }) {
-                            Icon(Icons.Default.Lock, contentDescription = "Lock Vault")
+                            Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.dashboard_action_lock_vault))
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -101,7 +103,7 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Entry")
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.dashboard_action_add_entry))
                 }
             }
         ) { paddingValues ->
@@ -112,7 +114,7 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                 // Welcome & Security Score
                 item {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Welcome back", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                        Text(stringResource(R.string.dashboard_welcome_back), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
                         
                         Spacer(modifier = Modifier.height(16.dp))
                         
@@ -136,8 +138,8 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                                 }
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column {
-                                    Text("Security Score", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
-                                    Text(securityStats?.securityStatus ?: "Analyzing...", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(stringResource(R.string.dashboard_security_score), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                    Text(securityStats?.securityStatus ?: stringResource(R.string.dashboard_analyzing), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
@@ -153,9 +155,9 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                         StatCard(modifier = Modifier.weight(1f).clickable { 
                             viewModel.updateSearchQuery("")
                             isSearchActive = false
-                        }, count = securityStats?.totalPasswords?.toString() ?: "0", label = "TOTAL", color = MaterialTheme.colorScheme.primary)
-                        StatCard(modifier = Modifier.weight(1f).clickable { navController.navigate("weak_passwords") }, count = securityStats?.weakPasswordCount?.toString() ?: "0", label = "WEAK", color = MaterialTheme.colorScheme.error)
-                        StatCard(modifier = Modifier.weight(1f).clickable { navController.navigate("reused_passwords") }, count = securityStats?.reusedPasswordCount?.toString() ?: "0", label = "REUSED", color = MaterialTheme.colorScheme.tertiary)
+                        }, count = securityStats?.totalPasswords?.toString() ?: "0", label = stringResource(R.string.dashboard_stat_total), color = MaterialTheme.colorScheme.primary)
+                        StatCard(modifier = Modifier.weight(1f).clickable { navController.navigate("weak_passwords") }, count = securityStats?.weakPasswordCount?.toString() ?: "0", label = stringResource(R.string.dashboard_stat_weak), color = MaterialTheme.colorScheme.error)
+                        StatCard(modifier = Modifier.weight(1f).clickable { navController.navigate("reused_passwords") }, count = securityStats?.reusedPasswordCount?.toString() ?: "0", label = stringResource(R.string.dashboard_stat_reused), color = MaterialTheme.colorScheme.tertiary)
                     }
                 }
 
@@ -168,7 +170,7 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Favorites", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.dashboard_favorites), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         }
                     }
                     item {
@@ -222,7 +224,7 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Showing results for: \"$searchQuery\"",
+                                    text = stringResource(R.string.dashboard_search_results_for, searchQuery),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
@@ -232,7 +234,7 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                                     },
                                     modifier = Modifier.size(24.dp)
                                 ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Clear", tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.common_clear), tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(18.dp))
                                 }
                             }
                         }
@@ -245,12 +247,12 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Recently Accessed", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.dashboard_recently_accessed), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         if (searchQuery.isNotBlank()) {
                             TextButton(onClick = { 
                                 viewModel.updateSearchQuery("")
                                 isSearchActive = false
-                            }) { Text("Clear Search") }
+                            }) { Text(stringResource(R.string.dashboard_clear_search)) }
                         }
                     }
                 }
@@ -258,7 +260,7 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                 if (entries.isEmpty()) {
                     item {
                         Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                            Text("Your vault is empty", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.dashboard_vault_empty), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 } else {
@@ -326,7 +328,7 @@ fun EntryList(entries: List<VaultListEntry>, navController: NavController) {
                 supportingContent = { Text(entry.username, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 trailingContent = {
                     if (entry.isFavorite) {
-                        Icon(Icons.Default.Star, contentDescription = "Favorite", tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Default.Star, contentDescription = stringResource(R.string.common_favorite), tint = MaterialTheme.colorScheme.primary)
                     }
                 },
                 leadingContent = {

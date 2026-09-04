@@ -21,9 +21,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.saveable.rememberSaveable
+import com.example.R
 import com.example.ui.VaultViewModel
 import kotlinx.coroutines.launch
 
@@ -51,10 +57,8 @@ fun LockScreen(
     var lockoutSeconds by remember { mutableStateOf(0) }
 
     LaunchedEffect(lockoutEndTime) {
-        android.util.Log.d("BruteForceDebug", "LockScreen: LaunchedEffect(lockoutEndTime=$lockoutEndTime) triggered")
         while (true) {
             val remainingMs = lockoutEndTime - System.currentTimeMillis()
-            android.util.Log.d("BruteForceDebug", "LockScreen: remainingMs=$remainingMs")
             if (remainingMs > 0) {
                 lockoutSeconds = (remainingMs / 1000).toInt() + 1
                 kotlinx.coroutines.delay(500)
@@ -96,8 +100,8 @@ fun LockScreen(
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Text("VaultPass", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            Text("Vault Locked", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.lock_vault_locked), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -129,7 +133,7 @@ fun LockScreen(
                             ) {
                                 Icon(
                                     Icons.Filled.Fingerprint,
-                                    contentDescription = "Use Biometrics",
+                                    contentDescription = stringResource(R.string.lock_use_biometrics),
                                     tint = MaterialTheme.colorScheme.primaryContainer,
                                     modifier = Modifier.size(48.dp)
                                 )
@@ -139,15 +143,38 @@ fun LockScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    val isUnlocking by viewModel.isUnlocking.collectAsStateWithLifecycle()
+                    val coroutineScope = rememberCoroutineScope()
+                    val isButtonDisabled = isUnlocking || isLockedOut
+                    val incorrectPasswordError = stringResource(R.string.lock_incorrect_password)
+
+                    val performUnlock = {
+                        if (!isButtonDisabled) {
+                            coroutineScope.launch {
+                                val result = viewModel.unlockWithPassword(password)
+                                if (result == com.example.ui.AuthResult.INVALID_PASSWORD) {
+                                    errorMessage = incorrectPasswordError
+                                }
+                            }
+                        }
+                    }
+
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it; errorMessage = null },
-                        placeholder = { Text("Master Password") },
+                        placeholder = { Text(stringResource(R.string.lock_master_password_placeholder)) },
                         leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         enabled = !isLockedOut,
                         shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = { performUnlock() }
+                        ),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primaryContainer,
                             unfocusedBorderColor = Color.Transparent,
@@ -159,7 +186,7 @@ fun LockScreen(
                         trailingIcon = {
                             val icon = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                Icon(icon, contentDescription = "Toggle password visibility", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Icon(icon, contentDescription = stringResource(R.string.lock_toggle_password_visibility), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     )
@@ -169,7 +196,7 @@ fun LockScreen(
                         val minutes = lockoutSeconds / 60
                         val seconds = lockoutSeconds % 60
                         val formattedTime = String.format("%02d:%02d", minutes, seconds)
-                        Text("Too many failed attempts. Try again in $formattedTime", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.lock_lockout_warning, formattedTime), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     } else if (errorMessage != null) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(errorMessage!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
@@ -177,20 +204,8 @@ fun LockScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    val isUnlocking by viewModel.isUnlocking.collectAsStateWithLifecycle()
-                    val coroutineScope = rememberCoroutineScope()
-                    val isButtonDisabled = isUnlocking || isLockedOut
-                    android.util.Log.d("BruteForceDebug", "LockScreen: Recomposition - isUnlocking=$isUnlocking, isLockedOut=$isLockedOut, isButtonDisabled=$isButtonDisabled")
-
                     Button(
-                        onClick = {
-                            coroutineScope.launch {
-                                val result = viewModel.unlockWithPassword(password)
-                                if (result == com.example.ui.AuthResult.INVALID_PASSWORD) {
-                                    errorMessage = "Incorrect master password"
-                                }
-                            }
-                        },
+                        onClick = { performUnlock() },
                         enabled = !isButtonDisabled,
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                         shape = RoundedCornerShape(16.dp),
@@ -208,7 +223,7 @@ fun LockScreen(
                         } else {
                             Icon(Icons.Default.LockOpen, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Unlock", style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(R.string.lock_unlock_button), style = MaterialTheme.typography.titleMedium)
                         }
                     }
                     
@@ -220,12 +235,12 @@ fun LockScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.Security, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha=0.5f), modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("End-to-End Encrypted", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha=0.5f))
+                Text(stringResource(R.string.common_e2e_encrypted), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha=0.5f))
             }
             Spacer(modifier = Modifier.height(16.dp))
             val context = androidx.compose.ui.platform.LocalContext.current
             Text(
-                text = "Privacy Policy",
+                text = stringResource(R.string.common_privacy_policy),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier.clickable {

@@ -32,7 +32,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
+import com.example.R
 import com.example.ui.VaultViewModel
 
 @Composable
@@ -90,12 +92,12 @@ fun PasswordDetailsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 IconButton(onClick = { navController.popBackStack(); Unit }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Text("VaultPass", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 if (!entry.isDecryptionFailed) {
                     IconButton(onClick = { navController.navigate("edit_entry/${entry.id}") }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.common_edit), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } else {
                     Spacer(modifier = Modifier.width(48.dp))
@@ -121,7 +123,7 @@ fun PasswordDetailsScreen(
                             Icon(Icons.Default.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                             Spacer(modifier = Modifier.width(16.dp))
                             Text(
-                                "This entry could not be decrypted. It has been marked as read-only to prevent permanent data loss.",
+                                stringResource(R.string.details_decryption_error),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onErrorContainer
                             )
@@ -158,7 +160,7 @@ fun PasswordDetailsScreen(
                     IconButton(onClick = { /* Toggle favorite logic not in ViewModel yet, keep UI */ }) {
                         Icon(
                             if (entry.isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                            contentDescription = "Favorite",
+                            contentDescription = stringResource(R.string.common_favorite),
                             tint = if (entry.isFavorite) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -176,7 +178,7 @@ fun PasswordDetailsScreen(
                     ) {
                         if (entry.username.isNotBlank()) {
                             CredentialField(
-                                label = "Username / Email",
+                                label = stringResource(R.string.entry_username_label),
                                 value = entry.username,
                                 onCopy = { viewModel.copyToClipboard(context, "Username", entry.username) },
                                 isPassword = false
@@ -184,7 +186,7 @@ fun PasswordDetailsScreen(
                         }
                         if (entry.password.isNotBlank()) {
                             CredentialField(
-                                label = "Password",
+                                label = stringResource(R.string.common_password),
                                 value = entry.password,
                                 onCopy = { viewModel.copyToClipboard(context, "Password", entry.password) },
                                 isPassword = true
@@ -206,7 +208,7 @@ fun PasswordDetailsScreen(
 
                 // Website Details
                 if (entry.website.isNotBlank()) {
-                    SectionCard(title = "Website URL") {
+                    SectionCard(title = stringResource(R.string.common_website)) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -228,7 +230,7 @@ fun PasswordDetailsScreen(
 
                 // Notes Area
                 if (entry.notes.isNotBlank()) {
-                    SectionCard(title = "Secure Notes") {
+                    SectionCard(title = stringResource(R.string.common_notes)) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -271,7 +273,7 @@ fun PasswordDetailsScreen(
                 ) {
                     Icon(Icons.Default.Delete, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Delete", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.common_delete), style = MaterialTheme.typography.titleMedium)
                 }
                 
                 if (!entry.isDecryptionFailed) {
@@ -282,7 +284,7 @@ fun PasswordDetailsScreen(
                     ) {
                         Icon(Icons.Default.Edit, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Edit Entry", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.entry_edit_title), style = MaterialTheme.typography.titleMedium)
                     }
                 }
             }
@@ -336,11 +338,11 @@ fun CredentialField(label: String, value: String, onCopy: () -> Unit, isPassword
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (isPassword) {
                     IconButton(onClick = { isRevealed = !isRevealed }) {
-                        Icon(if (isRevealed) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = "Toggle Visibility", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(if (isRevealed) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = stringResource(R.string.lock_toggle_password_visibility), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 IconButton(onClick = onCopy) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.common_copy), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

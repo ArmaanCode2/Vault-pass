@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Shield
@@ -15,12 +16,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.R
 import com.example.ui.VaultViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,7 +66,7 @@ fun SetupScreen(viewModel: VaultViewModel) {
             Spacer(modifier = Modifier.height(24.dp))
             
             Text(
-                text = "Welcome to VaultPass",
+                text = stringResource(R.string.setup_welcome_title),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -71,7 +75,7 @@ fun SetupScreen(viewModel: VaultViewModel) {
             Spacer(modifier = Modifier.height(8.dp))
             
             Text(
-                text = "Create a Master Password to encrypt your local vault. We cannot recover it if you forget it.",
+                text = stringResource(R.string.setup_welcome_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -80,6 +84,29 @@ fun SetupScreen(viewModel: VaultViewModel) {
             
             Spacer(modifier = Modifier.height(40.dp))
             
+            val minLengthError = stringResource(R.string.setup_error_min_length)
+            val maxLengthError = stringResource(R.string.setup_error_max_length)
+            val weakReasonTemplate = stringResource(R.string.setup_error_weak_reason)
+            val tooWeakTemplate = stringResource(R.string.setup_error_too_weak)
+            val mismatchError = stringResource(R.string.setup_error_mismatch)
+
+            val triggerSetup = {
+                val score = com.example.domain.security.SecurityAnalyzer.scorePassword(password)
+                val reasons = com.example.domain.security.SecurityAnalyzer.getWeaknessReasons(password)
+                if (password.length < 8) {
+                    errorMessage = minLengthError
+                } else if (password.length > 250) {
+                    errorMessage = maxLengthError
+                } else if (score < 40) {
+                    errorMessage = if (reasons.isNotEmpty()) String.format(weakReasonTemplate, reasons.first()) else String.format(tooWeakTemplate, score)
+                } else if (password != confirmPassword) {
+                    errorMessage = mismatchError
+                } else {
+                    errorMessage = null
+                    viewModel.setupMasterPassword(password)
+                }
+            }
+
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 shape = RoundedCornerShape(16.dp),
@@ -102,7 +129,7 @@ fun SetupScreen(viewModel: VaultViewModel) {
                     TextField(
                         value = password,
                         onValueChange = { password = it; errorMessage = null },
-                        placeholder = { Text("Master Password", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        placeholder = { Text(stringResource(R.string.lock_master_password_placeholder), color = MaterialTheme.colorScheme.onSurfaceVariant) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.05f), RoundedCornerShape(8.dp)),
@@ -110,12 +137,15 @@ fun SetupScreen(viewModel: VaultViewModel) {
                         singleLine = true,
                         colors = textFieldColors,
                         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Next
+                        ),
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Icon(
                                     imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                    contentDescription = "Toggle visibility",
+                                    contentDescription = stringResource(R.string.lock_toggle_password_visibility),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -125,7 +155,7 @@ fun SetupScreen(viewModel: VaultViewModel) {
                     TextField(
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it; errorMessage = null },
-                        placeholder = { Text("Confirm Password", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        placeholder = { Text(stringResource(R.string.setup_confirm_password_placeholder), color = MaterialTheme.colorScheme.onSurfaceVariant) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.05f), RoundedCornerShape(8.dp)),
@@ -133,7 +163,13 @@ fun SetupScreen(viewModel: VaultViewModel) {
                         singleLine = true,
                         colors = textFieldColors,
                         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = { triggerSetup() }
+                        )
                     )
                     
                     if (errorMessage != null) {
@@ -149,22 +185,7 @@ fun SetupScreen(viewModel: VaultViewModel) {
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     Button(
-                        onClick = {
-                            val score = com.example.domain.security.SecurityAnalyzer.scorePassword(password)
-                            val reasons = com.example.domain.security.SecurityAnalyzer.getWeaknessReasons(password)
-                            if (password.length < 8) {
-                                errorMessage = "Password must be at least 8 characters"
-                            } else if (password.length > 250) {
-                                errorMessage = "Password must not exceed 250 characters"
-                            } else if (score < 40) {
-                                errorMessage = if (reasons.isNotEmpty()) "Weak master password: ${reasons.first()}" else "Master password is too weak (score $score/100)"
-                            } else if (password != confirmPassword) {
-                                errorMessage = "Passwords do not match"
-                            } else {
-                                errorMessage = null
-                                viewModel.setupMasterPassword(password)
-                            }
-                        },
+                        onClick = { triggerSetup() },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
@@ -172,7 +193,7 @@ fun SetupScreen(viewModel: VaultViewModel) {
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                     ) {
                         Text(
-                            "Create Vault",
+                            stringResource(R.string.setup_create_vault_button),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer

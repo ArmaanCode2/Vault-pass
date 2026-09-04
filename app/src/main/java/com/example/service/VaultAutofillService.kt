@@ -275,22 +275,6 @@ class VaultAutofillService : AutofillService() {
 
             diagnostics?.updatePackageAndDomain(requestedPackageName, requestedWebDomain)
 
-            fun extractBaseDomain(url: String?): String? {
-                if (url.isNullOrBlank()) return null
-                try {
-                    val parsedUrl = if (!url.startsWith("http://") && !url.startsWith("https://")) "https://$url" else url
-                    val uri = android.net.Uri.parse(parsedUrl)
-                    var host = uri.host ?: return null
-                    host = host.lowercase()
-                    if (host.startsWith("www.")) host = host.substring(4)
-                    return host
-                } catch (e: Exception) {
-                    return null
-                }
-            }
-
-            val requestedBaseDomain = extractBaseDomain(requestedWebDomain)
-            
             var requestedAppLabel: String? = null
             if (requestedPackageName != null) {
                 try {
@@ -309,67 +293,16 @@ class VaultAutofillService : AutofillService() {
             }
 
             val entries = vaultRepository.getAllEntriesSync()
-            val matchedEntries = mutableListOf<com.example.domain.models.VaultEntry>()
-            
-            if (requestedBaseDomain != null) {
-                for (entry in entries) {
-                    if (entry.isDecryptionFailed) continue
-                    val entryBaseDomain = extractBaseDomain(entry.website) ?: continue
-                    if (requestedBaseDomain == entryBaseDomain || requestedBaseDomain.endsWith(".$entryBaseDomain")) {
-                        matchedEntries.add(entry)
-                    }
-                }
+            val scoredMatches = com.example.service.AutofillCredentialMatcher.matchEntries(
+                entries = entries,
+                requestedPackage = requestedPackageName,
+                requestedDomain = requestedWebDomain,
+                appLabel = requestedAppLabel
+            )
+            for (match in scoredMatches) {
+                diagnostics?.log("MATCH: Title='${match.entry.title}', Score=${match.score}, Reason='${match.reason}'")
             }
-            
-            if (matchedEntries.isEmpty() && requestedPackageName != null) {
-                diagnostics?.log("No web domain found. Attempting native app matching for: $requestedPackageName (Label: $requestedAppLabel)")
-                
-                fun normalize(str: String): String = str.lowercase().replace(Regex("[^a-z0-9]"), "")
-                val normalizedRequestedLabel = requestedAppLabel?.let { normalize(it) } ?: ""
-                
-                data class ScoredEntry(val entry: com.example.domain.models.VaultEntry, val score: Int, val reason: String)
-                val scoredMatches = mutableListOf<ScoredEntry>()
-                
-                for (entry in entries) {
-                    if (entry.isDecryptionFailed) continue
-                    
-                    var score = 0
-                    var matchReason = ""
-                    val normalizedTitle = normalize(entry.title)
-                    
-                    if (normalizedTitle.isNotEmpty() && normalizedRequestedLabel.isNotEmpty()) {
-                        if (normalizedTitle == normalizedRequestedLabel) {
-                            score = 100
-                            matchReason = "Exact title match (Score 100)"
-                        } else if (normalizedTitle.contains(normalizedRequestedLabel)) {
-                            score = 85
-                            matchReason = "Title contains app label (Score 85)"
-                        } else if (normalizedRequestedLabel.contains(normalizedTitle)) {
-                            score = 80
-                            matchReason = "App label contains title (Score 80)"
-                        }
-                    }
-                    
-                    if (score == 0) {
-                        val isPackageMatch = entry.website.contains(requestedPackageName, ignoreCase = true) || 
-                            requestedPackageName.contains(entry.title.replace(" ", ""), ignoreCase = true)
-                        if (isPackageMatch) {
-                            score = 60
-                            matchReason = "Package name fallback (Score 60)"
-                        }
-                    }
-                    
-                    if (score > 50) {
-                        scoredMatches.add(ScoredEntry(entry, score, matchReason))
-                    }
-                }
-                
-                scoredMatches.sortByDescending { it.score }
-                for (match in scoredMatches) {
-                    diagnostics?.log("MATCH: Title='${match.entry.title}', Score=${match.score}, Reason='${match.reason}'")
-                }
-                matchedEntries.addAll(scoredMatches.map { it.entry })
-            }
+            val matchedEntries = scoredMatches.map { it.entry }
             
             diagnostics?.log("Total matching entries found: ${matchedEntries.size}")
             diagnostics?.log("Target Username AutofillId: $usernameId")

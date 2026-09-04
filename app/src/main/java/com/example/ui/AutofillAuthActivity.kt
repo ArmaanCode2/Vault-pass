@@ -128,66 +128,13 @@ class AutofillAuthActivity : FragmentActivity() {
         }
     }
 
+    private val biometricPromptManager by lazy { com.example.security.BiometricPromptManager(this) }
+
     private fun showBiometricPrompt() {
-        lifecycleScope.launch {
-            val dekBioWrapped = viewModel.settingsRepository.getDekBioWrappedSync()
-            if (dekBioWrapped == null) {
-                android.widget.Toast.makeText(
-                    this@AutofillAuthActivity,
-                    "Biometric unlock is not set up. Please use Master Password.",
-                    android.widget.Toast.LENGTH_LONG
-                ).show()
-                return@launch
-            }
-
-            var cryptoObject: BiometricPrompt.CryptoObject? = null
-            val combined = android.util.Base64.decode(dekBioWrapped, android.util.Base64.NO_WRAP)
-            if (combined.size > 12) {
-                val iv = combined.copyOfRange(0, 12)
-                val cipher = com.example.security.BiometricCryptoHelper.getDecryptCipherForBiometric(iv)
-                if (cipher != null) {
-                    cryptoObject = BiometricPrompt.CryptoObject(cipher)
-                }
-            }
-
-            if (cryptoObject == null) {
-                android.widget.Toast.makeText(
-                    this@AutofillAuthActivity,
-                    "Biometric key missing or invalidated. Please use Master Password.",
-                    android.widget.Toast.LENGTH_LONG
-                ).show()
-                return@launch
-            }
-
-            val executor = ContextCompat.getMainExecutor(this@AutofillAuthActivity)
-            val biometricPrompt = BiometricPrompt(this@AutofillAuthActivity, executor,
-                object : BiometricPrompt.AuthenticationCallback() {
-                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                        super.onAuthenticationSucceeded(result)
-                        lifecycleScope.launch(Dispatchers.Default) {
-                            try {
-                                if (result.cryptoObject?.cipher != null) {
-                                    val encryptedData = combined.copyOfRange(12, combined.size)
-                                    val dek = result.cryptoObject!!.cipher!!.doFinal(encryptedData)
-                                    viewModel.unlockWithBiometrics(dek)
-                                }
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                                withContext(Dispatchers.Main) {
-                                    android.widget.Toast.makeText(this@AutofillAuthActivity, "Authentication error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        }
-                    }
-                })
-
-            val promptInfo = BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Unlock VaultPass")
-                .setSubtitle("Log in to autofill your credential")
-                .setNegativeButtonText("Use Master Password")
-                .build()
-
-            biometricPrompt.authenticate(promptInfo, cryptoObject)
-        }
+        biometricPromptManager.showBiometricPrompt(
+            settingsRepository = viewModel.settingsRepository,
+            subtitle = "Log in to autofill your credential",
+            onSuccess = { dek -> viewModel.unlockWithBiometrics(dek) }
+        )
     }
 }

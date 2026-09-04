@@ -20,9 +20,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.example.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.domain.models.CustomField
@@ -152,10 +158,10 @@ fun PasswordEntryScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 IconButton(onClick = { navController.popBackStack(); Unit }) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.common_close), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text(
-                    text = if (isEditing) "Edit Entry" else "New Entry",
+                    text = stringResource(if (isEditing) R.string.entry_edit_title else R.string.entry_new_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -164,7 +170,7 @@ fun PasswordEntryScreen(
                     val tintColor = if (!hasErrors) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha=0.5f)
                     Icon(Icons.Default.Check, contentDescription = null, tint = tintColor)
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Save", color = tintColor, style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.common_save), color = tintColor, style = MaterialTheme.typography.titleMedium)
                 }
             }
 
@@ -181,7 +187,11 @@ fun PasswordEntryScreen(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    val categories = listOf("Login" to Icons.Default.Login, "Card" to Icons.Default.CreditCard, "Secure Note" to Icons.Default.Notes)
+                    val categories = listOf(
+                        stringResource(R.string.entry_category_login) to Icons.Default.Login,
+                        stringResource(R.string.entry_category_card) to Icons.Default.CreditCard,
+                        stringResource(R.string.entry_category_note) to Icons.Default.Notes
+                    )
                     categories.forEach { (catName, icon) ->
                         val isSelected = category == catName
                         Surface(
@@ -210,8 +220,26 @@ fun PasswordEntryScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        EntryTextField(label = "Title", value = title, onValueChange = { title = it }, icon = Icons.Default.Title, placeholder = "e.g. My Bank", isError = titleError != null, errorMessage = titleError)
-                        EntryTextField(label = "Website (URI)", value = website, onValueChange = { website = it }, icon = Icons.Default.Language, placeholder = "https://", isError = websiteError != null, errorMessage = websiteError)
+                        EntryTextField(
+                            label = stringResource(R.string.common_title),
+                            value = title,
+                            onValueChange = { title = it },
+                            icon = Icons.Default.Title,
+                            placeholder = stringResource(R.string.entry_title_placeholder),
+                            isError = titleError != null,
+                            errorMessage = titleError,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                        )
+                        EntryTextField(
+                            label = stringResource(R.string.common_website),
+                            value = website,
+                            onValueChange = { website = it },
+                            icon = Icons.Default.Language,
+                            placeholder = stringResource(R.string.entry_website_placeholder),
+                            isError = websiteError != null,
+                            errorMessage = websiteError,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                        )
                     }
                 }
 
@@ -224,36 +252,52 @@ fun PasswordEntryScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         EntryTextField(
-                            label = "Username / Email",
+                            label = stringResource(R.string.entry_username_label),
                             value = username,
                             onValueChange = { username = it },
                             icon = Icons.Default.Person,
-                            placeholder = "Username",
+                            placeholder = stringResource(R.string.common_username),
                             isError = usernameError != null,
                             errorMessage = usernameError,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                             trailingIcon = {
                                 IconButton(onClick = { copyToClipboard("Username", username) }) {
-                                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.common_copy), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         )
                         EntryTextField(
-                            label = "Password",
+                            label = stringResource(R.string.common_password),
                             value = password,
                             onValueChange = { password = it },
                             icon = Icons.Default.VpnKey,
-                            placeholder = "Password",
+                            placeholder = stringResource(R.string.common_password),
                             isPassword = true,
                             passwordVisible = passwordVisible,
                             isError = passwordError != null,
                             errorMessage = passwordError,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Password,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = { if (!hasErrors) saveEntry() }
+                            ),
                             trailingIcon = {
                                 Row {
                                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                        Icon(if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = "Toggle Visibility", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Icon(
+                                            if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                            contentDescription = stringResource(R.string.lock_toggle_password_visibility),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     }
                                     IconButton(onClick = { navController.navigate("generator") }) {
-                                        Icon(Icons.Default.Password, contentDescription = "Generate", tint = MaterialTheme.colorScheme.primary)
+                                        Icon(
+                                            Icons.Default.Password,
+                                            contentDescription = stringResource(R.string.entry_generate_password),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
                                     }
                                 }
                             }
@@ -277,7 +321,7 @@ fun PasswordEntryScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Spacer(modifier = Modifier.width(12.dp))
-                                Text("Favorite", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+                                Text(stringResource(R.string.common_favorite), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                             }
                             Switch(
                                 checked = isFavorite,
@@ -289,12 +333,12 @@ fun PasswordEntryScreen(
                         HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha=0.05f))
 
                         Column {
-                            Text("Secure Notes", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.common_notes), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(modifier = Modifier.height(4.dp))
                             TextField(
                                 value = notes,
                                 onValueChange = { notes = it },
-                                placeholder = { Text("Add any extra details, recovery codes, or hints here...", style = MaterialTheme.typography.bodyMedium) },
+                                placeholder = { Text(stringResource(R.string.entry_notes_placeholder), style = MaterialTheme.typography.bodyMedium) },
                                 modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 100.dp),
                                 isError = notesError != null,
                                 supportingText = notesError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
@@ -392,7 +436,7 @@ fun PasswordEntryScreen(
                     ) {
                         Icon(Icons.Default.Delete, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Delete Entry")
+                        Text(stringResource(R.string.entry_delete_title))
                     }
                 }
 
@@ -404,8 +448,8 @@ fun PasswordEntryScreen(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete Entry") },
-            text = { Text("Are you sure you want to delete this password entry? This cannot be undone.") },
+            title = { Text(stringResource(R.string.entry_delete_title)) },
+            text = { Text(stringResource(R.string.entry_delete_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     entryId?.let { viewModel.deleteEntry(it) }
@@ -413,12 +457,12 @@ fun PasswordEntryScreen(
                     navController.popBackStack()
                     Unit
                 }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.common_cancel))
                 }
             }
         )
@@ -436,6 +480,8 @@ fun EntryTextField(
     passwordVisible: Boolean = false,
     isError: Boolean = false,
     errorMessage: String? = null,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
     trailingIcon: @Composable (() -> Unit)? = null
 ) {
     Column {
@@ -448,6 +494,8 @@ fun EntryTextField(
             leadingIcon = { Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
             trailingIcon = trailingIcon,
             visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None,
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             isError = isError,

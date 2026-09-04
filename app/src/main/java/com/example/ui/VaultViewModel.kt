@@ -68,9 +68,7 @@ class VaultViewModel(
         settingsRepository.lastFailedAuthTimestamp
     ) { attempts, lastAttemptTime ->
         val duration = getLockoutDurationMs(attempts)
-        val end = if (duration > 0) lastAttemptTime + duration else 0L
-        android.util.Log.d("BruteForceDebug", "VaultViewModel: combine(attempts=$attempts, lastAttemptTime=$lastAttemptTime) -> duration=$duration, end=$end")
-        end
+        if (duration > 0) lastAttemptTime + duration else 0L
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
 
     val isUnlocked: StateFlow<Boolean> = sessionManager.isUnlocked
@@ -269,20 +267,17 @@ class VaultViewModel(
         if (_isUnlocking.value) return AuthResult.INVALID_PASSWORD
         
         val end = lockoutEndTime.value
-        val currentAttempts = settingsRepository.failedAuthAttempts.firstOrNull() ?: 0
         val now = System.currentTimeMillis()
-        android.util.Log.d("BruteForceDebug", "VaultViewModel: Before verification - currentAttempts=$currentAttempts, timestamp=$now, lockoutEndTime=$end")
         
         if (now < end) {
-            android.util.Log.d("BruteForceDebug", "VaultViewModel: Verification blocked. $now < $end")
             return AuthResult.LOCKED_OUT
         }
         
         _isUnlocking.value = true
         return withContext(Dispatchers.Default) {
             try {
-                val hash = masterHash.value ?: settingsRepository.masterPasswordHash.firstOrNull() ?: return@withContext AuthResult.INVALID_PASSWORD
-                val salt = masterSalt.value ?: settingsRepository.masterPasswordSalt.firstOrNull() ?: return@withContext AuthResult.INVALID_PASSWORD
+                val hash = settingsRepository.masterPasswordHash.firstOrNull() ?: masterHash.value ?: return@withContext AuthResult.INVALID_PASSWORD
+                val salt = settingsRepository.masterPasswordSalt.firstOrNull() ?: masterSalt.value ?: return@withContext AuthResult.INVALID_PASSWORD
                 val iterations = settingsRepository.masterKdfIterations.firstOrNull() ?: 100000
                 val algorithm = settingsRepository.masterKdfAlgorithm.firstOrNull() ?: "PBKDF2WithHmacSHA256"
 
@@ -337,10 +332,7 @@ class VaultViewModel(
                             }
                             java.util.Arrays.fill(kek, 0.toByte())
 
-                            val before = settingsRepository.failedAuthAttempts.firstOrNull() ?: 0
                             settingsRepository.resetFailedAttempts()
-                            val after = settingsRepository.failedAuthAttempts.firstOrNull() ?: 0
-                            android.util.Log.d("BruteForceDebug", "VaultViewModel: Success! Before=$before, After=$after")
                             vaultRepository.injectSoftwareDek(dek)
                             java.util.Arrays.fill(dek, 0.toByte())
                             sessionManager.setUnlocked(true)
@@ -354,12 +346,7 @@ class VaultViewModel(
                             return@withContext AuthResult.SUCCESS
                         }
                         java.util.Arrays.fill(kek, 0.toByte())
-                        val before = settingsRepository.failedAuthAttempts.firstOrNull() ?: 0
                         settingsRepository.incrementFailedAttempts(System.currentTimeMillis())
-                        val after = settingsRepository.failedAuthAttempts.firstOrNull() ?: 0
-                        val dur = getLockoutDurationMs(after)
-                        val calcEnd = if (dur > 0) System.currentTimeMillis() + dur else 0L
-                        android.util.Log.d("BruteForceDebug", "VaultViewModel: Failed auth! Before=$before, After=$after, dur=$dur, calcEnd=$calcEnd")
                         return@withContext AuthResult.INVALID_PASSWORD
                     } else {
                         val pendingMpWrapped = settingsRepository.getPendingDekMpWrappedSync()
@@ -371,19 +358,11 @@ class VaultViewModel(
                             performMigration(password, salt)
                         }
                     }
-                    val before2 = settingsRepository.failedAuthAttempts.firstOrNull() ?: 0
                     settingsRepository.resetFailedAttempts()
-                    val after2 = settingsRepository.failedAuthAttempts.firstOrNull() ?: 0
-                    android.util.Log.d("BruteForceDebug", "VaultViewModel: Success! Before=$before2, After=$after2")
                     launch { vaultRepository.cleanupRecycleBin() }
                     return@withContext AuthResult.SUCCESS
                 }
-                val before3 = settingsRepository.failedAuthAttempts.firstOrNull() ?: 0
                 settingsRepository.incrementFailedAttempts(System.currentTimeMillis())
-                val after3 = settingsRepository.failedAuthAttempts.firstOrNull() ?: 0
-                val dur3 = getLockoutDurationMs(after3)
-                val calcEnd3 = if (dur3 > 0) System.currentTimeMillis() + dur3 else 0L
-                android.util.Log.d("BruteForceDebug", "VaultViewModel: Failed auth! Before=$before3, After=$after3, dur=$dur3, calcEnd=$calcEnd3")
                 return@withContext AuthResult.INVALID_PASSWORD
             } finally {
                 _isUnlocking.value = false

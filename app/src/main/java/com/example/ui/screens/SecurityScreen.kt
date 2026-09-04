@@ -13,10 +13,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.example.R
 import com.example.ui.VaultViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,12 +33,12 @@ fun SecurityScreen(viewModel: VaultViewModel, navController: NavController) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Security Center", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Text(stringResource(R.string.security_center_title), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.lock() }) {
-                        Icon(Icons.Default.Lock, contentDescription = "Lock Vault")
+                        Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.dashboard_action_lock_vault))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -53,8 +55,8 @@ fun SecurityScreen(viewModel: VaultViewModel, navController: NavController) {
             // Welcome & Security Score
             item {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Vault Health", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
-                    Text("Your score is calculated based on password strength and reuse.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.security_vault_health), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.security_vault_health_desc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     
                     Spacer(modifier = Modifier.height(16.dp))
                     
@@ -83,7 +85,7 @@ fun SecurityScreen(viewModel: VaultViewModel, navController: NavController) {
                                 )
                             }
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text(securityStats?.securityStatus ?: "Analyzing...", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSecondaryContainer, fontWeight = FontWeight.SemiBold)
+                            Text(securityStats?.securityStatus ?: stringResource(R.string.dashboard_analyzing), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSecondaryContainer, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -92,7 +94,7 @@ fun SecurityScreen(viewModel: VaultViewModel, navController: NavController) {
             // Password Strength Distribution
             item {
                 Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    Text("Strength Distribution", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
+                    Text(stringResource(R.string.security_strength_distribution), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
                     
                     Card(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -111,7 +113,7 @@ fun SecurityScreen(viewModel: VaultViewModel, navController: NavController) {
                             
                             // Strong
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("Strong", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.security_strong), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                                 Text("$strong (${(strongPct * 100).toInt()}%)", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Spacer(modifier = Modifier.height(4.dp))
@@ -120,7 +122,7 @@ fun SecurityScreen(viewModel: VaultViewModel, navController: NavController) {
                             
                             // Medium
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("Medium", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.security_medium), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                                 Text("$medium (${(mediumPct * 100).toInt()}%)", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Spacer(modifier = Modifier.height(4.dp))
@@ -129,7 +131,7 @@ fun SecurityScreen(viewModel: VaultViewModel, navController: NavController) {
                             
                             // Weak
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("Weak", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.security_weak), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                                 Text("$weak (${(weakPct * 100).toInt()}%)", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Spacer(modifier = Modifier.height(4.dp))
@@ -144,7 +146,7 @@ fun SecurityScreen(viewModel: VaultViewModel, navController: NavController) {
             // Security Issues
             item {
                 Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    Text("Security Issues", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
+                    Text(stringResource(R.string.security_issues_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
                     
                     // Weak Passwords Item
                     Card(
@@ -171,8 +173,8 @@ fun SecurityScreen(viewModel: VaultViewModel, navController: NavController) {
                                 }
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column {
-                                    Text("Weak Passwords", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                                    Text("Easily guessable passwords", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(stringResource(R.string.security_weak_passwords), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                                    Text(stringResource(R.string.security_weak_desc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                             Text(securityStats?.weakPasswordCount?.toString() ?: "0", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
@@ -195,8 +197,8 @@ fun SecurityScreen(viewModel: VaultViewModel, navController: NavController) {
                             Spacer(modifier = Modifier.width(16.dp))
                             Column {
                                 val count = securityStats?.reusedPasswordCount ?: 0
-                                Text("Reused Passwords: $count", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                                Text("Same password used across accounts", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("${stringResource(R.string.security_reused_passwords)}: $count", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.security_reused_desc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -216,8 +218,8 @@ fun SecurityScreen(viewModel: VaultViewModel, navController: NavController) {
                             Spacer(modifier = Modifier.width(16.dp))
                             Column {
                                 val count = securityStats?.missingPasswordCount ?: 0
-                                Text("Missing Passwords: $count", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                                Text("Incomplete credential entries", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("${stringResource(R.string.security_missing_passwords)}: $count", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.security_missing_desc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -227,7 +229,7 @@ fun SecurityScreen(viewModel: VaultViewModel, navController: NavController) {
             // Dynamic Recommendations
             item {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Recommendations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
+                    Text(stringResource(R.string.security_recommendations_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
                     
                     val weakCount = securityStats?.weakPasswordCount ?: 0
                     val reusedCount = securityStats?.reusedPasswordCount ?: 0
@@ -243,8 +245,8 @@ fun SecurityScreen(viewModel: VaultViewModel, navController: NavController) {
                                 Icon(Icons.Default.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column {
-                                    Text("Looking good!", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                                    Text("No security recommendations at this time.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(stringResource(R.string.security_looking_good), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                                    Text(stringResource(R.string.security_no_recommendations), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }

@@ -18,11 +18,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.example.R
 import com.example.ui.VaultViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,10 +36,10 @@ fun MissingPasswordsScreen(viewModel: VaultViewModel, navController: NavControll
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Missing Passwords", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.security_missing_passwords), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack(); Unit }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
