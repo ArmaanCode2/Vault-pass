@@ -52,6 +52,7 @@ fun PasswordEntryScreen(
     var category by remember { mutableStateOf("Personal") }
     var isFavorite by remember { mutableStateOf(false) }
     var customFields by remember { mutableStateOf(emptyList<CustomField>()) }
+    var tags by remember { mutableStateOf(emptyList<String>()) }
     
     var passwordVisible by remember { mutableStateOf(!hidePasswordsByDefault) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -69,6 +70,7 @@ fun PasswordEntryScreen(
                 category = loaded.category
                 isFavorite = loaded.isFavorite
                 customFields = loaded.customFields
+                tags = loaded.tags
             }
         }
         isLoading = false
@@ -116,6 +118,7 @@ fun PasswordEntryScreen(
                 notes = notes,
                 category = category.takeIf { it.isNotBlank() } ?: "Personal",
                 customFields = customFields,
+                tags = tags,
                 isFavorite = isFavorite
             )
             if (isEditing) {

@@ -5,15 +5,17 @@
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="database" path="vaultpass_database" />
+        <exclude domain="database" path="vaultpass_database-shm" />
+        <exclude domain="database" path="vaultpass_database-wal" />
+        <exclude domain="sharedpref" path="vaultpass_sync_prefs.xml" />
+        <exclude domain="file" path="datastore/settings.preferences_pb" />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="database" path="vaultpass_database" />
+        <exclude domain="database" path="vaultpass_database-shm" />
+        <exclude domain="database" path="vaultpass_database-wal" />
+        <exclude domain="sharedpref" path="vaultpass_sync_prefs.xml" />
+        <exclude domain="file" path="datastore/settings.preferences_pb" />
     </device-transfer>
-    -->
 </data-extraction-rules>

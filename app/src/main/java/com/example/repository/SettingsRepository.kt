@@ -66,7 +66,7 @@ class SettingsRepository(private val context: Context) {
 
     val masterKdfVersion: Flow<Int> = data.map { it[MASTER_KDF_VERSION] ?: 1 }
     val masterKdfIterations: Flow<Int> = data.map { it[MASTER_KDF_ITERATIONS] ?: 100000 }
-    val masterKdfAlgorithm: Flow<String> = data.map { it[MASTER_KDF_ALGORITHM] ?: "PBKDF2_SHA256" }
+    val masterKdfAlgorithm: Flow<String> = data.map { it[MASTER_KDF_ALGORITHM] ?: com.example.security.SecurityPolicy.CURRENT_KDF_ALGORITHM }
 
     suspend fun saveMasterKdfMetadata(version: Int, iterations: Int, algorithm: String) {
         context.dataStore.edit { prefs ->

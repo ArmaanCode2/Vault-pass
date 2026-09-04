@@ -4,36 +4,121 @@ import com.example.data.VaultDao
 import com.example.data.models.VaultEntryEntity
 import com.example.domain.models.CustomField
 import com.example.domain.models.VaultEntry
+import com.example.domain.models.VaultListEntry
 import com.example.security.CryptoManager
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.flow.flowOn
-import com.example.domain.models.VaultListEntry
+import java.util.concurrent.ConcurrentHashMap
 
 class VaultRepository(
     private val vaultDao: VaultDao,
-    private val cryptoManager: CryptoManager
+    val cryptoManager: CryptoManager
 ) {
-    val allEntries = vaultDao.getAllEntries()
-        .map { list -> list.map { decryptEntity(it) } }
-        .flowOn(Dispatchers.IO)
+    private val repoScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val cacheMutex = Mutex()
 
-    val recycleBinEntries = vaultDao.getRecycleBinEntries()
-        .map { list -> list.map { decryptLightweight(it) } }
-        .flowOn(Dispatchers.IO)
+    private val decryptedCacheMap = ConcurrentHashMap<Int, Pair<VaultEntryEntity, VaultEntry>>()
+    private val recycleBinCacheMap = ConcurrentHashMap<Int, Pair<VaultEntryEntity, VaultEntry>>()
+
+    private val _decryptedEntries = MutableStateFlow<List<VaultEntry>>(emptyList())
+    val decryptedEntries: StateFlow<List<VaultEntry>> = _decryptedEntries.asStateFlow()
+
+    private val _recycleBinEntries = MutableStateFlow<List<VaultListEntry>>(emptyList())
+    val recycleBinEntries: StateFlow<List<VaultListEntry>> = _recycleBinEntries.asStateFlow()
+
+    val allEntries: Flow<List<VaultEntry>> = _decryptedEntries.asStateFlow()
 
     val allRawEntities = vaultDao.getAllEntries()
 
+    init {
+        repoScope.launch {
+            vaultDao.getAllEntries().collect { entities ->
+                refreshActiveCache(entities)
+            }
+        }
+        repoScope.launch {
+            vaultDao.getRecycleBinEntries().collect { entities ->
+                refreshRecycleBinCache(entities)
+            }
+        }
+    }
+
+    private suspend fun refreshActiveCache(entities: List<VaultEntryEntity>) = cacheMutex.withLock {
+        if (cryptoManager.getSoftwareDek() == null) {
+            decryptedCacheMap.clear()
+            _decryptedEntries.value = emptyList()
+            return@withLock
+        }
+
+        val currentIds = entities.map { it.id }.toSet()
+        decryptedCacheMap.keys.retainAll(currentIds)
+
+        val decryptedList = entities.map { entity ->
+            val cached = decryptedCacheMap[entity.id]
+            if (cached != null && cached.first == entity) {
+                cached.second
+            } else {
+                val decrypted = decryptEntity(entity)
+                decryptedCacheMap[entity.id] = Pair(entity, decrypted)
+                decrypted
+            }
+        }
+        _decryptedEntries.value = decryptedList
+    }
+
+    private suspend fun refreshRecycleBinCache(entities: List<VaultEntryEntity>) = cacheMutex.withLock {
+        if (cryptoManager.getSoftwareDek() == null) {
+            recycleBinCacheMap.clear()
+            _recycleBinEntries.value = emptyList()
+            return@withLock
+        }
+
+        val currentIds = entities.map { it.id }.toSet()
+        recycleBinCacheMap.keys.retainAll(currentIds)
+
+        val list = entities.map { entity ->
+            val cached = recycleBinCacheMap[entity.id]
+            val decrypted = if (cached != null && cached.first == entity) {
+                cached.second
+            } else {
+                val dec = decryptEntity(entity)
+                recycleBinCacheMap[entity.id] = Pair(entity, dec)
+                dec
+            }
+            entryToVaultListEntry(decrypted)
+        }
+        _recycleBinEntries.value = list
+    }
+
     suspend fun getAllEntriesSync(): List<VaultEntry> = withContext(Dispatchers.IO) {
-        vaultDao.getAllEntriesSync().map { decryptEntity(it) }
+        val cached = _decryptedEntries.value
+        if (cached.isNotEmpty()) {
+            cached
+        } else {
+            val entities = vaultDao.getAllEntriesSync()
+            if (entities.isNotEmpty() && cryptoManager.getSoftwareDek() != null) {
+                refreshActiveCache(entities)
+                _decryptedEntries.value
+            } else {
+                entities.map { decryptEntity(it) }
+            }
+        }
     }
 
     fun injectSoftwareDek(dek: ByteArray) {
         cryptoManager.injectSoftwareDek(dek)
+        repoScope.launch {
+            val entities = vaultDao.getAllEntriesSync()
+            refreshActiveCache(entities)
+        }
     }
 
     fun getSoftwareDek(): ByteArray? {
@@ -42,6 +127,10 @@ class VaultRepository(
 
     fun clearSoftwareDek() {
         cryptoManager.clearSoftwareDek()
+        decryptedCacheMap.clear()
+        recycleBinCacheMap.clear()
+        _decryptedEntries.value = emptyList()
+        _recycleBinEntries.value = emptyList()
     }
 
     suspend fun getEntryById(id: Int): VaultEntry? = withContext(Dispatchers.IO) {
@@ -51,10 +140,16 @@ class VaultRepository(
 
     suspend fun insertEntry(entry: VaultEntry) = withContext(Dispatchers.IO) {
         vaultDao.insertEntry(encryptEntry(entry))
+        if (cryptoManager.getSoftwareDek() != null) {
+            refreshActiveCache(vaultDao.getAllEntriesSync())
+        }
     }
 
     suspend fun insertEntries(entries: List<VaultEntry>) = withContext(Dispatchers.IO) {
         vaultDao.insertEntries(entries.map { encryptEntry(it) })
+        if (cryptoManager.getSoftwareDek() != null) {
+            refreshActiveCache(vaultDao.getAllEntriesSync())
+        }
     }
 
     suspend fun updateEntry(entry: VaultEntry) = withContext(Dispatchers.IO) {
@@ -62,6 +157,9 @@ class VaultRepository(
             throw IllegalStateException("Cannot update an entry that failed decryption. Preventing data loss.")
         }
         vaultDao.updateEntry(encryptEntry(entry))
+        if (cryptoManager.getSoftwareDek() != null) {
+            refreshActiveCache(vaultDao.getAllEntriesSync())
+        }
     }
 
     suspend fun updateEntries(entries: List<VaultEntry>) = withContext(Dispatchers.IO) {
@@ -72,18 +170,30 @@ class VaultRepository(
             encryptEntry(it)
         }
         vaultDao.updateEntries(entities)
+        if (cryptoManager.getSoftwareDek() != null) {
+            refreshActiveCache(vaultDao.getAllEntriesSync())
+        }
     }
 
     suspend fun deleteEntry(id: Int) = withContext(Dispatchers.IO) {
         vaultDao.softDeleteEntry(id, System.currentTimeMillis())
+        if (cryptoManager.getSoftwareDek() != null) {
+            refreshActiveCache(vaultDao.getAllEntriesSync())
+        }
     }
 
     suspend fun permanentlyDeleteEntry(id: Int) = withContext(Dispatchers.IO) {
         vaultDao.permanentlyDeleteEntry(id)
+        if (cryptoManager.getSoftwareDek() != null) {
+            refreshActiveCache(vaultDao.getAllEntriesSync())
+        }
     }
 
     suspend fun restoreEntry(id: Int) = withContext(Dispatchers.IO) {
         vaultDao.restoreEntry(id)
+        if (cryptoManager.getSoftwareDek() != null) {
+            refreshActiveCache(vaultDao.getAllEntriesSync())
+        }
     }
 
     suspend fun cleanupRecycleBin() = withContext(Dispatchers.IO) {
@@ -109,38 +219,31 @@ class VaultRepository(
         )
     }
 
-    fun decryptLightweight(entity: VaultEntryEntity): VaultListEntry {
-        val decryptedTitle = cryptoManager.decrypt(entity.titleEnc)
-        val hasFailed = entity.titleEnc.isNotEmpty() && decryptedTitle == null
-        
-        val decryptedUsername = cryptoManager.decrypt(entity.usernameEnc) ?: ""
-        val decryptedPassword = cryptoManager.decrypt(entity.passwordEnc) ?: ""
-        val decryptedCustomFieldsStr = cryptoManager.decrypt(entity.customFieldsEnc) ?: "[]"
-        
-        val customFieldsList: List<CustomField> = try {
-            Json.decodeFromString(decryptedCustomFieldsStr)
-        } catch(e: Exception) { emptyList() }
-        
+    fun entryToVaultListEntry(entry: VaultEntry): VaultListEntry {
         val credentials = listOfNotNull(
-            decryptedUsername.takeIf { it.isNotBlank() },
-            decryptedPassword.takeIf { it.isNotBlank() }
-        ) + customFieldsList.map { it.value }.filter { it.isNotBlank() }
-        
+            entry.username.takeIf { it.isNotBlank() },
+            entry.password.takeIf { it.isNotBlank() }
+        ) + entry.customFields.map { it.value }.filter { it.isNotBlank() }
+
         val preview = if (credentials.size == 1) {
             "Hidden for privacy"
         } else {
             credentials.firstOrNull() ?: ""
         }
-        
+
         return VaultListEntry(
-            id = entity.id,
-            title = if (hasFailed) "Decryption Failed" else decryptedTitle ?: "",
+            id = entry.id,
+            title = entry.title,
             username = preview,
-            isFavorite = entity.isFavorite,
-            isDecryptionFailed = hasFailed,
-            isDeleted = entity.isDeleted,
-            deletedAt = entity.deletedAt
+            isFavorite = entry.isFavorite,
+            isDecryptionFailed = entry.isDecryptionFailed,
+            isDeleted = entry.isDeleted,
+            deletedAt = entry.deletedAt
         )
+    }
+
+    fun decryptLightweight(entity: VaultEntryEntity): VaultListEntry {
+        return entryToVaultListEntry(decryptEntity(entity))
     }
 
     fun decryptEntity(entity: VaultEntryEntity): VaultEntry {

@@ -27,7 +27,10 @@ import androidx.navigation.NavController
 import kotlin.math.log2
 
 @Composable
-fun PasswordGeneratorScreen(navController: NavController) {
+fun PasswordGeneratorScreen(
+    navController: NavController,
+    viewModel: com.example.ui.VaultViewModel? = null
+) {
     var length by remember { mutableFloatStateOf(18f) }
     var useUppercase by remember { mutableStateOf(true) }
     var useLowercase by remember { mutableStateOf(true) }
@@ -177,10 +180,28 @@ fun PasswordGeneratorScreen(navController: NavController) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Button(
                                 onClick = {
-                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    val clip = ClipData.newPlainText("Password", generatedPassword)
-                                    clipboard.setPrimaryClip(clip)
-                                    Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+                                    val vm = viewModel ?: run {
+                                        (context as? androidx.activity.ComponentActivity)?.let { activity ->
+                                            try {
+                                                androidx.lifecycle.ViewModelProvider(activity)[com.example.ui.VaultViewModel::class.java]
+                                            } catch (e: Exception) {
+                                                null
+                                            }
+                                        }
+                                    }
+                                    if (vm != null) {
+                                        vm.copyToClipboard(context, "Password", generatedPassword)
+                                    } else {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        val clip = ClipData.newPlainText("Password", generatedPassword)
+                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                            clip.description.extras = android.os.PersistableBundle().apply {
+                                                putBoolean(android.content.ClipDescription.EXTRA_IS_SENSITIVE, true)
+                                            }
+                                        }
+                                        clipboard.setPrimaryClip(clip)
+                                        Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+                                    }
                                 },
                                 modifier = Modifier.weight(1f).height(48.dp),
                                 shape = RoundedCornerShape(8.dp)

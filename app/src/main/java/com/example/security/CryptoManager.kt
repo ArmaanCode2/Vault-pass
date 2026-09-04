@@ -15,17 +15,22 @@ import com.example.repository.SettingsRepository
 class CryptoManager(private val settingsRepository: SettingsRepository) {
 
     private var softwareDek: SecretKey? = null
+    private var rawSoftwareDek: ByteArray? = null
 
     fun injectSoftwareDek(dek: ByteArray) {
-        softwareDek = SecretKeySpec(dek, "AES")
+        rawSoftwareDek?.let { java.util.Arrays.fill(it, 0.toByte()) }
+        rawSoftwareDek = dek.clone()
+        softwareDek = SecretKeySpec(rawSoftwareDek, "AES")
     }
 
     fun clearSoftwareDek() {
+        rawSoftwareDek?.let { java.util.Arrays.fill(it, 0.toByte()) }
+        rawSoftwareDek = null
         softwareDek = null
     }
 
     fun getSoftwareDek(): ByteArray? {
-        return softwareDek?.encoded
+        return rawSoftwareDek?.clone()
     }
 
     // Legacy AndroidKeyStore has been removed as all data is now encrypted with the software DEK.
@@ -131,29 +136,39 @@ class CryptoManager(private val settingsRepository: SettingsRepository) {
             return try {
                 if (backupData.size <= 16 + 12) return null
                 val salt = backupData.copyOfRange(0, 16)
+                val saltStr = Base64.encodeToString(salt, Base64.NO_WRAP)
                 
-                val kek = com.example.security.PasswordHashHelper.deriveMasterKey(password, Base64.encodeToString(salt, Base64.NO_WRAP))
-                val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-                val secretKey = SecretKeySpec(kek, "AES")
-
-                // Try 12-byte IV first
-                try {
-                    val iv = backupData.copyOfRange(16, 16 + 12)
-                    val encryptedData = backupData.copyOfRange(16 + 12, backupData.size)
-                    cipher.init(Cipher.DECRYPT_MODE, secretKey, GCMParameterSpec(128, iv))
-                    val plainTextBytes = cipher.doFinal(encryptedData)
-                    return String(plainTextBytes, Charsets.UTF_8)
-                } catch (e: Exception) {
-                    // Fallback to 16-byte IV
-                    if (backupData.size > 16 + 16) {
-                        val iv16 = backupData.copyOfRange(16, 16 + 16)
-                        val encryptedData16 = backupData.copyOfRange(16 + 16, backupData.size)
-                        cipher.init(Cipher.DECRYPT_MODE, secretKey, GCMParameterSpec(128, iv16))
-                        val plainTextBytes = cipher.doFinal(encryptedData16)
-                        return String(plainTextBytes, Charsets.UTF_8)
+                fun tryDecryptWithKek(kek: ByteArray): String? {
+                    val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+                    val secretKey = SecretKeySpec(kek, "AES")
+                    return try {
+                        val iv = backupData.copyOfRange(16, 16 + 12)
+                        val encryptedData = backupData.copyOfRange(16 + 12, backupData.size)
+                        cipher.init(Cipher.DECRYPT_MODE, secretKey, GCMParameterSpec(128, iv))
+                        val plainTextBytes = cipher.doFinal(encryptedData)
+                        String(plainTextBytes, Charsets.UTF_8)
+                    } catch (e: Exception) {
+                        if (backupData.size > 16 + 16) {
+                            try {
+                                val iv16 = backupData.copyOfRange(16, 16 + 16)
+                                val encryptedData16 = backupData.copyOfRange(16 + 16, backupData.size)
+                                cipher.init(Cipher.DECRYPT_MODE, secretKey, GCMParameterSpec(128, iv16))
+                                val plainTextBytes = cipher.doFinal(encryptedData16)
+                                String(plainTextBytes, Charsets.UTF_8)
+                            } catch (e2: Exception) {
+                                null
+                            }
+                        } else null
                     }
-                    throw e
                 }
+
+                val kek = com.example.security.PasswordHashHelper.deriveMasterKey(password, saltStr)
+                var result = tryDecryptWithKek(kek)
+                if (result == null) {
+                    val legacyKek = com.example.security.PasswordHashHelper.deriveLegacyMasterKey(password, saltStr)
+                    result = tryDecryptWithKek(legacyKek)
+                }
+                result
             } catch (e: Exception) {
                 e.printStackTrace()
                 null

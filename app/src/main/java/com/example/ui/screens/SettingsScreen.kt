@@ -115,8 +115,11 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                         else -> viewModel.generateVpexExportPayload(exportPassword)
                     }
                     withContext(Dispatchers.IO) {
-                        context.contentResolver.openOutputStream(it)?.use { out ->
+                        val outputStream = context.contentResolver.openOutputStream(it)
+                            ?: throw java.io.IOException("Unable to open output stream for destination: $it")
+                        outputStream.use { out ->
                             out.write(payload)
+                            out.flush()
                         }
                     }
                     val fileName = getFileName(context, uri)

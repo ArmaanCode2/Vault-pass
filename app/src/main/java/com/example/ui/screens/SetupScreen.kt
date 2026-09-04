@@ -150,10 +150,14 @@ fun SetupScreen(viewModel: VaultViewModel) {
                     
                     Button(
                         onClick = {
+                            val score = com.example.domain.security.SecurityAnalyzer.scorePassword(password)
+                            val reasons = com.example.domain.security.SecurityAnalyzer.getWeaknessReasons(password)
                             if (password.length < 8) {
                                 errorMessage = "Password must be at least 8 characters"
                             } else if (password.length > 250) {
                                 errorMessage = "Password must not exceed 250 characters"
+                            } else if (score < 40) {
+                                errorMessage = if (reasons.isNotEmpty()) "Weak master password: ${reasons.first()}" else "Master password is too weak (score $score/100)"
                             } else if (password != confirmPassword) {
                                 errorMessage = "Passwords do not match"
                             } else {

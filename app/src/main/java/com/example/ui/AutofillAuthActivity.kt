@@ -2,6 +2,7 @@ package com.example.ui
 
 import android.os.Bundle
 import android.view.WindowManager
+import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -52,6 +53,11 @@ class AutofillAuthActivity : FragmentActivity() {
             }
         }
 
+        onBackPressedDispatcher.addCallback(this) {
+            setResult(RESULT_CANCELED)
+            finish()
+        }
+
         setContent {
             val themeMode by viewModel.settingsRepository.themeMode.collectAsStateWithLifecycle(initialValue = 0)
             val accentColorName by viewModel.settingsRepository.accentColor.collectAsStateWithLifecycle(initialValue = "BLUE")
@@ -72,7 +78,38 @@ class AutofillAuthActivity : FragmentActivity() {
 
             LaunchedEffect(isUnlocked) {
                 if (isUnlocked) {
-                    setResult(RESULT_OK)
+                    val structure: android.app.assist.AssistStructure? = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(android.view.autofill.AutofillManager.EXTRA_ASSIST_STRUCTURE, android.app.assist.AssistStructure::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(android.view.autofill.AutofillManager.EXTRA_ASSIST_STRUCTURE)
+                    }
+
+                    val app = application as VaultPassApplication
+                    var fillResponse: android.service.autofill.FillResponse? = null
+                    if (structure != null) {
+                        withContext(Dispatchers.IO) {
+                            try {
+                                fillResponse = com.example.service.VaultAutofillService.buildResponseForStructure(
+                                    this@AutofillAuthActivity,
+                                    structure,
+                                    app.container.vaultRepository,
+                                    app.container.autofillDiagnosticsRepository
+                                )
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+                    }
+
+                    if (fillResponse != null) {
+                        val resultIntent = android.content.Intent().apply {
+                            putExtra(android.view.autofill.AutofillManager.EXTRA_AUTHENTICATION_RESULT, fillResponse)
+                        }
+                        setResult(RESULT_OK, resultIntent)
+                    } else {
+                        setResult(RESULT_CANCELED)
+                    }
                     finish()
                 }
             }
@@ -94,31 +131,29 @@ class AutofillAuthActivity : FragmentActivity() {
     private fun showBiometricPrompt() {
         lifecycleScope.launch {
             val dekBioWrapped = viewModel.settingsRepository.getDekBioWrappedSync()
-            var cryptoObject: BiometricPrompt.CryptoObject? = null
-            var challenge: ByteArray? = null
+            if (dekBioWrapped == null) {
+                android.widget.Toast.makeText(
+                    this@AutofillAuthActivity,
+                    "Biometric unlock is not set up. Please use Master Password.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                return@launch
+            }
 
-            if (dekBioWrapped != null) {
-                val combined = android.util.Base64.decode(dekBioWrapped, android.util.Base64.NO_WRAP)
-                if (combined.size > 12) {
-                    val iv = combined.copyOfRange(0, 12)
-                    val cipher = com.example.security.BiometricCryptoHelper.getDecryptCipherForBiometric(iv)
-                    if (cipher != null) {
-                        cryptoObject = BiometricPrompt.CryptoObject(cipher)
-                    }
-                }
-            } else {
-                val signature = com.example.security.BiometricCryptoHelper.getSignatureForBiometric()
-                if (signature != null) {
-                    cryptoObject = BiometricPrompt.CryptoObject(signature)
-                    challenge = ByteArray(32)
-                    java.security.SecureRandom().nextBytes(challenge)
+            var cryptoObject: BiometricPrompt.CryptoObject? = null
+            val combined = android.util.Base64.decode(dekBioWrapped, android.util.Base64.NO_WRAP)
+            if (combined.size > 12) {
+                val iv = combined.copyOfRange(0, 12)
+                val cipher = com.example.security.BiometricCryptoHelper.getDecryptCipherForBiometric(iv)
+                if (cipher != null) {
+                    cryptoObject = BiometricPrompt.CryptoObject(cipher)
                 }
             }
 
             if (cryptoObject == null) {
                 android.widget.Toast.makeText(
                     this@AutofillAuthActivity,
-                    "Biometric key missing or invalidated. Please use Master Password and re-enable in Settings.",
+                    "Biometric key missing or invalidated. Please use Master Password.",
                     android.widget.Toast.LENGTH_LONG
                 ).show()
                 return@launch
@@ -131,21 +166,10 @@ class AutofillAuthActivity : FragmentActivity() {
                         super.onAuthenticationSucceeded(result)
                         lifecycleScope.launch(Dispatchers.Default) {
                             try {
-                                if (result.cryptoObject?.cipher != null && dekBioWrapped != null) {
-                                    val combined = android.util.Base64.decode(dekBioWrapped, android.util.Base64.NO_WRAP)
+                                if (result.cryptoObject?.cipher != null) {
                                     val encryptedData = combined.copyOfRange(12, combined.size)
                                     val dek = result.cryptoObject!!.cipher!!.doFinal(encryptedData)
                                     viewModel.unlockWithBiometrics(dek)
-                                } else if (result.cryptoObject?.signature != null && challenge != null) {
-                                    val authSignature = result.cryptoObject!!.signature!!
-                                    authSignature.update(challenge)
-                                    val signatureBytes = authSignature.sign()
-                                    val unlocked = viewModel.unlockWithBiometrics(challenge, signatureBytes)
-                                    if (!unlocked) {
-                                        withContext(Dispatchers.Main) {
-                                            android.widget.Toast.makeText(this@AutofillAuthActivity, "Biometric verification failed", android.widget.Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
                                 }
                             } catch (e: Exception) {
                                 e.printStackTrace()

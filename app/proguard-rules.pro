@@ -5,17 +5,31 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Room
+-keep class androidx.room.** { *; }
+-keep @androidx.room.Entity class * { *; }
+-keep @androidx.room.Dao class * { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Kotlinx Serialization
+-keepattributes *Annotation*, InnerClasses
+-dontnote kotlinx.serialization.SerializationKt
+-keepclassmembers class * {
+    *** Companion;
+}
+-keepclasseswithmembers class * {
+    kotlinx.serialization.KSerializer serializer(...);
+}
+-keep class * implements kotlinx.serialization.KSerializer {
+    <init>(...);
+}
+-keepclassmembers class * implements kotlinx.serialization.internal.GeneratedSerializer { *; }
+-keep @kotlinx.serialization.Serializable class * { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Models, Domain, and Security
+-keep class com.example.domain.models.** { *; }
+-keep class com.example.data.models.** { *; }
+-keep class com.example.domain.security.** { *; }
+-keep class com.example.security.** { *; }
+
+# DataStore
+-keep class androidx.datastore.** { *; }
