@@ -27,8 +27,18 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import com.example.R
+import com.example.domain.security.PasswordGenerator
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.domain.models.CustomField
@@ -62,6 +72,37 @@ fun PasswordEntryScreen(
     
     var passwordVisible by remember { mutableStateOf(!hidePasswordsByDefault) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    var showGeneratorPopover by remember { mutableStateOf(false) }
+    var genLength by remember { mutableFloatStateOf(16f) }
+    var genIncludeUpper by remember { mutableStateOf(true) }
+    var genIncludeLower by remember { mutableStateOf(true) }
+    var genIncludeNumbers by remember { mutableStateOf(true) }
+    var genIncludeSymbols by remember { mutableStateOf(true) }
+    var passwordFieldHeightPx by remember { mutableIntStateOf(0) }
+
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    fun generatePassword(
+        length: Int = genLength.toInt(),
+        upper: Boolean = genIncludeUpper,
+        lower: Boolean = genIncludeLower,
+        nums: Boolean = genIncludeNumbers,
+        syms: Boolean = genIncludeSymbols
+    ): String {
+        return PasswordGenerator.generatePassword(length, upper, lower, nums, syms)
+    }
+
+    fun generateAndApply() {
+        password = generatePassword(
+            genLength.toInt(),
+            genIncludeUpper,
+            genIncludeLower,
+            genIncludeNumbers,
+            genIncludeSymbols
+        )
+        passwordVisible = true
+    }
 
     LaunchedEffect(entryId) {
         if (entryId != null) {
@@ -266,42 +307,171 @@ fun PasswordEntryScreen(
                                 }
                             }
                         )
-                        EntryTextField(
-                            label = stringResource(R.string.common_password),
-                            value = password,
-                            onValueChange = { password = it },
-                            icon = Icons.Default.VpnKey,
-                            placeholder = stringResource(R.string.common_password),
-                            isPassword = true,
-                            passwordVisible = passwordVisible,
-                            isError = passwordError != null,
-                            errorMessage = passwordError,
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Password,
-                                imeAction = ImeAction.Done
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onDone = { if (!hasErrors) saveEntry() }
-                            ),
-                            trailingIcon = {
-                                Row {
-                                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                        Icon(
-                                            if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                            contentDescription = stringResource(R.string.lock_toggle_password_visibility),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .onGloballyPositioned { coordinates ->
+                                    passwordFieldHeightPx = coordinates.size.height
+                                }
+                        ) {
+                            EntryTextField(
+                                label = stringResource(R.string.common_password),
+                                value = password,
+                                onValueChange = { password = it },
+                                icon = Icons.Default.VpnKey,
+                                placeholder = stringResource(R.string.common_password),
+                                isPassword = true,
+                                passwordVisible = passwordVisible,
+                                isError = passwordError != null,
+                                errorMessage = passwordError,
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Password,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onDone = { if (!hasErrors) saveEntry() }
+                                ),
+                                trailingIcon = {
+                                    Row {
+                                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                            Icon(
+                                                if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                contentDescription = stringResource(R.string.lock_toggle_password_visibility),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        IconButton(onClick = {
+                                            keyboardController?.hide()
+                                            val willOpen = !showGeneratorPopover
+                                            showGeneratorPopover = willOpen
+                                            if (willOpen && password.isEmpty()) {
+                                                generateAndApply()
+                                            }
+                                        }) {
+                                            Icon(
+                                                Icons.Default.Password,
+                                                contentDescription = stringResource(R.string.entry_generate_password),
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
                                     }
-                                    IconButton(onClick = { navController.navigate("generator") }) {
-                                        Icon(
-                                            Icons.Default.Password,
-                                            contentDescription = stringResource(R.string.entry_generate_password),
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
+                                }
+                            )
+
+                            if (showGeneratorPopover) {
+                                Popup(
+                                    alignment = Alignment.TopEnd,
+                                    offset = IntOffset(x = 0, y = passwordFieldHeightPx + 8),
+                                    onDismissRequest = { showGeneratorPopover = false },
+                                    properties = PopupProperties(focusable = true, dismissOnClickOutside = true)
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(16.dp),
+                                        color = MaterialTheme.colorScheme.surface,
+                                        tonalElevation = 8.dp,
+                                        shadowElevation = 8.dp,
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                                        modifier = Modifier.widthIn(min = 280.dp, max = 320.dp)
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(14.dp),
+                                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            // Header / Length Row
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "Length: ${genLength.toInt()}",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                IconButton(
+                                                    onClick = { generateAndApply() },
+                                                    modifier = Modifier.size(28.dp)
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.Refresh,
+                                                        contentDescription = "Regenerate password",
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                            }
+
+                                            // Compact Slider
+                                            Slider(
+                                                value = genLength,
+                                                onValueChange = {
+                                                    genLength = it
+                                                    generateAndApply()
+                                                },
+                                                valueRange = 8f..32f,
+                                                steps = 24,
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+
+                                            // Character Set Toggle Chips Row
+                                            val activeSetsCount = listOf(genIncludeUpper, genIncludeLower, genIncludeNumbers, genIncludeSymbols).count { it }
+
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                GeneratorToggleChip(
+                                                    label = "A",
+                                                    selected = genIncludeUpper,
+                                                    contentDescription = "Include uppercase letters",
+                                                    onClick = {
+                                                        if (!genIncludeUpper || activeSetsCount > 1) {
+                                                            genIncludeUpper = !genIncludeUpper
+                                                            generateAndApply()
+                                                        }
+                                                    }
+                                                )
+                                                GeneratorToggleChip(
+                                                    label = "a",
+                                                    selected = genIncludeLower,
+                                                    contentDescription = "Include lowercase letters",
+                                                    onClick = {
+                                                        if (!genIncludeLower || activeSetsCount > 1) {
+                                                            genIncludeLower = !genIncludeLower
+                                                            generateAndApply()
+                                                        }
+                                                    }
+                                                )
+                                                GeneratorToggleChip(
+                                                    label = "1",
+                                                    selected = genIncludeNumbers,
+                                                    contentDescription = "Include numbers",
+                                                    onClick = {
+                                                        if (!genIncludeNumbers || activeSetsCount > 1) {
+                                                            genIncludeNumbers = !genIncludeNumbers
+                                                            generateAndApply()
+                                                        }
+                                                    }
+                                                )
+                                                GeneratorToggleChip(
+                                                    label = "@",
+                                                    selected = genIncludeSymbols,
+                                                    contentDescription = "Include symbols",
+                                                    onClick = {
+                                                        if (!genIncludeSymbols || activeSetsCount > 1) {
+                                                            genIncludeSymbols = !genIncludeSymbols
+                                                            generateAndApply()
+                                                        }
+                                                    }
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
-                        )
+                        }
                     }
                 }
 
@@ -510,3 +680,36 @@ fun EntryTextField(
         )
     }
 }
+
+@Composable
+private fun GeneratorToggleChip(
+    label: String,
+    selected: Boolean,
+    contentDescription: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(8.dp),
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+        border = BorderStroke(
+            1.dp,
+            if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        ),
+        modifier = Modifier
+            .size(36.dp)
+            .semantics {
+                this.contentDescription = contentDescription
+            }
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
