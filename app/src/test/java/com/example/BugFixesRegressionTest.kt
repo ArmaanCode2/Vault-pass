@@ -1,6 +1,7 @@
 package com.example
 
 import androidx.test.core.app.ApplicationProvider
+import com.example.domain.models.CustomField
 import com.example.domain.models.VaultEntry
 import com.example.ui.VaultViewModel
 import kotlinx.coroutines.flow.first
@@ -157,4 +158,146 @@ class BugFixesRegressionTest {
         assertEquals("Work VPN", importedEntries[0].title)
         assertEquals("Work VPN", importedEntries[1].title)
     }
+
+    @Test
+    fun txtImport_preservesMultilineNotes() {
+        val txtData = """
+            Title: Server Backup
+
+            Username:
+            admin
+
+            Password:
+            mysecretpassword
+
+            Notes:
+            Line 1: Server IP is 10.0.0.1
+            Line 2: SSH Key is stored in safe
+            Line 3: Rotate every 90 days
+
+            Category:
+            Work
+
+            ---
+        """.trimIndent()
+
+        val (entries, invalidCount) = viewModel.decodeImportPayload(txtData)
+        assertEquals(0, invalidCount)
+        assertEquals(1, entries.size)
+        val entry = entries[0]
+        assertEquals("Server Backup", entry.title)
+        assertEquals("admin", entry.username)
+        val expectedNotes = "Line 1: Server IP is 10.0.0.1\nLine 2: SSH Key is stored in safe\nLine 3: Rotate every 90 days"
+        assertEquals(expectedNotes, entry.notes)
+        assertEquals("Work", entry.category)
+    }
+
+    @Test
+    fun txtExportImport_customFieldsKeywordDisambiguation() = runBlocking {
+        val testDek = ByteArray(32) { 0x55 }
+        app.container.vaultRepository.injectSoftwareDek(testDek)
+
+        val entry = VaultEntry(
+            id = 1,
+            title = "Test Service",
+            username = "user1",
+            password = "pass1",
+            notes = "Multiline\nNote",
+            customFields = listOf(
+                CustomField("Notes", "Custom field named Notes"),
+                CustomField("PIN", "1234")
+            )
+        )
+        app.container.vaultRepository.insertEntry(entry)
+
+        val exportedBytes = viewModel.generateTxtExportPayload()
+        val txt = String(exportedBytes, Charsets.UTF_8)
+        assertTrue(txt.contains("Custom.Notes:"))
+        assertTrue(txt.contains("Custom.PIN:"))
+
+        val (imported, invalidCount) = viewModel.decodeImportPayload(txt)
+        assertEquals(0, invalidCount)
+        val testServiceEntry = imported.first { it.title == "Test Service" }
+        assertEquals("Multiline\nNote", testServiceEntry.notes)
+        assertEquals(2, testServiceEntry.customFields.size)
+        assertEquals("Notes", testServiceEntry.customFields[0].key)
+        assertEquals("Custom field named Notes", testServiceEntry.customFields[0].value)
+        assertEquals("PIN", testServiceEntry.customFields[1].key)
+        assertEquals("1234", testServiceEntry.customFields[1].value)
+    }
+
+    @Test
+    fun jsonExport_handlesThreeOrMoreDuplicateTitlesWithoutOverwrite() = runBlocking {
+        val testDek = ByteArray(32) { 0x77 }
+        app.container.vaultRepository.injectSoftwareDek(testDek)
+
+        val entries = listOf(
+            VaultEntry(id = 101, title = "Gmail", username = "user1@gmail.com", password = "p1"),
+            VaultEntry(id = 102, title = "Gmail", username = "user2@gmail.com", password = "p2"),
+            VaultEntry(id = 103, title = "Gmail", username = "user3@gmail.com", password = "p3"),
+            VaultEntry(id = 104, title = "Gmail", username = "user4@gmail.com", password = "p4")
+        )
+        app.container.vaultRepository.insertEntries(entries)
+
+        val exportedBytes = viewModel.generateSimplifiedJsonExportPayload()
+        val jsonString = String(exportedBytes, Charsets.UTF_8)
+
+        // Verify JSON keys have the unique deduplication suffix
+        assertTrue(jsonString.contains("\"Gmail\""))
+        assertTrue(jsonString.contains("\"Gmail (2)\""))
+        assertTrue(jsonString.contains("\"Gmail (3)\""))
+        assertTrue(jsonString.contains("\"Gmail (4)\""))
+
+        val (imported, invalidCount) = viewModel.decodeSimplifiedJsonImportPayload(jsonString)
+        assertEquals(0, invalidCount)
+        val gmailEntries = imported.filter { it.title == "Gmail" }
+        assertEquals(4, gmailEntries.size)
+        val usernames = gmailEntries.map { it.username }.toSet()
+        assertEquals(setOf("user1@gmail.com", "user2@gmail.com", "user3@gmail.com", "user4@gmail.com"), usernames)
+    }
+
+    @Test
+    fun addEntrySync_and_updateEntrySync_failWhenVaultLocked() = runBlocking {
+        app.container.vaultRepository.clearSoftwareDek()
+        val entry = VaultEntry(title = "Test Secret", username = "user", password = "pwd")
+
+        val addResultLocked = viewModel.addEntrySync(entry)
+        assertFalse("addEntrySync should fail when vault is locked", addResultLocked)
+
+        val updateResultLocked = viewModel.updateEntrySync(entry.copy(id = 1))
+        assertFalse("updateEntrySync should fail when vault is locked", updateResultLocked)
+
+        // Inject DEK and verify success
+        val testDek = ByteArray(32) { 0x33 }
+        app.container.vaultRepository.injectSoftwareDek(testDek)
+
+        val addResultUnlocked = viewModel.addEntrySync(entry)
+        assertTrue("addEntrySync should succeed when vault is unlocked", addResultUnlocked)
+
+        val added = app.container.vaultRepository.getAllEntriesSync().first { it.title == "Test Secret" }
+        val updateResultUnlocked = viewModel.updateEntrySync(added.copy(username = "new_user"))
+        assertTrue("updateEntrySync should succeed when vault is unlocked", updateResultUnlocked)
+    }
+
+    @Test
+    fun vaultRepository_collectorsLifecycle_clearsAndRestarts() = runBlocking {
+        val testDek = ByteArray(32) { 0x44 }
+        app.container.vaultRepository.injectSoftwareDek(testDek)
+
+        val entry = VaultEntry(title = "Lifecycle Test", username = "u1", password = "p1")
+        app.container.vaultRepository.insertEntry(entry)
+
+        // Verify DEK is present
+        assertNotNull(app.container.vaultRepository.getSoftwareDek())
+
+        // Clear DEK (locks vault)
+        app.container.vaultRepository.clearSoftwareDek()
+        assertNull(app.container.vaultRepository.getSoftwareDek())
+        assertTrue("decryptedEntries should be empty after clearing DEK", app.container.vaultRepository.decryptedEntries.value.isEmpty())
+
+        // Re-inject DEK (unlocks vault)
+        app.container.vaultRepository.injectSoftwareDek(testDek)
+        assertNotNull(app.container.vaultRepository.getSoftwareDek())
+    }
 }
+

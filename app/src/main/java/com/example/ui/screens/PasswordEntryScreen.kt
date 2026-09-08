@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -14,7 +15,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.InputChip
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,6 +52,8 @@ import com.example.ui.VaultViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,26 +67,40 @@ fun PasswordEntryScreen(
     var existingEntry by remember { mutableStateOf<VaultEntry?>(null) }
     var isLoading by remember { mutableStateOf(entryId != null) }
 
-    var title by remember { mutableStateOf("") }
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var website by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("Personal") }
-    var isFavorite by remember { mutableStateOf(false) }
-    var customFields by remember { mutableStateOf(emptyList<CustomField>()) }
-    var tags by remember { mutableStateOf(emptyList<String>()) }
+    var title by rememberSaveable { mutableStateOf("") }
+    var username by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var website by rememberSaveable { mutableStateOf("") }
+    var notes by rememberSaveable { mutableStateOf("") }
+    var category by rememberSaveable { mutableStateOf("Personal") }
+    var isFavorite by rememberSaveable { mutableStateOf(false) }
+    var customFields by rememberSaveable(
+        stateSaver = Saver(
+            save = { Json.encodeToString(it) },
+            restore = { Json.decodeFromString<List<CustomField>>(it) }
+        )
+    ) { mutableStateOf(emptyList<CustomField>()) }
+    var tags by rememberSaveable(
+        stateSaver = listSaver(
+            save = { it },
+            restore = { it }
+        )
+    ) { mutableStateOf(emptyList<String>()) }
+    var newTagText by rememberSaveable { mutableStateOf("") }
     
-    var passwordVisible by remember { mutableStateOf(!hidePasswordsByDefault) }
-    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var passwordVisible by rememberSaveable { mutableStateOf(!hidePasswordsByDefault) }
+    var showDeleteConfirm by rememberSaveable { mutableStateOf(false) }
+    var showDiscardConfirm by rememberSaveable { mutableStateOf(false) }
+    var isSaving by rememberSaveable { mutableStateOf(false) }
+    var showSaveError by rememberSaveable { mutableStateOf(false) }
 
-    var showGeneratorPopover by remember { mutableStateOf(false) }
-    var genLength by remember { mutableFloatStateOf(16f) }
-    var genIncludeUpper by remember { mutableStateOf(true) }
-    var genIncludeLower by remember { mutableStateOf(true) }
-    var genIncludeNumbers by remember { mutableStateOf(true) }
-    var genIncludeSymbols by remember { mutableStateOf(true) }
-    var passwordFieldHeightPx by remember { mutableIntStateOf(0) }
+    var showGeneratorPopover by rememberSaveable { mutableStateOf(false) }
+    var genLength by rememberSaveable { mutableFloatStateOf(16f) }
+    var genIncludeUpper by rememberSaveable { mutableStateOf(true) }
+    var genIncludeLower by rememberSaveable { mutableStateOf(true) }
+    var genIncludeNumbers by rememberSaveable { mutableStateOf(true) }
+    var genIncludeSymbols by rememberSaveable { mutableStateOf(true) }
+    var passwordFieldHeightPx by rememberSaveable { mutableIntStateOf(0) }
 
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -138,6 +159,23 @@ fun PasswordEntryScreen(
     }
 
     val isEditing = entryId != null
+
+    val hasUnsavedChanges = if (isEditing) {
+        existingEntry?.let { orig ->
+            title != orig.title || username != orig.username ||
+            password != orig.password || website != orig.website ||
+            notes != orig.notes || category != orig.category ||
+            isFavorite != orig.isFavorite ||
+            customFields != orig.customFields || tags != orig.tags
+        } ?: false
+    } else {
+        title.isNotBlank() || username.isNotBlank() || password.isNotBlank() ||
+        website.isNotBlank() || notes.isNotBlank() || customFields.isNotEmpty()
+    }
+
+    BackHandler(enabled = hasUnsavedChanges) {
+        showDiscardConfirm = true
+    }
     
     val titleError = if (title.length > 100) "Max 100 characters" else if (title.isBlank()) "Title is required" else null
     val usernameError = if (username.length > 150) "Max 150 characters" else null
@@ -155,7 +193,7 @@ fun PasswordEntryScreen(
     val hasErrors = titleError != null || usernameError != null || passwordError != null || websiteError != null || notesError != null || hasCustomFieldsError
 
     val saveEntry = {
-        if (!hasErrors) {
+        if (!hasErrors && !isSaving) {
             val newEntry = VaultEntry(
                 id = entryId ?: 0,
                 title = title.trim().takeIf { it.isNotBlank() } ?: "Untitled",
@@ -168,12 +206,20 @@ fun PasswordEntryScreen(
                 tags = tags,
                 isFavorite = isFavorite
             )
-            if (isEditing) {
-                viewModel.updateEntry(newEntry)
-            } else {
-                viewModel.addEntry(newEntry)
+            isSaving = true
+            coroutineScope.launch {
+                val success = if (isEditing) {
+                    viewModel.updateEntrySync(newEntry)
+                } else {
+                    viewModel.addEntrySync(newEntry)
+                }
+                isSaving = false
+                if (success) {
+                    navController.popBackStack()
+                } else {
+                    showSaveError = true
+                }
             }
-            navController.popBackStack()
         }
         Unit
     }
@@ -198,7 +244,11 @@ fun PasswordEntryScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(onClick = { navController.popBackStack(); Unit }) {
+                IconButton(onClick = {
+                    if (hasUnsavedChanges) showDiscardConfirm = true
+                    else navController.popBackStack()
+                    Unit
+                }) {
                     Icon(Icons.Default.Close, contentDescription = stringResource(R.string.common_close), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text(
@@ -522,6 +572,84 @@ fun PasswordEntryScreen(
                             )
                         }
 
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+
+                        Column {
+                            Text(
+                                stringResource(R.string.common_tags),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            if (tags.isNotEmpty()) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    tags.forEach { tag ->
+                                        InputChip(
+                                            selected = false,
+                                            onClick = {
+                                                tags = tags.filter { it != tag }
+                                            },
+                                            label = { Text(tag) },
+                                            trailingIcon = {
+                                                Icon(
+                                                    Icons.Default.Close,
+                                                    contentDescription = "Remove tag",
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                TextField(
+                                    value = newTagText,
+                                    onValueChange = { newTagText = it },
+                                    placeholder = { Text("Add tag") },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true,
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        focusedIndicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                        unfocusedIndicatorColor = Color.Transparent
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                    keyboardActions = KeyboardActions(
+                                        onDone = {
+                                            val trimmed = newTagText.trim()
+                                            if (trimmed.isNotEmpty() && !tags.contains(trimmed) && tags.size < 10) {
+                                                tags = tags + trimmed
+                                                newTagText = ""
+                                            }
+                                        }
+                                    )
+                                )
+                                IconButton(onClick = {
+                                    val trimmed = newTagText.trim()
+                                    if (trimmed.isNotEmpty() && !tags.contains(trimmed) && tags.size < 10) {
+                                        tags = tags + trimmed
+                                        newTagText = ""
+                                    }
+                                }) {
+                                    Icon(Icons.Default.Add, contentDescription = "Add tag", tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+
                         if (customFields.isNotEmpty()) {
                             HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha=0.05f))
                             customFields.forEachIndexed { index, field ->
@@ -633,6 +761,40 @@ fun PasswordEntryScreen(
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) {
                     Text(stringResource(R.string.common_cancel))
+                }
+            }
+        )
+    }
+
+    if (showDiscardConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDiscardConfirm = false },
+            title = { Text(stringResource(R.string.common_discard_changes_title)) },
+            text = { Text(stringResource(R.string.common_discard_changes_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDiscardConfirm = false
+                    navController.popBackStack()
+                }) {
+                    Text(stringResource(R.string.common_discard), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardConfirm = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        )
+    }
+
+    if (showSaveError) {
+        AlertDialog(
+            onDismissRequest = { showSaveError = false },
+            title = { Text("Save Failed") },
+            text = { Text("Could not save this entry. The vault may have been locked. Please unlock and try again.") },
+            confirmButton = {
+                TextButton(onClick = { showSaveError = false }) {
+                    Text("OK")
                 }
             }
         )

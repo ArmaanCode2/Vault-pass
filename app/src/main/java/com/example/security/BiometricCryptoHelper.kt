@@ -69,7 +69,7 @@ object BiometricCryptoHelper {
             cipher.init(Cipher.ENCRYPT_MODE, secretKey)
             cipher
         } catch (e: Exception) {
-            e.printStackTrace()
+            if (com.example.BuildConfig.DEBUG) e.printStackTrace()
             null
         }
     }
@@ -84,7 +84,7 @@ object BiometricCryptoHelper {
             cipher.init(Cipher.DECRYPT_MODE, secretKey, GCMParameterSpec(128, iv))
             cipher
         } catch (e: Exception) {
-            e.printStackTrace()
+            if (com.example.BuildConfig.DEBUG) e.printStackTrace()
             null
         }
     }
@@ -101,7 +101,7 @@ object BiometricCryptoHelper {
             signature.initSign(privateKey)
             signature
         } catch (e: Exception) {
-            e.printStackTrace()
+            if (com.example.BuildConfig.DEBUG) e.printStackTrace()
             null
         }
     }
@@ -119,7 +119,7 @@ object BiometricCryptoHelper {
             signature.update(challenge)
             signature.verify(signatureBytes)
         } catch (e: Exception) {
-            e.printStackTrace()
+            if (com.example.BuildConfig.DEBUG) e.printStackTrace()
             false
         }
     }

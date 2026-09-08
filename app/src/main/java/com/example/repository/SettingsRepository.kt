@@ -57,7 +57,7 @@ class SettingsRepository(private val context: Context) {
     }
 
     private val data: Flow<Preferences> = context.dataStore.data.catch { exception ->
-        exception.printStackTrace()
+        if (com.example.BuildConfig.DEBUG) exception.printStackTrace()
         emit(emptyPreferences())
     }
 

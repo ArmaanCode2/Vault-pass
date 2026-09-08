@@ -28,6 +28,9 @@ class VaultRepository(
     private val decryptedCacheMap = ConcurrentHashMap<Int, Pair<VaultEntryEntity, VaultEntry>>()
     private val recycleBinCacheMap = ConcurrentHashMap<Int, Pair<VaultEntryEntity, VaultEntry>>()
 
+    private var activeEntriesJob: kotlinx.coroutines.Job? = null
+    private var recycleBinJob: kotlinx.coroutines.Job? = null
+
     private val _decryptedEntries = MutableStateFlow<List<VaultEntry>>(emptyList())
     val decryptedEntries: StateFlow<List<VaultEntry>> = _decryptedEntries.asStateFlow()
 
@@ -38,17 +41,23 @@ class VaultRepository(
 
     val allRawEntities = vaultDao.getAllEntries()
 
-    init {
-        repoScope.launch {
+    private fun startCollectors() {
+        activeEntriesJob?.cancel()
+        recycleBinJob?.cancel()
+        activeEntriesJob = repoScope.launch {
             vaultDao.getAllEntries().collect { entities ->
                 refreshActiveCache(entities)
             }
         }
-        repoScope.launch {
+        recycleBinJob = repoScope.launch {
             vaultDao.getRecycleBinEntries().collect { entities ->
                 refreshRecycleBinCache(entities)
             }
         }
+    }
+
+    init {
+        startCollectors()
     }
 
     private suspend fun refreshActiveCache(entities: List<VaultEntryEntity>) = cacheMutex.withLock {
@@ -115,10 +124,7 @@ class VaultRepository(
 
     fun injectSoftwareDek(dek: ByteArray) {
         cryptoManager.injectSoftwareDek(dek)
-        repoScope.launch {
-            val entities = vaultDao.getAllEntriesSync()
-            refreshActiveCache(entities)
-        }
+        startCollectors()
     }
 
     fun getSoftwareDek(): ByteArray? {
@@ -126,6 +132,8 @@ class VaultRepository(
     }
 
     fun clearSoftwareDek() {
+        activeEntriesJob?.cancel()
+        recycleBinJob?.cancel()
         cryptoManager.clearSoftwareDek()
         decryptedCacheMap.clear()
         recycleBinCacheMap.clear()

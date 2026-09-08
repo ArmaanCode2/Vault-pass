@@ -58,7 +58,7 @@ fun LockScreen(
 
     LaunchedEffect(lockoutEndTime) {
         while (true) {
-            val remainingMs = lockoutEndTime - System.currentTimeMillis()
+            val remainingMs = lockoutEndTime - android.os.SystemClock.elapsedRealtime()
             if (remainingMs > 0) {
                 lockoutSeconds = (remainingMs / 1000).toInt() + 1
                 kotlinx.coroutines.delay(500)
@@ -248,7 +248,9 @@ fun LockScreen(
                         val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(com.example.util.Constants.PRIVACY_POLICY_URL))
                         context.startActivity(intent)
                     } catch (e: Exception) {
-                        e.printStackTrace()
+                        if (com.example.BuildConfig.DEBUG) {
+                            e.printStackTrace()
+                        }
                     }
                 }
             )

@@ -136,7 +136,7 @@ class VaultAutofillService : AutofillService() {
                 } catch (e: Exception) {
                     if (e !is kotlinx.coroutines.CancellationException) {
                         diagnostics.logError("Coroutine matching error: ${e.message}")
-                        e.printStackTrace()
+                        if (com.example.BuildConfig.DEBUG) e.printStackTrace()
                         safeSuccess(null)
                     }
                 }
@@ -147,7 +147,7 @@ class VaultAutofillService : AutofillService() {
             }
         } catch (e: Exception) {
             diagnostics.logError("onFillRequest catastrophic error: ${e.message}")
-            e.printStackTrace()
+            if (com.example.BuildConfig.DEBUG) e.printStackTrace()
             safeSuccess(null)
         }
     }

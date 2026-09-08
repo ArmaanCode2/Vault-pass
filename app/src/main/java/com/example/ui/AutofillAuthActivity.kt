@@ -97,7 +97,7 @@ class AutofillAuthActivity : FragmentActivity() {
                                     app.container.autofillDiagnosticsRepository
                                 )
                             } catch (e: Exception) {
-                                e.printStackTrace()
+                                if (com.example.BuildConfig.DEBUG) e.printStackTrace()
                             }
                         }
                     }

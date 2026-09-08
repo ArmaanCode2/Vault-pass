@@ -71,7 +71,7 @@ class BiometricPromptManager(
                                     onSuccess(dek)
                                 }
                             } catch (e: Exception) {
-                                e.printStackTrace()
+                                if (com.example.BuildConfig.DEBUG) e.printStackTrace()
                                 withContext(Dispatchers.Main) {
                                     val errorMsg = "Authentication error: ${e.message}"
                                     if (onError != null) {

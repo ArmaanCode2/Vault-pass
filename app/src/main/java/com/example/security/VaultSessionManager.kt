@@ -75,9 +75,9 @@ class VaultSessionManager(
     }
 
     fun lock() {
-        _isUnlocked.value = false
         autoLockJob?.cancel()
         autoLockJob = null
+        _isUnlocked.value = false
         vaultRepository.clearSoftwareDek()
         cryptoManager.clearSoftwareDek()
     }

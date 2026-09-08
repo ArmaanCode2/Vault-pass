@@ -90,7 +90,7 @@ class VaultViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    private var isRecalculating = false
+    private val isRecalculating = java.util.concurrent.atomic.AtomicBoolean(false)
 
     val securityStats: StateFlow<SecurityStatsSummary?> = kotlinx.coroutines.flow.combine(
         settingsRepository.securityStatsSummary,
@@ -99,8 +99,7 @@ class VaultViewModel(
         if (rawEntities.isEmpty()) {
             com.example.domain.security.SecurityStatsSummary.Empty 
         } else if (cachedStats != null && rawEntities.size != cachedStats.totalPasswords) {
-            if (!isRecalculating) {
-                isRecalculating = true
+            if (isRecalculating.compareAndSet(false, true)) {
                 recalculateSecurityStats()
             }
             cachedStats.copy(securityStatus = "Analyzing...")
@@ -136,7 +135,7 @@ class VaultViewModel(
                 )
                 settingsRepository.saveSecurityStatsSummary(summary)
             } finally {
-                isRecalculating = false
+                isRecalculating.set(false)
             }
         }
     }
@@ -256,7 +255,7 @@ class VaultViewModel(
             recalculateSecurityStats()
             sessionManager.setUnlocked(true)
         } catch (e: Exception) {
-            e.printStackTrace()
+            if (com.example.BuildConfig.DEBUG) e.printStackTrace()
         } finally {
             java.util.Arrays.fill(newDek, 0.toByte())
             mpKek?.let { java.util.Arrays.fill(it, 0.toByte()) }
@@ -267,7 +266,7 @@ class VaultViewModel(
         if (_isUnlocking.value) return AuthResult.INVALID_PASSWORD
         
         val end = lockoutEndTime.value
-        val now = System.currentTimeMillis()
+        val now = android.os.SystemClock.elapsedRealtime()
         
         if (now < end) {
             return AuthResult.LOCKED_OUT
@@ -346,7 +345,7 @@ class VaultViewModel(
                             return@withContext AuthResult.SUCCESS
                         }
                         java.util.Arrays.fill(kek, 0.toByte())
-                        settingsRepository.incrementFailedAttempts(System.currentTimeMillis())
+                        settingsRepository.incrementFailedAttempts(android.os.SystemClock.elapsedRealtime())
                         return@withContext AuthResult.INVALID_PASSWORD
                     } else {
                         val pendingMpWrapped = settingsRepository.getPendingDekMpWrappedSync()
@@ -362,7 +361,7 @@ class VaultViewModel(
                     launch { vaultRepository.cleanupRecycleBin() }
                     return@withContext AuthResult.SUCCESS
                 }
-                settingsRepository.incrementFailedAttempts(System.currentTimeMillis())
+                settingsRepository.incrementFailedAttempts(android.os.SystemClock.elapsedRealtime())
                 return@withContext AuthResult.INVALID_PASSWORD
             } finally {
                 _isUnlocking.value = false
@@ -403,7 +402,7 @@ class VaultViewModel(
             settingsRepository.clearPendingKeysSync()
             
         } catch (e: Exception) {
-            e.printStackTrace()
+            if (com.example.BuildConfig.DEBUG) e.printStackTrace()
             // Migration silently aborts, DataStore rolls back, no harm done.
         } finally {
             newKek?.let { java.util.Arrays.fill(it, 0.toByte()) }
@@ -584,6 +583,18 @@ class VaultViewModel(
         }
     }
 
+    suspend fun addEntrySync(entry: VaultEntry): Boolean {
+        return try {
+            if (vaultRepository.getSoftwareDek() == null) return false
+            vaultRepository.insertEntry(entry)
+            recalculateSecurityStats()
+            true
+        } catch (e: Exception) {
+            if (com.example.BuildConfig.DEBUG) e.printStackTrace()
+            false
+        }
+    }
+
     suspend fun addEntries(entries: List<VaultEntry>) {
         vaultRepository.insertEntries(entries)
         vaultRepository.cleanupRecycleBin()
@@ -629,7 +640,7 @@ class VaultViewModel(
             }
             if (entry.customFields.isNotEmpty()) {
                 for (field in entry.customFields) {
-                    builder.appendLine("${field.key}:")
+                    builder.appendLine("Custom.${field.key}:")
                     builder.appendLine(field.value)
                     builder.appendLine()
                 }
@@ -642,19 +653,19 @@ class VaultViewModel(
 
     suspend fun generateSimplifiedJsonExportPayload(): ByteArray {
         val entries = getAllEntriesDecrypted()
-        val titleCounts = mutableMapOf<String, Int>()
+        val usedTitles = mutableSetOf<String>()
         
         val rootObj = buildJsonObject {
             for (entry in entries) {
                 var finalTitle = entry.title
-                var count = titleCounts[finalTitle] ?: 0
-                if (count > 0) {
-                    do {
-                        count++
-                        finalTitle = "${entry.title} ($count)"
-                    } while (titleCounts.containsKey(finalTitle))
+                if (usedTitles.contains(finalTitle)) {
+                    var counter = 2
+                    while (usedTitles.contains("${entry.title} ($counter)")) {
+                        counter++
+                    }
+                    finalTitle = "${entry.title} ($counter)"
                 }
-                titleCounts[finalTitle] = count.takeIf { it > 0 } ?: 1
+                usedTitles.add(finalTitle)
                 
                 putJsonArray(finalTitle) {
                     add(entry.username)
@@ -730,11 +741,29 @@ class VaultViewModel(
                     isFavorite = (lines[i+1] == "Yes")
                     i++
                 } else if (line == "Website:" && i + 1 < lines.size) {
-                    website = lines[i+1]
-                    i++
+                    val webLines = mutableListOf<String>()
+                    var j = i + 1
+                    val knownKeywords = setOf("Title:", "Username:", "Password:", "Favorite:",
+                        "Website:", "Notes:", "Category:", "Tags:", "---")
+                    while (j < lines.size && !knownKeywords.contains(lines[j]) &&
+                           !lines[j].startsWith("Title:") && !lines[j].startsWith("Custom.")) {
+                        webLines.add(lines[j])
+                        j++
+                    }
+                    website = webLines.joinToString("\n")
+                    i = j - 1
                 } else if (line == "Notes:" && i + 1 < lines.size) {
-                    notes = lines[i+1]
-                    i++
+                    val noteLines = mutableListOf<String>()
+                    var j = i + 1
+                    val knownKeywords = setOf("Title:", "Username:", "Password:", "Favorite:",
+                        "Website:", "Notes:", "Category:", "Tags:", "---")
+                    while (j < lines.size && !knownKeywords.contains(lines[j]) &&
+                           !lines[j].startsWith("Title:") && !lines[j].startsWith("Custom.")) {
+                        noteLines.add(lines[j])
+                        j++
+                    }
+                    notes = noteLines.joinToString("\n")
+                    i = j - 1
                 } else if (line == "Category:" && i + 1 < lines.size) {
                     category = lines[i+1]
                     i++
@@ -742,7 +771,8 @@ class VaultViewModel(
                     lines[i+1].split(",").forEach { tags.add(it.trim()) }
                     i++
                 } else if (line.endsWith(":") && i + 1 < lines.size) {
-                    val key = line.dropLast(1)
+                    val rawKey = line.dropLast(1)
+                    val key = if (rawKey.startsWith("Custom.")) rawKey.removePrefix("Custom.") else rawKey
                     customFields.add(com.example.domain.models.CustomField(key = key, value = lines[i+1]))
                     i++
                 }
@@ -863,6 +893,18 @@ class VaultViewModel(
         viewModelScope.launch { 
             vaultRepository.updateEntry(entry)
             recalculateSecurityStats()
+        }
+    }
+
+    suspend fun updateEntrySync(entry: VaultEntry): Boolean {
+        return try {
+            if (vaultRepository.getSoftwareDek() == null) return false
+            vaultRepository.updateEntry(entry)
+            recalculateSecurityStats()
+            true
+        } catch (e: Exception) {
+            if (com.example.BuildConfig.DEBUG) e.printStackTrace()
+            false
         }
     }
 

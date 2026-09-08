@@ -59,7 +59,7 @@ class CryptoManager(private val settingsRepository: SettingsRepository) {
             val combined = iv + encryptedData
             Base64.encodeToString(combined, Base64.NO_WRAP)
         } catch (e: Exception) {
-            e.printStackTrace()
+            if (com.example.BuildConfig.DEBUG) e.printStackTrace()
             ""
         }
     }
@@ -77,7 +77,7 @@ class CryptoManager(private val settingsRepository: SettingsRepository) {
             val plainTextBytes = cipher.doFinal(encryptedData)
             String(plainTextBytes, Charsets.UTF_8)
         } catch (e: Exception) {
-            e.printStackTrace()
+            if (com.example.BuildConfig.DEBUG) e.printStackTrace()
             null
         }
     }
@@ -114,7 +114,7 @@ class CryptoManager(private val settingsRepository: SettingsRepository) {
                 cipher.init(Cipher.DECRYPT_MODE, secretKey, GCMParameterSpec(128, iv))
                 cipher.doFinal(encryptedData)
             } catch (e: Exception) {
-                e.printStackTrace()
+                if (com.example.BuildConfig.DEBUG) e.printStackTrace()
                 null
             }
         }
@@ -170,7 +170,7 @@ class CryptoManager(private val settingsRepository: SettingsRepository) {
                 }
                 result
             } catch (e: Exception) {
-                e.printStackTrace()
+                if (com.example.BuildConfig.DEBUG) e.printStackTrace()
                 null
             }
         }

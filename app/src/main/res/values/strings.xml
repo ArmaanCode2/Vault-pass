@@ -18,6 +18,10 @@
     <string name="common_notes">Secure Notes</string>
     <string name="common_e2e_encrypted">End-to-End Encrypted</string>
     <string name="common_privacy_policy">Privacy Policy</string>
+    <string name="common_discard_changes_title">Discard Changes?</string>
+    <string name="common_discard_changes_message">You have unsaved changes. Are you sure you want to go back?</string>
+    <string name="common_discard">Discard</string>
+    <string name="common_tags">Tags</string>
 
     <!-- Lock Screen -->
     <string name="lock_vault_locked">Vault Locked</string>
@@ -104,4 +108,50 @@
     <string name="recycle_bin_delete_dialog_message">Are you sure you want to permanently delete ‘%1$s’? This action cannot be undone.</string>
     <string name="recycle_bin_days_remaining">%1$d days remaining</string>
     <string name="recycle_bin_deleted_date">Deleted: %1$s</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_appearance">APPEARANCE</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_accent_color">Accent Color</string>
+    <string name="settings_hide_passwords">Hide Passwords by Default</string>
+    <string name="settings_hide_passwords_subtitle">Obscure passwords in lists</string>
+    <string name="settings_security">SECURITY</string>
+    <string name="settings_biometric_unlock">Biometric Unlock</string>
+    <string name="settings_biometric_subtitle">Use fingerprint/face to access vault</string>
+    <string name="settings_disable_screenshots">Disable Screenshots</string>
+    <string name="settings_disable_screenshots_subtitle">Prevent screen capture &amp; recents</string>
+    <string name="settings_auto_lock">Auto Lock</string>
+    <string name="settings_autofill_enable">Enable Autofill</string>
+    <string name="settings_autofill_enabled">Enabled</string>
+    <string name="settings_autofill_subtitle">Allow VaultPass to fill passwords</string>
+    <string name="settings_autofill_warning">Autofill is an experimental feature. Compatibility may vary across apps, browsers, and Android versions.</string>
+    <string name="settings_data_backup">DATA BACKUP</string>
+    <string name="settings_recycle_bin">Recycle Bin</string>
+    <string name="settings_recycle_bin_subtitle">Restore or permanently delete items</string>
+    <string name="settings_export">Export Vault</string>
+    <string name="settings_export_subtitle">Save encrypted JSON to device</string>
+    <string name="settings_import">Import JSON</string>
+    <string name="settings_import_subtitle">Restore entries from backup</string>
+    <string name="settings_sync">SYNC &amp; DEVICES</string>
+    <string name="settings_device_sync">Device Synchronization</string>
+    <string name="settings_device_sync_subtitle">Pair and sync with VaultPass Desktop on LAN</string>
+    <string name="settings_auto_lock_immediately">Immediately</string>
+    <string name="settings_auto_lock_30s">30 Seconds</string>
+    <string name="settings_auto_lock_1m">1 Minute</string>
+    <string name="settings_auto_lock_5m">5 Minutes</string>
+    <string name="settings_auto_lock_15m">15 Minutes</string>
+    <string name="settings_auto_lock_never">Never</string>
+    <string name="settings_choose_auto_lock">Choose Auto Lock Time</string>
+    <string name="settings_choose_export_format">Choose Export Format</string>
+    <string name="settings_export_txt">Plain Text (.txt)</string>
+    <string name="settings_export_json">Simplified JSON (.json)</string>
+    <string name="settings_export_vpex">Encrypted JSON (.vpex)</string>
+    <string name="settings_secure_export">Secure Export</string>
+    <string name="settings_export_password_hint">Enter a password to encrypt this backup. You will need this password to import it later.</string>
+    <string name="settings_backup_password">Backup Password</string>
+    <string name="settings_unlock_backup">Unlock Backup</string>
+    <string name="settings_unlock_backup_hint">This backup is encrypted. Enter the password used during export.</string>
+    <string name="settings_unlock_import">Unlock &amp; Import</string>
+    <string name="settings_importing">Importing Vault</string>
 </resources>

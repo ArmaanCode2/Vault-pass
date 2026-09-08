@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,7 +36,7 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
 
     val securityStats by viewModel.securityStats.collectAsStateWithLifecycle()
 
-    var isSearchActive by remember { mutableStateOf(false) }
+    var isSearchActive by rememberSaveable { mutableStateOf(false) }
 
     if (entriesState == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -51,9 +52,17 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                 SearchBarDefaults.InputField(
                     query = searchQuery,
                     onQueryChange = { viewModel.updateSearchQuery(it) },
-                    onSearch = { isSearchActive = false },
+                    onSearch = { 
+                        viewModel.updateSearchQuery("")
+                        isSearchActive = false 
+                    },
                     expanded = true,
-                    onExpandedChange = { if (!it) isSearchActive = false },
+                    onExpandedChange = { 
+                        if (!it) {
+                            viewModel.updateSearchQuery("")
+                            isSearchActive = false 
+                        }
+                    },
                     placeholder = { Text(stringResource(R.string.dashboard_search_placeholder)) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     trailingIcon = {
@@ -67,7 +76,12 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                 )
             },
             expanded = true,
-            onExpandedChange = { if (!it) isSearchActive = false },
+            onExpandedChange = { 
+                if (!it) {
+                    viewModel.updateSearchQuery("")
+                    isSearchActive = false 
+                }
+            },
             modifier = Modifier.fillMaxWidth()
         ) {
             EntryList(entries = entries, navController = navController)

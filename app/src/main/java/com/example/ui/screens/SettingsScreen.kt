@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -71,16 +72,17 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
     val accentColorName by viewModel.settingsRepository.accentColor.collectAsStateWithLifecycle(initialValue = "BLUE")
     val themeOptions = listOf("System Default", "Light Mode", "Dark Mode")
     var isAppearanceExpanded by remember { mutableStateOf(false) }
+    var isBiometricEnabling by remember { mutableStateOf(false) }
 
     var autoLockExpanded by remember { mutableStateOf(false) }
     val autoLockTimer by viewModel.settingsRepository.autoLockTimer.collectAsStateWithLifecycle(initialValue = 60000L)
     val autoLockOptions = mapOf(
-        0L to "Immediately",
-        30000L to "30 Seconds",
-        60000L to "1 Minute",
-        300000L to "5 Minutes",
-        900000L to "15 Minutes",
-        -1L to "Never"
+        0L to stringResource(R.string.settings_auto_lock_immediately),
+        30000L to stringResource(R.string.settings_auto_lock_30s),
+        60000L to stringResource(R.string.settings_auto_lock_1m),
+        300000L to stringResource(R.string.settings_auto_lock_5m),
+        900000L to stringResource(R.string.settings_auto_lock_15m),
+        -1L to stringResource(R.string.settings_auto_lock_never)
     )
     
     var previewEntries by remember { mutableStateOf<List<VaultEntry>?>(null) }
@@ -108,7 +110,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
     
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri: Uri? ->
         viewModel.setPerformingSystemOperation(false)
-        Log.d("VaultPass", "Export launcher returned URI: $uri")
+        if (com.example.BuildConfig.DEBUG) Log.d("VaultPass", "Export launcher returned URI: $uri")
         uri?.let {
             scope.launch {
                 try {
@@ -126,11 +128,11 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                         }
                     }
                     val fileName = getFileName(context, uri)
-                    Log.d("VaultPass", "Secure export successful to file: $fileName")
+                    if (com.example.BuildConfig.DEBUG) Log.d("VaultPass", "Secure export successful to file: $fileName")
                     Toast.makeText(context, "Secure export completed\nSaved to: $fileName", Toast.LENGTH_LONG).show()
                     exportPassword = ""
                 } catch (e: Exception) {
-                    Log.e("VaultPass", "Exception during export data generation/write", e)
+                    if (com.example.BuildConfig.DEBUG) Log.e("VaultPass", "Exception during export data generation/write", e)
                     Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -139,7 +141,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
     
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         viewModel.setPerformingSystemOperation(false)
-        Log.d("VaultPass", "Import launcher returned URI: $uri")
+        if (com.example.BuildConfig.DEBUG) Log.d("VaultPass", "Import launcher returned URI: $uri")
         uri?.let {
             scope.launch {
                 try {
@@ -168,7 +170,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                     }
                     
                 } catch (e: Exception) {
-                    Log.e("VaultPass", "Exception during import parsing", e)
+                    if (com.example.BuildConfig.DEBUG) Log.e("VaultPass", "Exception during import parsing", e)
                     Toast.makeText(context, "Import failed: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -183,12 +185,12 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
         if (showExportFormatDialog) {
             AlertDialog(
                 onDismissRequest = { showExportFormatDialog = false },
-                title = { Text("Choose Export Format") },
+                title = { Text(stringResource(R.string.settings_choose_export_format)) },
                 text = {
                     val formats = listOf(
-                        "txt" to "Plain Text (.txt)",
-                        "json" to "Simplified JSON (.json)",
-                        "vpex" to "Encrypted JSON (.vpex)"
+                        "txt" to stringResource(R.string.settings_export_txt),
+                        "json" to stringResource(R.string.settings_export_json),
+                        "vpex" to stringResource(R.string.settings_export_vpex)
                     )
                     Column {
                         formats.forEach { (formatKey, label) ->
@@ -239,7 +241,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                 },
                 confirmButton = {},
                 dismissButton = {
-                    TextButton(onClick = { showExportFormatDialog = false }) { Text("Cancel") }
+                    TextButton(onClick = { showExportFormatDialog = false }) { Text(stringResource(R.string.common_cancel)) }
                 }
             )
         }
@@ -247,15 +249,15 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
         if (showExportPasswordDialog) {
             AlertDialog(
                 onDismissRequest = { showExportPasswordDialog = false },
-                title = { Text("Secure Export") },
+                title = { Text(stringResource(R.string.settings_secure_export)) },
                 text = {
                     Column {
-                        Text("Enter a password to encrypt this backup. You will need this password to import it later.")
+                        Text(stringResource(R.string.settings_export_password_hint))
                         Spacer(modifier = Modifier.height(16.dp))
                         OutlinedTextField(
                             value = exportPassword,
                             onValueChange = { exportPassword = it },
-                            label = { Text("Backup Password") },
+                            label = { Text(stringResource(R.string.settings_backup_password)) },
                             singleLine = true,
                             visualTransformation = if (exportPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
                             trailingIcon = {
@@ -273,7 +275,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            if (exportPassword.length >= 6) {
+                            if (exportPassword.length >= 8) {
                                 showExportPasswordDialog = false
                                 try {
                                     viewModel.setPerformingSystemOperation(true)
@@ -283,16 +285,16 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                     Toast.makeText(context, "Launch failed: ${e.message}", Toast.LENGTH_LONG).show()
                                 }
                             } else {
-                                Toast.makeText(context, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Password must be at least 8 characters", Toast.LENGTH_SHORT).show()
                             }
                         }
                     ) {
-                        Text("Export")
+                        Text(stringResource(R.string.settings_export))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showExportPasswordDialog = false; exportPassword = "" }) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.common_cancel))
                     }
                 }
             )
@@ -301,15 +303,15 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
         if (showImportPasswordDialog) {
             AlertDialog(
                 onDismissRequest = { showImportPasswordDialog = false },
-                title = { Text("Unlock Backup") },
+                title = { Text(stringResource(R.string.settings_unlock_backup)) },
                 text = {
                     Column {
-                        Text("This backup is encrypted. Enter the password used during export.")
+                        Text(stringResource(R.string.settings_unlock_backup_hint))
                         Spacer(modifier = Modifier.height(16.dp))
                         OutlinedTextField(
                             value = importPassword,
                             onValueChange = { importPassword = it },
-                            label = { Text("Backup Password") },
+                            label = { Text(stringResource(R.string.settings_backup_password)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -331,12 +333,12 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                             }
                         }
                     ) {
-                        Text("Unlock & Import")
+                        Text(stringResource(R.string.settings_unlock_import))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showImportPasswordDialog = false; importPassword = ""; pendingImportBytes = null }) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.common_cancel))
                     }
                 }
             )
@@ -345,7 +347,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
         if (isImporting) {
             AlertDialog(
                 onDismissRequest = {},
-                title = { Text("Importing Vault") },
+                title = { Text(stringResource(R.string.settings_importing)) },
                 text = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator()
@@ -373,10 +375,10 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                             try {
                                 viewModel.setImporting(true)
                                 viewModel.addEntries(toImport)
-                                Log.d("VaultPass", "Successfully imported ${toImport.size} entries")
+                                if (com.example.BuildConfig.DEBUG) Log.d("VaultPass", "Successfully imported ${toImport.size} entries")
                                 Toast.makeText(context, "Successfully imported ${toImport.size} entries", Toast.LENGTH_SHORT).show()
                             } catch (e: Exception) {
-                                Log.e("VaultPass", "Exception during database import", e)
+                                if (com.example.BuildConfig.DEBUG) Log.e("VaultPass", "Exception during database import", e)
                                 Toast.makeText(context, "Failed to import entries: ${e.message}", Toast.LENGTH_SHORT).show()
                             } finally {
                                 viewModel.setImporting(false)
@@ -388,7 +390,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                 },
                 dismissButton = {
                     TextButton(onClick = { previewEntries = null }) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.common_cancel))
                     }
                 }
             )
@@ -415,7 +417,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
 
             Column(
@@ -428,14 +430,14 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
             ) {
                 // Intro Text
                 Column {
-                    Text("Settings", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("Manage your vault preferences and security configurations.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 // Appearance
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("APPEARANCE", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp))
+                    Text(stringResource(R.string.settings_appearance), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp))
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         shape = RoundedCornerShape(16.dp),
@@ -444,8 +446,8 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                     ) {
                         Column {
                             SettingsRow(
-                                title = "Appearance",
-                                subtitle = "Theme and Accent Color",
+                                title = stringResource(R.string.settings_appearance),
+                                subtitle = "${stringResource(R.string.settings_theme)} and ${stringResource(R.string.settings_accent_color)}",
                                 icon = Icons.Default.Palette,
                                 iconColor = MaterialTheme.colorScheme.primary,
                                 iconBgColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
@@ -470,7 +472,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                             value = themeOptions[themeMode],
                                             onValueChange = {},
                                             readOnly = true,
-                                            label = { Text("Theme Mode") },
+                                            label = { Text(stringResource(R.string.settings_theme)) },
                                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = themeExpanded) },
                                             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                                             modifier = Modifier.menuAnchor().fillMaxWidth()
@@ -505,7 +507,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                             value = currentAccent.title,
                                             onValueChange = {},
                                             readOnly = true,
-                                            label = { Text("Accent Color") },
+                                            label = { Text(stringResource(R.string.settings_accent_color)) },
                                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = accentExpanded) },
                                             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                                             modifier = Modifier.menuAnchor().fillMaxWidth()
@@ -519,7 +521,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                                     text = { 
                                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                                             Box(modifier = Modifier.size(16.dp).background(colorOption.lightPrimary, RoundedCornerShape(8.dp)))
-                                                            Spacer(modifier = Modifier.width(12.dp))
+                                                             Spacer(modifier = Modifier.width(12.dp))
                                                             Text(colorOption.title) 
                                                         }
                                                     },
@@ -535,8 +537,8 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                             }
                             HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                             SettingsRow(
-                                title = "Hide Passwords by Default",
-                                subtitle = "Obscure passwords in lists",
+                                title = stringResource(R.string.settings_hide_passwords),
+                                subtitle = stringResource(R.string.settings_hide_passwords_subtitle),
                                 icon = Icons.Default.VisibilityOff,
                                 iconColor = MaterialTheme.colorScheme.secondary,
                                 iconBgColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
@@ -550,7 +552,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
 
                 // Security
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("SECURITY", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp))
+                    Text(stringResource(R.string.settings_security), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp))
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         shape = RoundedCornerShape(16.dp),
@@ -559,18 +561,41 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                     ) {
                         Column {
                             SettingsRow(
-                                title = "Biometric Unlock",
-                                subtitle = "Use fingerprint/face to access vault",
+                                title = stringResource(R.string.settings_biometric_unlock),
+                                subtitle = stringResource(R.string.settings_biometric_subtitle),
                                 icon = Icons.Default.Fingerprint,
                                 iconColor = MaterialTheme.colorScheme.primary,
                                 iconBgColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
                                 trailingContent = { 
                                     Switch(
-                                        checked = isBiometricEnabled, 
+                                        checked = isBiometricEnabled || isBiometricEnabling, 
                                         onCheckedChange = { isEnabled -> 
                                             if (isEnabled) {
+                                                val biometricManager = androidx.biometric.BiometricManager.from(context)
+                                                val canAuth = biometricManager.canAuthenticate(
+                                                    androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
+                                                )
+                                                when (canAuth) {
+                                                    androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS -> { /* proceed */ }
+                                                    androidx.biometric.BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> {
+                                                        android.widget.Toast.makeText(context, "This device does not have biometric hardware", android.widget.Toast.LENGTH_LONG).show()
+                                                        return@Switch
+                                                    }
+                                                    androidx.biometric.BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> {
+                                                        android.widget.Toast.makeText(context, "No biometrics enrolled. Please add a fingerprint or face in device Settings", android.widget.Toast.LENGTH_LONG).show()
+                                                        return@Switch
+                                                    }
+                                                    else -> {
+                                                        android.widget.Toast.makeText(context, "Biometric authentication is not available", android.widget.Toast.LENGTH_LONG).show()
+                                                        return@Switch
+                                                    }
+                                                }
+
+                                                isBiometricEnabling = true
+
                                                 val fragmentActivity = context as? androidx.fragment.app.FragmentActivity
                                                 if (fragmentActivity == null) {
+                                                    isBiometricEnabling = false
                                                     android.widget.Toast.makeText(context, "Cannot show biometric prompt on this device", android.widget.Toast.LENGTH_SHORT).show()
                                                     return@Switch
                                                 }
@@ -580,6 +605,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                                     
                                                     val cipher = com.example.security.BiometricCryptoHelper.getEncryptCipherForBiometric()
                                                     if (cipher == null) {
+                                                        isBiometricEnabling = false
                                                         android.widget.Toast.makeText(context, "Failed to initialize biometric encryption", android.widget.Toast.LENGTH_SHORT).show()
                                                         return@Switch
                                                     }
@@ -606,9 +632,13 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                                                         
                                                                         viewModel.settingsRepository.saveDekBioWrappedSync(dekBioWrapped)
                                                                         viewModel.settingsRepository.setBiometricEnabled(true)
-                                                                    } catch (e: Exception) {
-                                                                        e.printStackTrace()
                                                                         withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                                            isBiometricEnabling = false
+                                                                        }
+                                                                    } catch (e: Exception) {
+                                                                        if (com.example.BuildConfig.DEBUG) e.printStackTrace()
+                                                                        withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                                            isBiometricEnabling = false
                                                                             android.widget.Toast.makeText(context, "Encryption failed: ${e.message ?: e.toString()}", android.widget.Toast.LENGTH_LONG).show()
                                                                         }
                                                                     }
@@ -616,6 +646,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                                             }
                                                             
                                                             override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                                                                isBiometricEnabling = false
                                                                 android.widget.Toast.makeText(context, "Auth error: $errString", android.widget.Toast.LENGTH_SHORT).show()
                                                             }
                                                         })
@@ -623,7 +654,8 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                                     biometricPrompt.authenticate(promptInfo, androidx.biometric.BiometricPrompt.CryptoObject(cipher))
                                                     
                                                 } catch (e: Exception) {
-                                                    e.printStackTrace()
+                                                    isBiometricEnabling = false
+                                                    if (com.example.BuildConfig.DEBUG) e.printStackTrace()
                                                     android.widget.Toast.makeText(context, "Biometric setup failed: ${e.message ?: e.toString()}", android.widget.Toast.LENGTH_LONG).show()
                                                 }
                                             } else {
@@ -635,8 +667,8 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                             )
                             HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                             SettingsRow(
-                                title = "Disable Screenshots",
-                                subtitle = "Prevent screen capture & recents",
+                                title = stringResource(R.string.settings_disable_screenshots),
+                                subtitle = stringResource(R.string.settings_disable_screenshots_subtitle),
                                 icon = Icons.Default.Security,
                                 iconColor = MaterialTheme.colorScheme.error,
                                 iconBgColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
@@ -646,7 +678,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                             )
                             HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                             SettingsRow(
-                                title = "Auto Lock",
+                                title = stringResource(R.string.settings_auto_lock),
                                 subtitle = autoLockOptions[autoLockTimer] ?: "Unknown",
                                 icon = Icons.Default.Timer,
                                 iconColor = MaterialTheme.colorScheme.tertiary,
@@ -659,8 +691,8 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                             val isAutofillEnabled = autofillManager?.hasEnabledAutofillServices() == true
                             
                             SettingsRow(
-                                title = "Enable Autofill",
-                                subtitle = if (isAutofillEnabled) "Enabled" else "Allow VaultPass to fill passwords",
+                                title = stringResource(R.string.settings_autofill_enable),
+                                subtitle = if (isAutofillEnabled) stringResource(R.string.settings_autofill_enabled) else stringResource(R.string.settings_autofill_subtitle),
                                 icon = Icons.Default.Edit,
                                 iconColor = if (isAutofillEnabled) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary,
                                 iconBgColor = if (isAutofillEnabled) Color(0xFF2E7D32).copy(alpha = 0.2f) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
@@ -693,7 +725,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Autofill is an experimental feature. Compatibility may vary across apps, browsers, and Android versions.",
+                                    text = stringResource(R.string.settings_autofill_warning),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                                 )
@@ -701,7 +733,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                             if (autoLockExpanded) {
                                 AlertDialog(
                                     onDismissRequest = { autoLockExpanded = false },
-                                    title = { Text("Choose Auto Lock Time") },
+                                    title = { Text(stringResource(R.string.settings_choose_auto_lock)) },
                                     text = {
                                         Column {
                                             autoLockOptions.forEach { (time, label) ->
@@ -738,7 +770,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                     },
                                     confirmButton = {},
                                     dismissButton = {
-                                        TextButton(onClick = { autoLockExpanded = false }) { Text("Cancel") }
+                                        TextButton(onClick = { autoLockExpanded = false }) { Text(stringResource(R.string.common_cancel)) }
                                     }
                                 )
                             }
@@ -748,7 +780,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
 
                 // Advanced Data
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("DATA BACKUP", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp))
+                    Text(stringResource(R.string.settings_data_backup), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp))
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         shape = RoundedCornerShape(16.dp),
@@ -757,8 +789,8 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                     ) {
                         Column {
                             SettingsRow(
-                                title = "Recycle Bin",
-                                subtitle = "Restore or permanently delete items",
+                                title = stringResource(R.string.settings_recycle_bin),
+                                subtitle = stringResource(R.string.settings_recycle_bin_subtitle),
                                 icon = Icons.Default.DeleteOutline,
                                 iconColor = MaterialTheme.colorScheme.error,
                                 iconBgColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
@@ -767,8 +799,8 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                             )
                             HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                             SettingsRow(
-                                title = "Export Vault",
-                                subtitle = "Save encrypted JSON to device",
+                                title = stringResource(R.string.settings_export),
+                                subtitle = stringResource(R.string.settings_export_subtitle),
                                 icon = Icons.Default.Upload,
                                 iconColor = MaterialTheme.colorScheme.secondary,
                                 iconBgColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
@@ -779,8 +811,8 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                             )
                             HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                             SettingsRow(
-                                title = "Import JSON",
-                                subtitle = "Restore entries from backup",
+                                title = stringResource(R.string.settings_import),
+                                subtitle = stringResource(R.string.settings_import_subtitle),
                                 icon = Icons.Default.Download,
                                 iconColor = MaterialTheme.colorScheme.secondary,
                                 iconBgColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
@@ -801,7 +833,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
 
                 // Sync & Devices
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("SYNC & DEVICES", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp))
+                    Text(stringResource(R.string.settings_sync), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp))
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         shape = RoundedCornerShape(16.dp),
@@ -809,8 +841,8 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         SettingsRow(
-                            title = "Device Synchronization",
-                            subtitle = "Pair and sync with VaultPass Desktop on LAN",
+                            title = stringResource(R.string.settings_device_sync),
+                            subtitle = stringResource(R.string.settings_device_sync_subtitle),
                             icon = Icons.Default.Sync,
                             iconColor = MaterialTheme.colorScheme.primary,
                             iconBgColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
@@ -823,7 +855,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                 Spacer(modifier = Modifier.height(40.dp))
 
                 Text(
-                    text = "Privacy Policy",
+                    text = stringResource(R.string.common_privacy_policy),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -834,7 +866,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                                 val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(com.example.util.Constants.PRIVACY_POLICY_URL))
                                 context.startActivity(intent)
                             } catch (e: Exception) {
-                                e.printStackTrace()
+                                if (com.example.BuildConfig.DEBUG) e.printStackTrace()
                             }
                         }
                         .padding(16.dp)
@@ -865,7 +897,8 @@ fun SettingsRow(
                 if (onClick != null || onLongClick != null) {
                     Modifier.combinedClickable(
                         onClick = { onClick?.invoke() },
-                        onLongClick = { onLongClick?.invoke() }
+                        onLongClick = { onLongClick?.invoke() },
+                        role = Role.Button
                     )
                 } else Modifier
             )
