@@ -8,7 +8,7 @@ VaultPass is an offline Android password manager built with Kotlin and Jetpack C
 
 The latest release APK has been scanned with VirusTotal.
 
-[VirusTotal Report](https://www.virustotal.com/gui/file/ac993d64518225a9350b73f60edaafe82d7e8642dc864ba7c70c6aeccd4b20c7)
+[VirusTotal Report](https://www.virustotal.com/gui/file/36cade08a69950b7f5b13f0144476f1c73e1b12dbd28bf0de7346acacf8372d9?nocache=1)
 
 Users are encouraged to independently verify any release APK before installation.
 
