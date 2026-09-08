@@ -799,6 +799,27 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                     }
                 }
 
+                // Sync & Devices
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("SYNC & DEVICES", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        shape = RoundedCornerShape(16.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha=0.1f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        SettingsRow(
+                            title = "Device Synchronization",
+                            subtitle = "Pair and sync with VaultPass Desktop on LAN",
+                            icon = Icons.Default.Sync,
+                            iconColor = MaterialTheme.colorScheme.primary,
+                            iconBgColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
+                            trailingContent = { Icon(Icons.Default.ChevronRight, tint = MaterialTheme.colorScheme.onSurfaceVariant, contentDescription = null) },
+                            onClick = { navController.navigate("lan_sync") }
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(40.dp))
 
                 Text(

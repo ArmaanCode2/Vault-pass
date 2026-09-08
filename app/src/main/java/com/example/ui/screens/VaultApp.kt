@@ -101,6 +101,53 @@ fun VaultApp(
                     composable("generator") {
                         PasswordGeneratorScreen(navController)
                     }
+                    composable("lan_sync") {
+                        val context = androidx.compose.ui.platform.LocalContext.current
+                        val app = context.applicationContext as com.example.VaultPassApplication
+                        val lanSyncViewModel: com.example.ui.sync.LanSyncViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                            factory = com.example.ui.sync.LanSyncViewModelFactory(
+                                pairedDeviceRepository = app.container.pairedDeviceRepository,
+                                lanDiscoveryManager = app.container.lanDiscoveryManager,
+                                lanSocketTransport = app.container.lanSocketTransport,
+                                vaultRepository = app.container.vaultRepository
+                            )
+                        )
+                        com.example.ui.sync.LanSyncScreen(
+                            viewModel = lanSyncViewModel,
+                            onNavigateBack = { navController.popBackStack() },
+                            onNavigateToScanner = { navController.navigate("sync_scanner") },
+                            onNavigateToReview = { navController.navigate("sync_review") }
+                        )
+                    }
+                    composable("sync_scanner") {
+                        val context = androidx.compose.ui.platform.LocalContext.current
+                        val app = context.applicationContext as com.example.VaultPassApplication
+                        com.example.ui.sync.CameraQrScanScreen(
+                            lanSocketTransport = app.container.lanSocketTransport,
+                            lanDiscoveryManager = app.container.lanDiscoveryManager,
+                            onNavigateBack = { navController.popBackStack() },
+                            onPairingSuccess = { navController.popBackStack() }
+                        )
+                    }
+                    composable("sync_review") {
+                        val context = androidx.compose.ui.platform.LocalContext.current
+                        val app = context.applicationContext as com.example.VaultPassApplication
+                        val lanSyncViewModel: com.example.ui.sync.LanSyncViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                            factory = com.example.ui.sync.LanSyncViewModelFactory(
+                                pairedDeviceRepository = app.container.pairedDeviceRepository,
+                                lanDiscoveryManager = app.container.lanDiscoveryManager,
+                                lanSocketTransport = app.container.lanSocketTransport,
+                                vaultRepository = app.container.vaultRepository
+                            )
+                        )
+                        com.example.ui.sync.SyncReviewScreen(
+                            viewModel = lanSyncViewModel,
+                            onNavigateBack = { navController.popBackStack() },
+                            onSyncCompleted = {
+                                navController.popBackStack("lan_sync", inclusive = false)
+                            }
+                        )
+                    }
                 }
             }
         }
