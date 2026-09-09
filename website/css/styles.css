@@ -1,0 +1,290 @@
+/* VaultPass - Minimalist Stylesheet */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg-color: #05070d;
+  --surface-color: #0b111e;
+  --surface-card: #0e1626;
+  --surface-card-hover: #121c30;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-focus: rgba(56, 222, 187, 0.4);
+  --accent-cyan: #38debb;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  overflow-x: hidden;
+  position: relative;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* -------------------------------------------------------------
+   Gemini-Style Slow-Moving Blurred Gradients Background
+   - Subtler brightness (lower opacity)
+   - Continuous, smooth, visible slow-drift
+   ------------------------------------------------------------- */
+.gradient-bg-container {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  background-color: #05070d;
+}
+
+.gradient-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.16; /* Reduced brightness */
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+}
+
+.gradient-orb-1 {
+  width: 500px;
+  height: 500px;
+  top: -80px;
+  left: 15%;
+  background: radial-gradient(circle, #38debb 0%, #0284c7 65%, transparent 80%);
+  animation: move-orb-1 16s ease-in-out infinite alternate;
+}
+
+.gradient-orb-2 {
+  width: 580px;
+  height: 580px;
+  top: 35%;
+  right: -80px;
+  background: radial-gradient(circle, #6366f1 0%, #1e40af 60%, transparent 80%);
+  animation: move-orb-2 18s ease-in-out infinite alternate;
+}
+
+.gradient-orb-3 {
+  width: 480px;
+  height: 480px;
+  bottom: 0%;
+  left: -40px;
+  background: radial-gradient(circle, #10b981 0%, #0f766e 60%, transparent 80%);
+  animation: move-orb-3 15s ease-in-out infinite alternate;
+}
+
+.gradient-orb-4 {
+  width: 560px;
+  height: 560px;
+  top: 65%;
+  left: 30%;
+  background: radial-gradient(circle, #4f46e5 0%, #0369a1 65%, transparent 80%);
+  animation: move-orb-4 20s ease-in-out infinite alternate;
+}
+
+@keyframes move-orb-1 {
+  0% {
+    transform: translate3d(0px, 0px, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(140px, 100px, 0) scale(1.12);
+  }
+  100% {
+    transform: translate3d(-100px, 180px, 0) scale(0.92);
+  }
+}
+
+@keyframes move-orb-2 {
+  0% {
+    transform: translate3d(0px, 0px, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-160px, -80px, 0) scale(1.1);
+  }
+  100% {
+    transform: translate3d(-90px, 130px, 0) scale(0.88);
+  }
+}
+
+@keyframes move-orb-3 {
+  0% {
+    transform: translate3d(0px, 0px, 0) scale(0.9);
+  }
+  50% {
+    transform: translate3d(180px, -110px, 0) scale(1.15);
+  }
+  100% {
+    transform: translate3d(90px, -50px, 0) scale(1.02);
+  }
+}
+
+@keyframes move-orb-4 {
+  0% {
+    transform: translate3d(0px, 0px, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-120px, 100px, 0) scale(1.12);
+  }
+  100% {
+    transform: translate3d(110px, -90px, 0) scale(0.9);
+  }
+}
+
+/* -------------------------------------------------------------
+   Navigation & Cards
+   ------------------------------------------------------------- */
+.glass-nav {
+  background: rgba(5, 7, 13, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.glass-card {
+  background: rgba(11, 17, 30, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-subtle);
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.glass-card:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  transform: translateY(-2px);
+}
+
+/* -------------------------------------------------------------
+   Clean, Matte Buttons (No Shiny Glows)
+   ------------------------------------------------------------- */
+.btn-primary {
+  background-color: #38debb;
+  color: #040914;
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.btn-primary:hover {
+  background-color: #5ffbd6;
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #f1f5f9;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+/* Badge */
+.badge-neon {
+  background: rgba(56, 222, 187, 0.08);
+  color: #5ffbd6;
+  border: 1px solid rgba(56, 222, 187, 0.22);
+}
+
+/* Range Slider */
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  background: #1e293b;
+  border-radius: 9999px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #38debb;
+  cursor: pointer;
+  border: none;
+}
+
+/* Custom Checkbox Pill */
+.toggle-chip {
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 0.75rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toggle-chip:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.toggle-chip:has(input:checked),
+.toggle-chip.is-checked {
+  border-color: rgba(56, 222, 187, 0.45);
+  background: rgba(56, 222, 187, 0.09);
+  box-shadow: 0 0 16px rgba(56, 222, 187, 0.06);
+}
+
+.toggle-chip:has(input:checked) .chip-code,
+.toggle-chip.is-checked .chip-code {
+  color: #5ffbd6;
+}
+
+.toggle-chip:has(input:checked) .chip-label,
+.toggle-chip.is-checked .chip-label {
+  color: #cbd5e1;
+}
+
+.toggle-chip:not(:has(input:checked)):not(.is-checked) {
+  opacity: 0.5;
+}
+
+.toggle-chip:not(:has(input:checked)):not(.is-checked):hover {
+  opacity: 0.85;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #05070d;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Details Accordion Arrow */
+details summary::-webkit-details-marker {
+  display: none;
+}
+
+details[open] summary svg {
+  transform: rotate(180deg);
+}
