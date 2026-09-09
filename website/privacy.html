@@ -9,6 +9,22 @@
 
   <link rel="icon" type="image/png" href="assets/icon.png">
 
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://vaultpass.org/privacy.html">
+
+  <!-- OpenGraph / Social Media -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://vaultpass.org/privacy.html">
+  <meta property="og:title" content="Privacy Policy — VaultPass">
+  <meta property="og:description" content="Official Privacy Policy for VaultPass. Synchronized live with GitHub PRIVACY.md.">
+  <meta property="og:image" content="https://vaultpass.org/assets/icon.png">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Privacy Policy — VaultPass">
+  <meta name="twitter:description" content="Official Privacy Policy for VaultPass. Synchronized live with GitHub PRIVACY.md.">
+  <meta name="twitter:image" content="https://vaultpass.org/assets/icon.png">
+
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -41,6 +57,8 @@
 
   <!-- Marked.js Markdown Parser (Client-Side, Zero-Backend) -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- DOMPurify (HTML Sanitizer for Dynamic Markdown) -->
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 
   <!-- Custom Stylesheet -->
   <link rel="stylesheet" href="css/styles.css">
@@ -92,7 +110,7 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
             </svg>
-            <span class="download-status">Direct APK</span>
+            <span class="download-status">Download APK</span>
           </button>
         </div>
 
@@ -150,7 +168,7 @@
     </article>
 
     <!-- Footer -->
-    <footer class="border-t border-white/5 py-12 text-xs text-slate-500">
+    <footer class="border-t border-white/5 py-12 text-xs text-slate-400">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
         <div class="flex items-center gap-3">
           <img src="assets/icon.png" alt="VaultPass" class="w-6 h-6 rounded-md object-cover">

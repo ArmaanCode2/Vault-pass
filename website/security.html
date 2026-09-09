@@ -9,6 +9,22 @@
 
   <link rel="icon" type="image/png" href="assets/icon.png">
 
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://vaultpass.org/security.html">
+
+  <!-- OpenGraph / Social Media -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://vaultpass.org/security.html">
+  <meta property="og:title" content="Security Architecture — VaultPass">
+  <meta property="og:description" content="Technical breakdown of VaultPass cryptography: PBKDF2-HMAC-SHA256, AES-256-GCM, Android Keystore Biometrics, and in-memory key scrubbing.">
+  <meta property="og:image" content="https://vaultpass.org/assets/icon.png">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Security Architecture — VaultPass">
+  <meta name="twitter:description" content="Technical breakdown of VaultPass cryptography: PBKDF2-HMAC-SHA256, AES-256-GCM, Android Keystore Biometrics, and in-memory key scrubbing.">
+  <meta name="twitter:image" content="https://vaultpass.org/assets/icon.png">
+
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -94,7 +110,7 @@
       <div id="mobile-menu" class="hidden md:hidden px-4 pt-2 pb-6 border-t border-white/5 bg-[#05070d]/95 backdrop-blur-xl">
         <div class="flex flex-col gap-4 text-sm font-medium text-slate-300 pt-2 text-center">
           <a href="index.html#features" class="hover:text-white py-1">Features</a>
-          <a href="security.html" class="hover:text-[#5ffbd6] py-1">Security Model</a>
+          <a href="security.html" class="text-[#5ffbd6] font-semibold py-1">Security Model</a>
           <a href="download.html" class="hover:text-white py-1">Downloads</a>
           <button data-direct-download class="btn-primary text-center py-2.5 rounded-lg text-sm mt-2 w-full cursor-pointer">
             Download APK
@@ -132,7 +148,7 @@
             <p class="text-slate-400 leading-relaxed font-sans text-xs">
               Master password is processed using <strong>PBKDF2-HMAC-SHA256</strong> with 300,000 iterations and a device-unique salt to derive a 256-bit Key Encryption Key (KEK).
             </p>
-            <div class="pt-2 text-[10px] text-slate-500">
+            <div class="pt-2 text-[10px] text-slate-400">
               Mitigates GPU & ASIC brute-force cracking
             </div>
           </div>
@@ -142,7 +158,7 @@
             <p class="text-slate-400 leading-relaxed font-sans text-xs">
               A cryptographically secure random Data Encryption Key (DEK) is generated. It is encrypted twice: once with the derived KEK, and once with the <strong>Android Keystore</strong> hardware key for biometric unlock.
             </p>
-            <div class="pt-2 text-[10px] text-slate-500">
+            <div class="pt-2 text-[10px] text-slate-400">
               Android Keystore • TEE / Secure Enclave
             </div>
           </div>
@@ -152,7 +168,7 @@
             <p class="text-slate-400 leading-relaxed font-sans text-xs">
               All credential records, notes, and custom fields in the local Room SQLite database are authenticated and encrypted using <strong>AES-GCM</strong> with 128-bit authentication tags.
             </p>
-            <div class="pt-2 text-[10px] text-slate-500">
+            <div class="pt-2 text-[10px] text-slate-400">
               Guarantees confidentiality and ciphertext integrity
             </div>
           </div>
@@ -245,7 +261,7 @@
     </section>
 
     <!-- Footer -->
-    <footer class="mt-20 border-t border-white/5 py-12 text-xs text-slate-500">
+    <footer class="mt-20 border-t border-white/5 py-12 text-xs text-slate-400">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
         <div class="flex items-center gap-3">
           <img src="assets/icon.png" alt="VaultPass" class="w-6 h-6 rounded-md object-cover">

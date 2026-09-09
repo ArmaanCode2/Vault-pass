@@ -1,5 +1,4 @@
 /* VaultPass - Minimalist Stylesheet */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
   --bg-color: #05070d;
@@ -18,12 +17,33 @@
   box-sizing: border-box;
 }
 
+html, body {
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--bg-color);
   color: var(--text-primary);
-  overflow-x: hidden;
   position: relative;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .gradient-orb {
+    animation: none !important;
+  }
 }
 
 .font-mono {
@@ -137,6 +157,16 @@ body {
   }
 }
 
+@media (max-width: 768px) {
+  .gradient-orb {
+    filter: blur(60px);
+  }
+  .gradient-orb-3,
+  .gradient-orb-4 {
+    display: none !important;
+  }
+}
+
 /* -------------------------------------------------------------
    Navigation & Cards
    ------------------------------------------------------------- */
@@ -203,6 +233,7 @@ body {
 /* Range Slider */
 input[type="range"] {
   -webkit-appearance: none;
+  appearance: none;
   width: 100%;
   height: 6px;
   background: #1e293b;
@@ -213,6 +244,23 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #38debb;
+  cursor: pointer;
+  border: none;
+}
+
+input[type="range"]::-moz-range-track {
+  width: 100%;
+  height: 6px;
+  background: #1e293b;
+  border-radius: 9999px;
+  border: none;
+}
+
+input[type="range"]::-moz-range-thumb {
   width: 16px;
   height: 16px;
   border-radius: 50%;
@@ -254,7 +302,8 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .toggle-chip:not(:has(input:checked)):not(.is-checked) {
-  opacity: 0.5;
+  opacity: 0.75;
+  color: #94a3b8;
 }
 
 .toggle-chip:not(:has(input:checked)):not(.is-checked):hover {
@@ -281,10 +330,153 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 /* Details Accordion Arrow */
-details summary::-webkit-details-marker {
+details summary::-webkit-details-marker,
+details summary::marker {
   display: none;
+}
+
+details summary {
+  user-select: none;
+  -webkit-user-select: none;
+  list-style: none;
 }
 
 details[open] summary svg {
   transform: rotate(180deg);
 }
+
+/* Interactive Demo App Window / Mobile Device Frame */
+.mobile-device-frame {
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 35px rgba(56, 222, 187, 0.08);
+  will-change: transform;
+  contain: layout paint;
+  border-radius: 42px;
+  border: 8px solid #182338;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mobile-device-frame:hover {
+  border-color: #1a283f;
+  box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.95), 0 0 45px rgba(56, 222, 187, 0.12);
+}
+
+/* Hide scrollbar for authentic mobile app feel */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Material 3 Jetpack Compose Styling for Demo App */
+.m3-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 28px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.m3-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.m3-switch-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #3b3d44;
+  border-radius: 28px;
+  border: 2px solid #5d6069;
+  transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.m3-switch-thumb {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: #c4c6d0;
+  border-radius: 50%;
+  transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.m3-switch input:checked + .m3-switch-track {
+  background-color: var(--md-primary-container, #004786);
+  border-color: var(--md-primary-container, #004786);
+}
+
+.m3-switch input:checked + .m3-switch-track .m3-switch-thumb {
+  transform: translateX(20px);
+  background-color: var(--md-primary, #a4c8ff);
+  width: 20px;
+  height: 20px;
+  left: 2px;
+  bottom: 2px;
+}
+
+/* Material 3 Slider */
+input[type="range"].m3-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #363942;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"].m3-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--md-primary, #a4c8ff);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease;
+}
+
+input[type="range"].m3-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+input[type="range"].m3-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--md-primary, #a4c8ff);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  border: none;
+}
+
+/* Fade In Animation Utility */
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+

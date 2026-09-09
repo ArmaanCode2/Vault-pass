@@ -10,11 +10,21 @@
   <!-- Favicon using app icon -->
   <link rel="icon" type="image/png" href="assets/icon.png">
 
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://vaultpass.org/">
+
   <!-- OpenGraph / Social Media -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="VaultPass — Absolute Privacy. Zero Cloud.">
+  <meta property="og:url" content="https://vaultpass.org/">
+  <meta property="og:title" content="VaultPass — The Offline-First Android Password Manager">
   <meta property="og:description" content="The 100% offline, zero-cloud Android password manager. Your credentials never leave your hardware.">
-  <meta property="og:image" content="assets/icon.png">
+  <meta property="og:image" content="https://vaultpass.org/assets/icon.png">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="VaultPass — The Offline-First Android Password Manager">
+  <meta name="twitter:description" content="The 100% offline, zero-cloud Android password manager. Your credentials never leave your hardware.">
+  <meta name="twitter:image" content="https://vaultpass.org/assets/icon.png">
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -111,54 +121,66 @@
       </div>
     </header>
 
-    <!-- Hero Section -->
-    <section class="pt-16 pb-20 sm:pt-24 sm:pb-28 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+    <!-- Hero Section with Side-by-Side Live Working Demo App -->
+    <section class="pt-12 pb-16 sm:pt-16 sm:pb-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
+        
+        <!-- Left: Headline, Subtitle, Actions, Trust Badges -->
+        <div class="lg:col-span-5 text-left space-y-6">
+          <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-[1.15]">
+            Passwords stay on your device.
+            <span class="block bg-gradient-to-r from-[#5ffbd6] via-[#38debb] to-sky-400 bg-clip-text text-transparent">
+              Never in the cloud.
+            </span>
+          </h1>
 
-      <!-- Main Title -->
-      <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-white max-w-4xl mx-auto leading-[1.12]">
-        Passwords stay on your device.
-        <span class="block bg-gradient-to-r from-[#5ffbd6] via-[#38debb] to-sky-400 bg-clip-text text-transparent">
-          Never in the cloud.
-        </span>
-      </h1>
+          <p class="text-sm sm:text-base text-slate-400 leading-relaxed font-normal">
+            The 100% offline, zero-cloud Android password manager. Your credentials never leave your hardware.
+          </p>
 
-      <!-- Short, Punchy Subtitle -->
-      <p class="mt-5 text-base sm:text-lg text-slate-400 max-w-xl mx-auto leading-relaxed font-normal">
-        The 100% offline, zero-cloud Android password manager. Your credentials never leave your hardware.
-      </p>
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
+            <button data-direct-download class="btn-primary px-5 py-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#38debb]/10">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              <span class="download-status">Download APK</span>
+              <span class="text-xs opacity-75 font-mono" data-latest-size>23.2 MB</span>
+            </button>
 
-      <!-- Action Buttons -->
-      <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-        <button data-direct-download class="btn-primary w-full sm:w-auto px-7 py-3.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-3 cursor-pointer">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-          </svg>
-          <span class="download-status">Download for Android (APK)</span>
-          <span class="text-xs opacity-75 font-mono" data-latest-size>23.2 MB</span>
-        </button>
+            <a href="security.html" class="btn-secondary px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2">
+              <span>Security Model</span>
+              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </a>
+          </div>
 
-        <a href="security.html" class="btn-secondary w-full sm:w-auto px-6 py-3.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2">
-          <span>Explore Cryptographic Model</span>
-          <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-          </svg>
-        </a>
-      </div>
-
-      <!-- Trust Badges -->
-      <div class="mt-10 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-400">
-        <div class="flex items-center gap-2">
-          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-          </svg>
-          <span>VirusTotal Verified Clean (0 Detections)</span>
+          <div class="pt-2 flex flex-col gap-2.5 text-xs text-slate-400">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+              </svg>
+              <span>VirusTotal Verified Clean (0 Detections)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+              </svg>
+              <span>Zero Telemetry / No Tracking SDKs</span>
+            </div>
+          </div>
         </div>
-        <div class="flex items-center gap-2">
-          <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
-          </svg>
-          <span>Zero Telemetry / No Tracking SDKs</span>
+
+        <!-- Right: Real Working Functional Mobile Demo App Component -->
+        <div class="lg:col-span-7 flex justify-center">
+          <div id="vaultpass-demo-app" class="relative w-[320px] sm:w-[340px] max-w-full">
+            <!-- Loading placeholder while JS initializes -->
+            <div class="w-[320px] sm:w-[340px] max-w-full h-[640px] rounded-[46px] border-[10px] border-[#131c2e] bg-[#060b16] p-8 flex items-center justify-center text-center text-slate-500 font-mono text-xs shadow-2xl">
+              Initializing VaultPass Mobile Sandbox...
+            </div>
+          </div>
         </div>
+
       </div>
     </section>
 
@@ -543,7 +565,7 @@
     </section>
 
     <!-- Minimalist Footer -->
-    <footer class="mt-20 border-t border-white/5 py-12 text-xs text-slate-500">
+    <footer class="mt-20 border-t border-white/5 py-12 text-xs text-slate-400">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
         <div class="flex items-center gap-3">
           <img src="assets/icon.png" alt="VaultPass" class="w-6 h-6 rounded-md object-cover">
@@ -552,7 +574,7 @@
         </div>
 
         <div class="flex items-center gap-6">
-          <a href="security.html" class="hover:text-slate-300 transition-colors">Security Architecture</a>
+          <a href="security.html" class="hover:text-slate-300 transition-colors">Security Model</a>
           <a href="download.html" class="hover:text-slate-300 transition-colors">Downloads</a>
           <a href="privacy.html" class="hover:text-slate-300 transition-colors">Privacy Policy</a>
           <a data-virustotal-link href="https://www.virustotal.com/gui/file/ac993d64518225a9350b73f60edaafe82d7e8642dc864ba7c70c6aeccd4b20c7" target="_blank" rel="noopener noreferrer" class="hover:text-emerald-400 transition-colors">VirusTotal</a>
@@ -564,5 +586,6 @@
 
   <!-- JavaScript -->
   <script src="js/app.js"></script>
+  <script src="js/demo-app.js"></script>
 </body>
 </html>

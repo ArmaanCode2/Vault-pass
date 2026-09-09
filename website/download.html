@@ -3,11 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Download VaultPass for Android — Official Release</title>
+  <title>Download for Android — VaultPass</title>
   <meta name="description" content="Download VaultPass APK. Complete with SHA-256 checksum verification, VirusTotal scan report, and step-by-step Android installation guide.">
   <meta name="theme-color" content="#05070d">
 
   <link rel="icon" type="image/png" href="assets/icon.png">
+
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://vaultpass.org/download.html">
+
+  <!-- OpenGraph / Social Media -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://vaultpass.org/download.html">
+  <meta property="og:title" content="Download for Android — VaultPass">
+  <meta property="og:description" content="Download VaultPass APK. Complete with SHA-256 checksum verification, VirusTotal scan report, and step-by-step Android installation guide.">
+  <meta property="og:image" content="https://vaultpass.org/assets/icon.png">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Download for Android — VaultPass">
+  <meta name="twitter:description" content="Download VaultPass APK. Complete with SHA-256 checksum verification, VirusTotal scan report, and step-by-step Android installation guide.">
+  <meta name="twitter:image" content="https://vaultpass.org/assets/icon.png">
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -78,7 +94,7 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
             </svg>
-            <span class="download-status">Direct APK</span>
+            <span class="download-status">Download APK</span>
           </button>
         </div>
 
@@ -185,9 +201,11 @@
           <!-- Windows -->
           <div>
             <div class="text-xs font-mono text-slate-400 mb-1">Windows (PowerShell):</div>
-            <div class="p-3 bg-[#05070d] rounded-lg border border-white/5 font-mono text-xs text-emerald-300 flex items-center justify-between">
-              <code>Get-FileHash .\v2.6.3.apk -Algorithm SHA256</code>
-              <button data-copy-target="Get-FileHash .\v2.6.3.apk -Algorithm SHA256" class="text-slate-400 hover:text-white p-1 cursor-pointer">
+            <div class="p-3 bg-[#05070d] rounded-lg border border-white/5 font-mono text-xs text-emerald-300 flex items-center justify-between overflow-hidden gap-2">
+              <div class="overflow-x-auto whitespace-nowrap no-scrollbar py-0.5">
+                <code>Get-FileHash .\v2.6.3.apk -Algorithm SHA256</code>
+              </div>
+              <button data-copy-target="Get-FileHash .\v2.6.3.apk -Algorithm SHA256" class="text-slate-400 hover:text-white p-1 cursor-pointer flex-shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
                 </svg>
@@ -278,7 +296,7 @@
     </section>
 
     <!-- Footer -->
-    <footer class="mt-20 border-t border-white/5 py-12 text-xs text-slate-500">
+    <footer class="mt-20 border-t border-white/5 py-12 text-xs text-slate-400">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
         <div class="flex items-center gap-3">
           <img src="assets/icon.png" alt="VaultPass" class="w-6 h-6 rounded-md object-cover">
