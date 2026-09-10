@@ -1,16 +1,79 @@
-*.iml
-.gradle
-.kotlin
-/local.properties
-/.idea/
-.DS_Store
+# VaultPass Android - .gitignore
+# Built outputs, caches, keys, and user vault files
+
+# ==========================================
+# 1. Android & Gradle Build Outputs
+# ==========================================
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
 /build
+build/
 /captures
 .externalNativeBuild
 .cxx
+
+# ==========================================
+# 2. Local Vault Data & Backups (CRITICAL)
+# ==========================================
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.vpex
+vaultpass_backup.*
+vaultpass_export.*
+
+# ==========================================
+# 3. Gradle & SDK Configuration
+# ==========================================
+.gradle
+/.gradle/
+.kotlin
+/.kotlin/
 local.properties
-.env
+/local.properties
+
+# ==========================================
+# 4. IDE & Editor Files
+# ==========================================
+*.iml
+/.idea/
+.idea/
+.vscode/
+/.vscode/
+
+# ==========================================
+# 5. Keystores, Signing Keys & Secrets
+# ==========================================
+*.jks
+*.keystore
 debug.keystore
+*.key
+*.pem
+key.properties
+.env
+.env.*
+secrets.json
+google-services.json
+
+# ==========================================
+# 6. OS & Temporary Files
+# ==========================================
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+*~
+*.swp
+*.tmp
+*.bak
+
+# ==========================================
+# 7. Internal Documentation & Workflows
+# ==========================================
 PROJECT_MEMORY.md
 GEMINI_SYSTEM_PROMPT.md
 /stitch_vaultpass_premium_android_ui
