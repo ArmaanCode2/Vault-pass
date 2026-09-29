@@ -2,7 +2,7 @@
 
 > Note: This project is under active development. Maintain independent backups of your vault data.
 
-VaultPass is an offline Android password manager built with Kotlin and Jetpack Compose. It stores credentials locally and does not use cloud services or third-party synchronization. Cryptographic operations and data persistence occur on the device.
+VaultPass is an offline Android password manager built with Kotlin and Jetpack Compose. It stores credentials locally and does not use cloud services or third-party synchronization. It can sync directly with VaultPass Desktop over your local network. Cryptographic operations and data persistence occur on the device.
 
 ## Security Verification
 
@@ -103,16 +103,16 @@ Local brute-force protection:
 * Autofill DOM traversal and heuristics
 * Security Center hygiene tracking
 * Dynamic Material 3 theming
+* Encrypted local-network sync with VaultPass Desktop (QR pairing, reviewed merges)
 
 ### Planned
 * Cross-device synchronization via encrypted cloud providers
-* Native Windows/Desktop companion application
 * Expanded Autofill dataset capabilities (e.g., credit cards, addresses)
 * Automated scheduled background backups
 
 ## Notes
 
-VaultPass operates offline. It does not require an account, does not use network communication, and stores all encrypted data locally.
+VaultPass works offline and does not require an account. Its only network use is the optional sync with VaultPass Desktop, which connects the two devices directly over your local network, never over the internet. See [PRIVACY.md](PRIVACY.md) and [docs/SYNC_PROTOCOL.md](docs/SYNC_PROTOCOL.md).
 
 ## Installation and Development
 

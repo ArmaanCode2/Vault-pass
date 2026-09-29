@@ -23,8 +23,10 @@ build/
 *.db-wal
 *.db-shm
 *.vpex
-vaultpass_backup.*
-vaultpass_export.*
+*.vpb
+# Also numbered copies such as "vaultpass_export (1).csv".
+vaultpass_backup*
+vaultpass_export*
 
 # ==========================================
 # 3. Gradle & SDK Configuration
@@ -53,10 +55,18 @@ local.properties
 debug.keystore
 *.key
 *.pem
+*.p12
+*.pfx
+*.pepk
 key.properties
+keystore.properties
+signing.properties
 .env
 .env.*
+# Template with placeholder values only; meant to be committed.
+!.env.example
 secrets.json
+service-account*.json
 google-services.json
 
 # ==========================================
@@ -70,6 +80,10 @@ desktop.ini
 *.swp
 *.tmp
 *.bak
+# Heap and crash dumps can contain decrypted passwords.
+*.hprof
+hs_err_pid*
+replay_pid*
 
 # ==========================================
 # 7. Internal Documentation & Workflows
