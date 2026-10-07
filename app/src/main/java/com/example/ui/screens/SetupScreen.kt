@@ -25,8 +25,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.R
+import com.example.ui.SetupResult
 import com.example.ui.VaultViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,6 +38,8 @@ fun SetupScreen(viewModel: VaultViewModel) {
     var confirmPassword by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    val isSettingUp by viewModel.isSettingUp.collectAsStateWithLifecycle()
+    val coroutineScope = rememberCoroutineScope()
 
     Box(
         modifier = Modifier
@@ -90,8 +95,11 @@ fun SetupScreen(viewModel: VaultViewModel) {
             val weakReasonTemplate = stringResource(R.string.setup_error_weak_reason)
             val tooWeakTemplate = stringResource(R.string.setup_error_too_weak)
             val mismatchError = stringResource(R.string.setup_error_mismatch)
+            val vaultExistsError = stringResource(R.string.setup_error_vault_exists)
+            val setupFailedError = stringResource(R.string.setup_error_failed)
 
-            val triggerSetup = {
+            val triggerSetup = triggerSetup@{
+                if (isSettingUp) return@triggerSetup
                 val score = com.example.domain.security.SecurityAnalyzer.scorePassword(password)
                 val reasons = com.example.domain.security.SecurityAnalyzer.getWeaknessReasons(password)
                 if (password.length < 8) {
@@ -104,7 +112,21 @@ fun SetupScreen(viewModel: VaultViewModel) {
                     errorMessage = mismatchError
                 } else {
                     errorMessage = null
-                    viewModel.setupMasterPassword(password)
+                    coroutineScope.launch {
+                        when (viewModel.setupMasterPasswordSync(password)) {
+                            SetupResult.VAULT_EXISTS -> {
+                                // Never overwrite an existing vault (F17): explain, and re-check which screen applies.
+                                errorMessage = vaultExistsError
+                                viewModel.retryLaunchCheck()
+                            }
+                            SetupResult.FAILED -> {
+                                // Nothing was kept: Setup stays, the user can simply try again.
+                                errorMessage = setupFailedError
+                                viewModel.retryLaunchCheck()
+                            }
+                            SetupResult.CREATED, SetupResult.IN_PROGRESS -> Unit
+                        }
+                    }
                 }
             }
 
@@ -187,18 +209,27 @@ fun SetupScreen(viewModel: VaultViewModel) {
                     
                     Button(
                         onClick = { triggerSetup() },
+                        enabled = !isSettingUp,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                     ) {
-                        Text(
-                            stringResource(R.string.setup_create_vault_button),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        if (isSettingUp) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                stringResource(R.string.setup_create_vault_button),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                     }
                 }
             }

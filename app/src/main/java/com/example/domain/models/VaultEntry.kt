@@ -33,5 +33,6 @@ data class VaultEntry(
     val timestamp: Long = System.currentTimeMillis(),
     val isDecryptionFailed: Boolean = false,
     val isDeleted: Boolean = false,
-    val deletedAt: Long? = null
+    val deletedAt: Long? = null,
+    val syncId: String = ""
 )

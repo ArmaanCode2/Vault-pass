@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Security Architecture — VaultPass</title>
-  <meta name="description" content="Technical breakdown of VaultPass cryptography: PBKDF2-HMAC-SHA256, AES-256-GCM, Android Keystore Biometrics, and in-memory key scrubbing.">
+  <title>Security Architecture | VaultPass</title>
+  <meta name="description" content="How VaultPass encrypts your vault: PBKDF2-HMAC-SHA256, AES-256-GCM, Android Keystore biometrics, lockouts and local-network sync.">
   <meta name="theme-color" content="#05070d">
 
   <link rel="icon" type="image/png" href="assets/icon.png">
@@ -15,20 +15,24 @@
   <!-- OpenGraph / Social Media -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://vaultpass.org/security.html">
-  <meta property="og:title" content="Security Architecture — VaultPass">
-  <meta property="og:description" content="Technical breakdown of VaultPass cryptography: PBKDF2-HMAC-SHA256, AES-256-GCM, Android Keystore Biometrics, and in-memory key scrubbing.">
+  <meta property="og:title" content="Security Architecture | VaultPass">
+  <meta property="og:description" content="How VaultPass encrypts your vault: PBKDF2-HMAC-SHA256, AES-256-GCM, Android Keystore biometrics, lockouts and local-network sync.">
   <meta property="og:image" content="https://vaultpass.org/assets/icon.png">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="Security Architecture — VaultPass">
-  <meta name="twitter:description" content="Technical breakdown of VaultPass cryptography: PBKDF2-HMAC-SHA256, AES-256-GCM, Android Keystore Biometrics, and in-memory key scrubbing.">
+  <meta name="twitter:title" content="Security Architecture | VaultPass">
+  <meta name="twitter:description" content="How VaultPass encrypts your vault: PBKDF2-HMAC-SHA256, AES-256-GCM, Android Keystore biometrics, lockouts and local-network sync.">
   <meta name="twitter:image" content="https://vaultpass.org/assets/icon.png">
 
-  <!-- Fonts -->
+  <!-- Fonts & DNS Prefetch Hints -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="dns-prefetch" href="https://raw.githubusercontent.com">
+  <link rel="dns-prefetch" href="https://api.github.com">
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" as="style">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"></noscript>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -38,12 +42,13 @@
       theme: {
         extend: {
           colors: {
+            // Channels defined in css/styles.css (:root)
             brand: {
-              dark: '#05070d',
-              surface: '#0b111e',
-              card: '#0e1626',
-              cyan: '#38debb',
-              mint: '#5ffbd6',
+              dark: 'rgb(var(--rgb-bg) / <alpha-value>)',
+              surface: 'rgb(var(--rgb-surface) / <alpha-value>)',
+              card: 'rgb(var(--rgb-card) / <alpha-value>)',
+              cyan: 'rgb(var(--rgb-accent) / <alpha-value>)',
+              mint: 'rgb(var(--rgb-accent-strong) / <alpha-value>)',
             }
           },
           fontFamily: {
@@ -55,19 +60,21 @@
     }
   </script>
 
-  <!-- Custom Stylesheet -->
+  <!-- Site stylesheet (color tokens, components) -->
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="bg-[#05070d] text-slate-100 antialiased selection:bg-[#38debb]/20 selection:text-white">
+<body class="bg-brand-dark text-slate-100 antialiased">
+  <a href="#main" class="skip-link">Skip to content</a>
 
   <!-- Gemini-style Slow-Moving Blurred Gradient Background -->
-  <div class="gradient-bg-container">
+  <div class="gradient-bg-container" aria-hidden="true">
     <div class="gradient-orb gradient-orb-1"></div>
     <div class="gradient-orb gradient-orb-2"></div>
     <div class="gradient-orb gradient-orb-3"></div>
     <div class="gradient-orb gradient-orb-4"></div>
   </div>
 
+  <!-- Page content -->
   <div class="relative z-10">
 
     <!-- Simple, Centered Navbar (Logo only, 3 center links, Download APK) -->
@@ -75,60 +82,68 @@
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between relative">
         
         <!-- Left: Logo ONLY -->
-        <a href="index.html" class="flex items-center group" aria-label="VaultPass Home">
-          <div class="w-9 h-9 rounded-xl bg-[#0b111e] border border-white/10 flex items-center justify-center p-0.5 overflow-hidden transition-transform group-hover:scale-105 group-hover:border-[#38debb]/40">
-            <img src="assets/icon.png" alt="VaultPass Icon" class="w-full h-full object-cover rounded-lg">
+        <a href="index.html" class="tap-target group rounded-xl" aria-label="VaultPass home">
+          <div class="w-9 h-9 rounded-xl bg-brand-surface border border-white/10 flex items-center justify-center p-0.5 overflow-hidden transition-transform group-hover:scale-105 group-hover:border-brand-cyan/40">
+            <picture>
+              <source srcset="assets/icon.webp" type="image/webp">
+              <img src="assets/icon.png" alt="" width="36" height="36" decoding="async" class="w-full h-full object-cover rounded-lg">
+            </picture>
           </div>
         </a>
 
         <!-- Center: 3 Navigation Links (Centered) -->
-        <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300 absolute left-1/2 -translate-x-1/2">
-          <a href="index.html#features" class="hover:text-white transition-colors">Features</a>
-          <a href="security.html" class="text-[#5ffbd6] font-semibold">Security Model</a>
-          <a href="download.html" class="hover:text-white transition-colors">Downloads</a>
+        <nav aria-label="Main" class="hidden md:flex items-center gap-8 text-sm font-medium absolute left-1/2 -translate-x-1/2">
+          <a href="index.html#features" class="nav-link py-2">Features</a>
+          <a href="security.html" class="nav-link py-2" aria-current="page">Security Model</a>
+          <a href="download.html" class="nav-link py-2">Downloads</a>
         </nav>
 
         <!-- Right: Download APK Button -->
         <div class="hidden sm:flex items-center gap-3">
-          <button data-direct-download class="btn-primary text-xs sm:text-sm px-4 py-2 rounded-lg flex items-center gap-2 cursor-pointer">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary text-xs sm:text-sm px-4 min-h-[40px] rounded-lg flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
             </svg>
             <span class="download-status">Download APK</span>
-          </button>
+          </a>
         </div>
 
         <!-- Mobile Menu Button -->
-        <button id="mobile-menu-btn" aria-expanded="false" class="md:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 focus:outline-none">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button type="button" id="mobile-menu-btn" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu" class="md:hidden w-11 h-11 flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-white/5">
+          <svg data-icon="open" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+          <svg data-icon="close" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>
       </div>
 
       <!-- Mobile Dropdown -->
-      <div id="mobile-menu" class="hidden md:hidden px-4 pt-2 pb-6 border-t border-white/5 bg-[#05070d]/95 backdrop-blur-xl">
-        <div class="flex flex-col gap-4 text-sm font-medium text-slate-300 pt-2 text-center">
-          <a href="index.html#features" class="hover:text-white py-1">Features</a>
-          <a href="security.html" class="text-[#5ffbd6] font-semibold py-1">Security Model</a>
-          <a href="download.html" class="hover:text-white py-1">Downloads</a>
-          <button data-direct-download class="btn-primary text-center py-2.5 rounded-lg text-sm mt-2 w-full cursor-pointer">
-            Download APK
-          </button>
+      <nav id="mobile-menu" aria-label="Mobile" class="hidden md:hidden px-4 pt-2 pb-6 border-t border-white/5 bg-brand-dark/95 backdrop-blur-xl">
+        <div class="flex flex-col gap-1 text-sm font-medium pt-2 text-center">
+          <a href="index.html#features" class="mobile-nav-link">Features</a>
+          <a href="security.html" class="mobile-nav-link" aria-current="page">Security Model</a>
+          <a href="download.html" class="mobile-nav-link">Downloads</a>
+          <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary flex items-center justify-center gap-2 min-h-[44px] rounded-lg text-sm mt-3 w-full">
+            <span class="download-status">Download APK</span>
+          </a>
         </div>
-      </div>
+      </nav>
     </header>
+
+    <main id="main" tabindex="-1" class="outline-none">
 
     <!-- Header Section -->
     <section class="pt-16 pb-12 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono text-[#5ffbd6] bg-[#5ffbd6]/10 border border-[#5ffbd6]/20 mb-4">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono text-brand-mint bg-brand-mint/10 border border-brand-mint/20 mb-4">
         CRYPTOGRAPHIC SPECIFICATION
       </div>
       <h1 class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
-        Zero-Knowledge Architecture & Cryptographic Rigor
+        How VaultPass protects your vault
       </h1>
       <p class="mt-4 text-base sm:text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed">
-        VaultPass assumes zero trust in external networks. Every cryptographic operation occurs locally on your Android device with hardware-backed integrity.
+        Encryption and decryption happen on your own devices. There is no VaultPass server, and your master password is never transmitted.
       </p>
     </section>
 
@@ -138,38 +153,38 @@
       <!-- Flow Diagram -->
       <div class="glass-card rounded-2xl p-6 sm:p-8 mb-12">
         <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-3">
-          <span class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-sm font-mono">1</span>
-          <span>Multi-Tier Key Derivation Hierarchy</span>
+          <span class="w-7 h-7 flex-shrink-0 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-sm font-mono" aria-hidden="true">1</span>
+          <span>Key hierarchy</span>
         </h2>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono text-xs text-slate-300">
-          <div class="p-4 rounded-xl bg-[#05070d] border border-white/5 space-y-2">
+          <div class="p-4 rounded-xl bg-brand-dark border border-white/5 space-y-2">
             <div class="text-emerald-400 font-semibold uppercase tracking-wider">Step 1: Master Key (KDF)</div>
             <p class="text-slate-400 leading-relaxed font-sans text-xs">
-              Master password is processed using <strong>PBKDF2-HMAC-SHA256</strong> with 300,000 iterations and a device-unique salt to derive a 256-bit Key Encryption Key (KEK).
+              Your master password runs through <strong>PBKDF2-HMAC-SHA256</strong> for 300,000 iterations with a random 16-byte salt, producing a 256-bit Key Encryption Key (KEK).
             </p>
             <div class="pt-2 text-[10px] text-slate-400">
-              Mitigates GPU & ASIC brute-force cracking
+              Makes each password guess expensive
             </div>
           </div>
 
-          <div class="p-4 rounded-xl bg-[#05070d] border border-white/5 space-y-2">
+          <div class="p-4 rounded-xl bg-brand-dark border border-white/5 space-y-2">
             <div class="text-cyan-400 font-semibold uppercase tracking-wider">Step 2: Dual DEK Wrapping</div>
             <p class="text-slate-400 leading-relaxed font-sans text-xs">
-              A cryptographically secure random Data Encryption Key (DEK) is generated. It is encrypted twice: once with the derived KEK, and once with the <strong>Android Keystore</strong> hardware key for biometric unlock.
+              A random Data Encryption Key (DEK) encrypts your entries. The DEK is stored twice: wrapped with the KEK, and, if you turn on biometric unlock, wrapped with an <strong>Android Keystore</strong> key.
             </p>
             <div class="pt-2 text-[10px] text-slate-400">
-              Android Keystore • TEE / Secure Enclave
+              Keystore is hardware-backed (TEE or StrongBox) on phones that have it
             </div>
           </div>
 
-          <div class="p-4 rounded-xl bg-[#05070d] border border-white/5 space-y-2">
+          <div class="p-4 rounded-xl bg-brand-dark border border-white/5 space-y-2">
             <div class="text-indigo-400 font-semibold uppercase tracking-wider">Step 3: AES-256-GCM Payloads</div>
             <p class="text-slate-400 leading-relaxed font-sans text-xs">
-              All credential records, notes, and custom fields in the local Room SQLite database are authenticated and encrypted using <strong>AES-GCM</strong> with 128-bit authentication tags.
+              Credential records, notes and custom fields in the local Room (SQLite) database are encrypted with <strong>AES-GCM</strong> and carry a 128-bit authentication tag.
             </p>
             <div class="pt-2 text-[10px] text-slate-400">
-              Guarantees confidentiality and ciphertext integrity
+              A modified record fails the tag check instead of decrypting
             </div>
           </div>
         </div>
@@ -180,78 +195,91 @@
         
         <!-- Constant Time Verification -->
         <div class="glass-card rounded-2xl p-6 sm:p-8">
-          <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-4">
+          <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-4" aria-hidden="true">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
           </div>
           <h3 class="text-lg font-bold text-white mb-2">Constant-Time Verification</h3>
           <p class="text-sm text-slate-400 leading-relaxed">
-            Standard string comparisons leak character-by-character validation timing. VaultPass enforces <code class="text-emerald-400 font-mono text-xs">MessageDigest.isEqual()</code>, ensuring verification latency is uniform regardless of input correctness, nullifying side-channel timing attacks.
+            An ordinary comparison stops at the first wrong byte, so its timing can leak how close a guess was. VaultPass checks the password hash with <code class="text-emerald-400 font-mono text-xs">MessageDigest.isEqual()</code>, which takes the same time whether the bytes match or not.
           </p>
         </div>
 
         <!-- In-Memory DEK Zeroization -->
         <div class="glass-card rounded-2xl p-6 sm:p-8">
-          <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center mb-4">
+          <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center mb-4" aria-hidden="true">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
             </svg>
           </div>
-          <h3 class="text-lg font-bold text-white mb-2">In-Memory DEK Zeroization</h3>
+          <h3 class="text-lg font-bold text-white mb-2">Key Wiped on Lock</h3>
           <p class="text-sm text-slate-400 leading-relaxed">
-            Decrypted keys never sit idle in RAM. When the app is locked or when the auto-lock timeout fires via <code class="text-rose-400 font-mono text-xs">ProcessLifecycleOwner</code>, the in-memory DEK byte array is overwritten with zeroes to guard against memory dumping exploits.
+            When you lock the vault, or the auto-lock timer fires (tracked with <code class="text-rose-400 font-mono text-xs">ProcessLifecycleOwner</code>), VaultPass overwrites its copy of the data key with zeros. That wipes the key itself; decrypted entries held as Java strings can't be overwritten this way and are freed by Android later.
           </p>
         </div>
 
         <!-- Incremental Lockout Protection -->
         <div class="glass-card rounded-2xl p-6 sm:p-8">
-          <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center mb-4">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center mb-4" aria-hidden="true">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
             </svg>
           </div>
           <h3 class="text-lg font-bold text-white mb-2">Incremental Lockout Protection</h3>
           <p class="text-sm text-slate-400 leading-relaxed">
-            Local brute-force resistance is enforced with non-volatile DataStore counters:
+            Failed attempts are counted in DataStore on disk, so restarting the app doesn't reset them:
           </p>
           <ul class="mt-3 space-y-1.5 text-xs text-slate-300 font-mono">
-            <li>• 5 Failed Attempts: 30-second cooldown</li>
-            <li>• 10 Failed Attempts: 60-second cooldown</li>
-            <li>• 15 Failed Attempts: 5-minute lockout</li>
-            <li>• 20+ Failed Attempts: 15-minute lockout</li>
+            <li>• 5 failed attempts: 30-second cooldown</li>
+            <li>• 10 failed attempts: 60-second cooldown</li>
+            <li>• 15 failed attempts: 5-minute lockout</li>
+            <li>• 20+ failed attempts: 15-minute lockout</li>
           </ul>
         </div>
 
         <!-- Android FLAG_SECURE & OS Privacy -->
         <div class="glass-card rounded-2xl p-6 sm:p-8">
-          <div class="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-400 flex items-center justify-center mb-4">
+          <div class="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-400 flex items-center justify-center mb-4" aria-hidden="true">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
             </svg>
           </div>
-          <h3 class="text-lg font-bold text-white mb-2">Window Protection & Auto-Clear</h3>
+          <h3 class="text-lg font-bold text-white mb-2">Screenshot Blocking &amp; Clipboard Clearing</h3>
           <p class="text-sm text-slate-400 leading-relaxed">
-            VaultPass calls <code class="text-sky-400 font-mono text-xs">WindowManager.LayoutParams.FLAG_SECURE</code> to block screenshots and prevent credential exposure in Android’s Recent Apps switcher. Clipboard buffers are scrubbed on a configurable timer.
+            Turn on <strong>Disable Screenshots</strong> in Settings and VaultPass sets <code class="text-sky-400 font-mono text-xs">FLAG_SECURE</code>, which blocks screenshots and blanks the app in the Recent Apps switcher. The setting is off by default. Copied passwords are cleared from the clipboard after a timer you choose (30 seconds by default).
+          </p>
+        </div>
+
+        <!-- Local-network sync -->
+        <div class="glass-card rounded-2xl p-6 sm:p-8 md:col-span-2">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-4" aria-hidden="true">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-bold text-white mb-2">Sync with the Desktop App (Optional)</h3>
+          <p class="text-sm text-slate-400 leading-relaxed">
+            VaultPass can sync with the VaultPass desktop app for Windows. You pair the two by scanning a QR code, and they exchange changes directly over your local network. Nothing passes through the internet or a server.
           </p>
         </div>
 
       </div>
 
       <!-- Backup Cryptography -->
-      <div class="glass-card rounded-2xl p-8 border border-white/10">
-        <h2 class="text-xl font-bold text-white mb-3">The .VPEX Encrypted Backup Schema</h2>
+      <div class="glass-card rounded-2xl p-6 sm:p-8 border border-white/10">
+        <h2 class="text-xl font-bold text-white mb-3">The .vpex encrypted backup</h2>
         <p class="text-sm text-slate-400 leading-relaxed mb-6">
-          When exporting credentials for backup, VaultPass produces an encrypted <code class="text-emerald-400 font-mono text-xs">.vpex</code> archive using Base64 AES-GCM packaging. Each backup includes its own dynamic salt, initialization vector (IV), and HMAC checksum, allowing you to safeguard your data on cold storage drives without leaking plaintext.
+          An encrypted export produces a <code class="text-emerald-400 font-mono text-xs">.vpex</code> file. Each file has its own random 16-byte salt and IV; the key is derived from a password with PBKDF2, and the contents are encrypted with AES-GCM and Base64-encoded. The GCM authentication tag makes a modified file fail to decrypt. You can keep a .vpex on a USB drive or your computer without exposing plaintext. JSON and TXT exports are not encrypted.
         </p>
         
-        <div class="flex flex-wrap gap-4">
-          <button data-direct-download class="btn-primary text-xs px-5 py-2.5 rounded-lg cursor-pointer">
-            <span class="download-status">Download Latest APK</span>
-          </button>
-          <a data-virustotal-link href="https://www.virustotal.com/gui/file/ac993d64518225a9350b73f60edaafe82d7e8642dc864ba7c70c6aeccd4b20c7" target="_blank" rel="noopener noreferrer" class="btn-secondary text-xs px-5 py-2.5 rounded-lg flex items-center gap-2">
-            <span>Verify on VirusTotal</span>
-            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="flex flex-wrap gap-3">
+          <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary text-sm px-5 min-h-[44px] rounded-lg flex items-center">
+            <span class="download-status">Download APK</span>
+          </a>
+          <a data-virustotal-link hidden target="_blank" rel="noopener noreferrer" class="btn-secondary text-sm px-5 min-h-[44px] rounded-lg flex items-center gap-2">
+            <span>Look up on VirusTotal</span><span class="sr-only"> (opens in a new tab)</span>
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
             </svg>
           </a>
@@ -260,25 +288,30 @@
 
     </section>
 
+    </main>
+
     <!-- Footer -->
     <footer class="mt-20 border-t border-white/5 py-12 text-xs text-slate-400">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
-        <div class="flex items-center gap-3">
-          <img src="assets/icon.png" alt="VaultPass" class="w-6 h-6 rounded-md object-cover">
-          <span class="text-slate-400 font-semibold">VaultPass</span>
-          <span>— Open-Source Offline Android Password Manager</span>
+        <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
+          <picture>
+            <source srcset="assets/icon.webp" type="image/webp">
+            <img src="assets/icon.png" alt="" width="24" height="24" loading="lazy" decoding="async" class="w-6 h-6 rounded-md object-cover">
+          </picture>
+          <span class="text-slate-300 font-semibold">VaultPass</span>
+          <span>Open-source Android password manager</span>
         </div>
 
-        <div class="flex items-center gap-6">
-          <a href="index.html" class="hover:text-slate-300 transition-colors">Overview</a>
-          <a href="download.html" class="hover:text-slate-300 transition-colors">Downloads</a>
-          <a href="privacy.html" class="hover:text-slate-300 transition-colors">Privacy Policy</a>
-          <a data-virustotal-link href="https://www.virustotal.com/gui/file/ac993d64518225a9350b73f60edaafe82d7e8642dc864ba7c70c6aeccd4b20c7" target="_blank" rel="noopener noreferrer" class="hover:text-emerald-400 transition-colors">VirusTotal</a>
-        </div>
+        <nav aria-label="Footer" class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+          <a href="index.html" class="tap-target px-1 hover:text-white transition-colors">Overview</a>
+          <a href="download.html" class="tap-target px-1 hover:text-white transition-colors">Downloads</a>
+          <a href="privacy.html" class="tap-target px-1 hover:text-white transition-colors">Privacy Policy</a>
+          <a data-virustotal-link hidden target="_blank" rel="noopener noreferrer" class="tap-target px-1 hover:text-emerald-300 transition-colors">VirusTotal<span class="sr-only"> (opens in a new tab)</span></a>
+        </nav>
       </div>
     </footer>
   </div>
 
-  <script src="js/app.js"></script>
+  <script src="js/app.js" defer></script>
 </body>
 </html>

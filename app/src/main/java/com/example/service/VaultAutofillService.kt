@@ -70,50 +70,37 @@ class VaultAutofillService : AutofillService() {
 
             if (!isUnlocked) {
                 diagnostics.log("Vault is locked. Launching Authentication Bridge.")
-                val intent = android.content.Intent(this, com.example.ui.AutofillAuthActivity::class.java)
+                // Attach the authentication to the detected login fields (the same detection the unlocked path
+                // uses): Android only shows the unlock chip when one of the listed views is focused.
+                val lockedStructure = request.fillContexts.lastOrNull()?.structure
+                val ids = lockedStructure?.let {
+                    AutofillFieldDetector.detect(it) { message -> diagnostics.log(message) }.fieldIds
+                }.orEmpty()
+
+                if (ids.isEmpty()) {
+                    diagnostics.log("Locked vault and no username/password field found; nothing to offer.")
+                    safeSuccess(null)
+                    return
+                }
+
+                val intent = AutofillPick.createUnlockIntent(this)
+                // Must be mutable: the framework adds EXTRA_ASSIST_STRUCTURE through fill-in extras.
                 val pendingIntent = android.app.PendingIntent.getActivity(
                     this,
-                    0,
+                    nextAuthRequestCode(),
                     intent,
-                    android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_CANCEL_CURRENT
+                    authPendingIntentFlags(android.os.Build.VERSION.SDK_INT)
                 )
                 val intentSender = pendingIntent.intentSender
 
                 val presentation = android.widget.RemoteViews(packageName, com.example.R.layout.autofill_dropdown_item)
                 presentation.setTextViewText(com.example.R.id.text1, "Tap to unlock VaultPass")
 
-                val ids = mutableListOf<android.view.autofill.AutofillId>()
-                val contexts = request.fillContexts
-                if (contexts.isNotEmpty()) {
-                    val structure = contexts.last().structure
-                    val numWindows = structure.windowNodeCount
-                    for (i in 0 until numWindows) {
-                        val windowNode = structure.getWindowNodeAt(i)
-                        val rootNode = windowNode.rootViewNode
-                        val nodes = mutableListOf(rootNode)
-                        while (nodes.isNotEmpty() && ids.isEmpty()) {
-                            val node = nodes.removeAt(0)
-                            if (node.autofillId != null) {
-                                ids.add(node.autofillId!!)
-                            }
-                            for (j in 0 until node.childCount) {
-                                nodes.add(node.getChildAt(j))
-                            }
-                        }
-                    }
-                }
-
-                if (ids.isEmpty()) {
-                    diagnostics.logError("Locked vault, but could not find a valid AutofillId to attach authentication to.")
-                    safeSuccess(null)
-                    return
-                }
-
                 val fillResponse = android.service.autofill.FillResponse.Builder()
                     .setAuthentication(ids.toTypedArray(), intentSender, presentation)
                     .build()
 
-                diagnostics.log("Returned Authentication FillResponse")
+                diagnostics.log("Returned Authentication FillResponse for ${ids.size} field(s)")
                 safeSuccess(fillResponse)
                 return
             }
@@ -159,6 +146,33 @@ class VaultAutofillService : AutofillService() {
     }
 
     companion object {
+        private val authRequestCodes = java.util.concurrent.atomic.AtomicInteger(
+            (System.currentTimeMillis() and 0x3FFFFFFF).toInt()
+        )
+
+        /** A request code not used by an earlier, possibly still displayed, authentication PendingIntent. */
+        private fun nextAuthRequestCode(): Int = authRequestCodes.incrementAndGet() and 0x7FFFFFFF
+
+        /**
+         * FLAG_MUTABLE exists from API 31 (and is required there for fill-in extras); below 31 PendingIntents
+         * are mutable unless FLAG_IMMUTABLE is set.
+         */
+        @android.annotation.SuppressLint("InlinedApi")
+        internal fun authPendingIntentFlags(sdkInt: Int): Int =
+            if (sdkInt >= android.os.Build.VERSION_CODES.S) {
+                android.app.PendingIntent.FLAG_MUTABLE or android.app.PendingIntent.FLAG_CANCEL_CURRENT
+            } else {
+                android.app.PendingIntent.FLAG_CANCEL_CURRENT
+            }
+
+        /** Debug log line for one match: position, score and reason only, never the entry's title or username. */
+        internal fun matchLogLine(index: Int, match: AutofillCredentialMatcher.ScoredEntry): String =
+            "MATCH #${index + 1}: Score=${match.score}, Reason='${match.reason}'"
+
+        /** Debug log line for a built dataset: its number and which fields it fills, never entry content. */
+        internal fun datasetLogLine(number: Int, usernamePopulated: Boolean, passwordPopulated: Boolean): String =
+            "DATASET BUILT #$number: UsernamePopulated=$usernamePopulated, PasswordPopulated=$passwordPopulated"
+
         suspend fun buildResponseForStructure(
             context: android.content.Context,
             structure: android.app.assist.AssistStructure,
@@ -167,141 +181,55 @@ class VaultAutofillService : AutofillService() {
         ): android.service.autofill.FillResponse? {
             diagnostics?.log("Vault is unlocked. Analyzing AssistStructure...")
             
-            var requestedWebDomain: String? = null
             val componentName = structure.activityComponent
             val requestedPackageName: String? = componentName?.packageName
             diagnostics?.log("Detected PackageName: $requestedPackageName")
             
-            var usernameId: android.view.autofill.AutofillId? = null
-            var passwordId: android.view.autofill.AutofillId? = null
-            
-            val numWindows = structure.windowNodeCount
-            for (i in 0 until numWindows) {
-                val windowNode = structure.getWindowNodeAt(i)
-                val rootNode = windowNode.rootViewNode
-                val nodes = mutableListOf(rootNode)
-                while (nodes.isNotEmpty()) {
-                    val node = nodes.removeAt(0)
-                    
-                    if (node.webDomain != null && requestedWebDomain == null) {
-                        requestedWebDomain = node.webDomain
-                        diagnostics?.log("Detected WebDomain: $requestedWebDomain")
-                    }
-                    
-                    val hints = node.autofillHints
-                    val classNameStr = node.className?.toString()?.lowercase() ?: ""
-                    
-                    val isLayoutContainer = classNameStr.contains("layout") && !classNameStr.contains("edittext")
-                    val isEditableClass = classNameStr.contains("edittext")
-                    
-                    val hasPasswordHint = hints?.contains(android.view.View.AUTOFILL_HINT_PASSWORD) == true ||
-                                          hints?.contains("current-password") == true ||
-                                          hints?.contains("new-password") == true
-                                          
-                    val isValidTarget = !isLayoutContainer && (isEditableClass || node.inputType != 0 || node.isFocused || hasPasswordHint)
-                    
-                    if (isValidTarget) {
-                        if (hints != null) {
-                            if (hints.contains(android.view.View.AUTOFILL_HINT_USERNAME) || hints.contains(android.view.View.AUTOFILL_HINT_EMAIL_ADDRESS)) {
-                                if (usernameId == null) {
-                                    usernameId = node.autofillId
-                                    diagnostics?.log("Identified Username Field via Hint: ${node.idEntry}")
-                                } else {
-                                    diagnostics?.log("Prevented overwrite of Username AutofillId by hint on: ${node.idEntry}")
-                                }
-                            }
-                            if (hints.contains(android.view.View.AUTOFILL_HINT_PASSWORD)) {
-                                if (passwordId == null) {
-                                    passwordId = node.autofillId
-                                    diagnostics?.log("Identified Password Field via Hint: ${node.idEntry}")
-                                } else {
-                                    diagnostics?.log("Prevented overwrite of Password AutofillId by hint on: ${node.idEntry}")
-                                }
-                            }
-                        }
-                        
-                        val viewId = node.idEntry?.lowercase() ?: ""
-                        val hintText = node.hint?.toString()?.lowercase() ?: ""
-                        
-                        val isUsernameHeuristic = viewId.contains("username") || viewId.contains("email") || hintText.contains("username") || hintText.contains("email")
-                        if (isUsernameHeuristic) {
-                            if (usernameId == null) {
-                                usernameId = node.autofillId
-                                diagnostics?.log("Username Target:\\nClass: ${node.className}\\nAutofillId: ${node.autofillId}\\nInputType: ${node.inputType}\\nFocusable: ${node.isFocusable}")
-                            } else if (node.autofillId != usernameId) {
-                                diagnostics?.log("Prevented overwrite of Username AutofillId by heuristic on: ${node.idEntry}")
-                            }
-                        }
-                        
-                        val variation = node.inputType and android.text.InputType.TYPE_MASK_VARIATION
-                        val isPasswordType = (variation == android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD) || 
-                                             (variation == android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD) || 
-                                             (variation == android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD) || 
-                                             (variation == android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD)
-                                             
-                        val isPasswordHeuristic = viewId.contains("password") || hintText.contains("password") || isPasswordType
-                        if (isPasswordHeuristic) {
-                            if (passwordId == null) {
-                                passwordId = node.autofillId
-                                diagnostics?.log("Password Target:\\nClass: ${node.className}\\nAutofillId: ${node.autofillId}\\nInputType: ${node.inputType}\\nFocusable: ${node.isFocusable}")
-                                if (variation == android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD) {
-                                    diagnostics?.log("Numeric Password Field correctly detected: ${node.idEntry}")
-                                }
-                            } else if (node.autofillId != passwordId) {
-                                diagnostics?.log("Prevented overwrite of Password AutofillId by heuristic on: ${node.idEntry}")
-                            }
-                        }
-                    } else {
-                        if (!isLayoutContainer && (node.hint != null || node.idEntry != null || hints != null)) {
-                            val rejectedReason = if (!isEditableClass && node.inputType == 0 && !node.isFocused && !hasPasswordHint) "NOT_EDITABLE_CLASS_NO_INPUTTYPE_NOT_FOCUSED" else "UNKNOWN_REJECTION"
-                            diagnostics?.log("REJECTED BY GATEKEEPER ->\\n" +
-                                "ClassName: ${node.className}\\n" +
-                                "InputType: ${node.inputType}\\n" +
-                                "Focusable: ${node.isFocusable}\\n" +
-                                "Clickable: ${node.isClickable}\\n" +
-                                "Enabled: ${node.isEnabled}\\n" +
-                                "Visibility: ${if (node.visibility == android.view.View.VISIBLE) "VISIBLE" else node.visibility}\\n" +
-                                "AutofillHints: ${hints?.joinToString()}\\n" +
-                                "AutofillId: ${node.autofillId}\\n" +
-                                "RejectedReason=$rejectedReason")
-                        }
-                    }
-                    
-                    for (j in 0 until node.childCount) {
-                        nodes.add(node.getChildAt(j))
-                    }
-                }
-            }
+            // Same field detection as the locked (authentication) path in onFillRequest.
+            val fields = AutofillFieldDetector.detect(structure) { message -> diagnostics?.log(message) }
+            val usernameId = fields.usernameId
+            val passwordId = fields.passwordId
+            val requestedWebDomain = fields.webDomain
+            val requestedWebScheme = fields.webScheme
 
             diagnostics?.updatePackageAndDomain(requestedPackageName, requestedWebDomain)
+            // A webDomain is only trusted from a browser whose signing certificate is in the bundled privileged list.
+            val verifiedBrowser = BrowserVerifier.get(context).isVerifiedBrowser(requestedPackageName)
+            if (requestedWebDomain != null && !verifiedBrowser) {
+                diagnostics?.log("WebDomain ignored: $requestedPackageName is not a verified browser")
+            }
 
-            var requestedAppLabel: String? = null
-            if (requestedPackageName != null) {
-                try {
-                    val pm = context.packageManager
-                    val applicationInfo = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                        pm.getApplicationInfo(requestedPackageName, android.content.pm.PackageManager.ApplicationInfoFlags.of(0))
-                    } else {
-                        @Suppress("DEPRECATION")
-                        pm.getApplicationInfo(requestedPackageName, 0)
-                    }
-                    requestedAppLabel = pm.getApplicationLabel(applicationInfo).toString()
-                    diagnostics?.log("Detected App Label: $requestedAppLabel")
-                } catch (e: Exception) {
-                    diagnostics?.logError("Failed to get App Label for $requestedPackageName: ${e.message}")
-                }
+            // Parsed once and cached; this function always runs on a background dispatcher.
+            val publicSuffixList = try {
+                PublicSuffixList.get(context)
+            } catch (e: Exception) {
+                diagnostics?.logError("Public Suffix List unavailable, exact host matches only: ${e.message}")
+                null
             }
 
             val entries = vaultRepository.getAllEntriesSync()
-            val scoredMatches = com.example.service.AutofillCredentialMatcher.matchEntries(
+            // Entries the user linked to this app via "Search VaultPass…" (never for browsers).
+            val linkedSyncIds = if (requestedPackageName != null && !verifiedBrowser && AutofillCredentialMatcher.canLinkPackage(requestedPackageName)) {
+                try {
+                    vaultRepository.linkedAutofillSyncIds(requestedPackageName)
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    diagnostics?.logError("Could not read autofill app links: ${e.message}")
+                    emptySet()
+                }
+            } else {
+                emptySet()
+            }
+            val scoredMatches = AutofillCredentialMatcher.matchEntries(
                 entries = entries,
                 requestedPackage = requestedPackageName,
-                requestedDomain = requestedWebDomain,
-                appLabel = requestedAppLabel
+                requestedWebDomain = requestedWebDomain,
+                publicSuffixList = publicSuffixList,
+                verifiedBrowser = verifiedBrowser,
+                linkedSyncIds = linkedSyncIds,
+                webScheme = requestedWebScheme
             )
-            for (match in scoredMatches) {
-                diagnostics?.log("MATCH: Title='${match.entry.title}', Score=${match.score}, Reason='${match.reason}'")
-            }
+            scoredMatches.forEachIndexed { index, match -> diagnostics?.log(matchLogLine(index, match)) }
             val matchedEntries = scoredMatches.map { it.entry }
             
             diagnostics?.log("Total matching entries found: ${matchedEntries.size}")
@@ -310,8 +238,22 @@ class VaultAutofillService : AutofillService() {
             
             diagnostics?.updateMatches(matchedEntries.size, if (usernameId != null || passwordId != null) matchedEntries.size else 0)
             
-            if (matchedEntries.isEmpty() || (usernameId == null && passwordId == null)) {
-                diagnostics?.log("Empty response (no matches or no valid fields found)")
+            if (usernameId == null && passwordId == null) {
+                diagnostics?.log("Empty response (no valid fields found)")
+                return null
+            }
+
+            // "Search VaultPass…": offered to native apps and to verified browsers on an identified page (only apps
+            // get a saved link). The picker shows the page's domain and asks before filling another site's entry.
+            val pickWebDomain = if (verifiedBrowser) AutofillCredentialMatcher.extractHost(requestedWebDomain) else null
+            val searchDataset = if (!requestedPackageName.isNullOrBlank() && (!verifiedBrowser || pickWebDomain != null)) {
+                buildSearchDataset(context, requestedPackageName, pickWebDomain, usernameId, passwordId)
+            } else {
+                null
+            }
+
+            if (matchedEntries.isEmpty() && searchDataset == null) {
+                diagnostics?.log("Empty response (no matches and no requesting package)")
                 return null
             }
             
@@ -319,35 +261,79 @@ class VaultAutofillService : AutofillService() {
             var datasetsAdded = 0
             
             for (entry in matchedEntries) {
-                val datasetBuilder = android.service.autofill.Dataset.Builder()
-                val presentation = android.widget.RemoteViews(context.packageName, com.example.R.layout.autofill_dropdown_item)
-                val displayTitle = if (entry.username.isNotBlank()) "${entry.title} (${entry.username})" else entry.title
-                presentation.setTextViewText(com.example.R.id.text1, displayTitle)
-                
-                var hasData = false
-                var usernamePopulated = false
-                var passwordPopulated = false
-                
-                if (usernameId != null && entry.username.isNotBlank()) {
-                    datasetBuilder.setValue(usernameId, android.view.autofill.AutofillValue.forText(entry.username), presentation)
-                    hasData = true
-                    usernamePopulated = true
-                }
-                if (passwordId != null && entry.password.isNotBlank()) {
-                    datasetBuilder.setValue(passwordId, android.view.autofill.AutofillValue.forText(entry.password), presentation)
-                    hasData = true
-                    passwordPopulated = true
-                }
-                
-                if (hasData) {
-                    responseBuilder.addDataset(datasetBuilder.build())
+                val dataset = buildEntryDataset(context, entry, usernameId, passwordId)
+                if (dataset != null) {
+                    responseBuilder.addDataset(dataset)
                     datasetsAdded++
-                    diagnostics?.log("DATASET BUILT: Title='$displayTitle', UsernamePopulated=$usernamePopulated, PasswordPopulated=$passwordPopulated")
+                    val usernamePopulated = usernameId != null && entry.username.isNotBlank()
+                    val passwordPopulated = passwordId != null && entry.password.isNotBlank()
+                    diagnostics?.log(datasetLogLine(datasetsAdded, usernamePopulated, passwordPopulated))
                 }
+            }
+
+            if (searchDataset != null) {
+                responseBuilder.addDataset(searchDataset)
+                diagnostics?.log("Added 'Search VaultPass' dataset for $requestedPackageName")
+            }
+            if (datasetsAdded == 0 && searchDataset == null) {
+                diagnostics?.log("Empty response (matched entries have nothing to fill)")
+                return null
             }
             
             diagnostics?.log("FillResponse generated? YES (Datasets built: $datasetsAdded)")
             return responseBuilder.build()
+        }
+
+        /**
+         * A dataset filling [entry]'s username into [usernameId] and its password into [passwordId], shown as
+         * "Title (username)". Null when it would fill nothing.
+         */
+        fun buildEntryDataset(
+            context: android.content.Context,
+            entry: com.example.domain.models.VaultEntry,
+            usernameId: android.view.autofill.AutofillId?,
+            passwordId: android.view.autofill.AutofillId?
+        ): android.service.autofill.Dataset? {
+            val values = AutofillPick.fillValues(entry, usernameId, passwordId)
+            if (values.isEmpty()) return null
+            val presentation = android.widget.RemoteViews(context.packageName, com.example.R.layout.autofill_dropdown_item)
+            val displayTitle = if (entry.username.isNotBlank()) "${entry.title} (${entry.username})" else entry.title
+            presentation.setTextViewText(com.example.R.id.text1, displayTitle)
+            val datasetBuilder = android.service.autofill.Dataset.Builder()
+            for ((id, value) in values) {
+                datasetBuilder.setValue(id, android.view.autofill.AutofillValue.forText(value), presentation)
+            }
+            return datasetBuilder.build()
+        }
+
+        /**
+         * The authentication-required "Search VaultPass…" dataset on the detected login fields. Its PendingIntent
+         * opens AutofillAuthActivity in pick mode (same mutability rules and unique request codes as the unlock chip).
+         * [webDomain]: the page's host for a verified browser, null for native apps.
+         */
+        private fun buildSearchDataset(
+            context: android.content.Context,
+            requestedPackageName: String,
+            webDomain: String?,
+            usernameId: android.view.autofill.AutofillId?,
+            passwordId: android.view.autofill.AutofillId?
+        ): android.service.autofill.Dataset? {
+            val ids = listOfNotNull(usernameId, passwordId).distinct()
+            if (ids.isEmpty()) return null
+            val intent = AutofillPick.createIntent(context, requestedPackageName, webDomain, usernameId, passwordId)
+            val pendingIntent = android.app.PendingIntent.getActivity(
+                context,
+                nextAuthRequestCode(),
+                intent,
+                authPendingIntentFlags(android.os.Build.VERSION.SDK_INT)
+            )
+            val presentation = android.widget.RemoteViews(context.packageName, com.example.R.layout.autofill_dropdown_item)
+            presentation.setTextViewText(com.example.R.id.text1, context.getString(com.example.R.string.autofill_search_vault))
+            val datasetBuilder = android.service.autofill.Dataset.Builder(presentation)
+            // Values are supplied by the activity's result; null placeholders are allowed with authentication.
+            for (id in ids) datasetBuilder.setValue(id, null)
+            datasetBuilder.setAuthentication(pendingIntent.intentSender)
+            return datasetBuilder.build()
         }
     }
 }

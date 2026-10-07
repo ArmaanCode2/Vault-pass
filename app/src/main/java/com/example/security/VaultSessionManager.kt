@@ -41,10 +41,13 @@ class VaultSessionManager(
             cryptoManager: CryptoManager,
             vaultRepository: VaultRepository
         ): VaultSessionManager {
-            return instance ?: synchronized(this) {
-                instance ?: VaultSessionManager(settingsRepository, cryptoManager, vaultRepository).also {
-                    instance = it
-                }
+            // A manager is only reused for the repository it manages: it opens and locks that one.
+            instance?.takeIf { it.vaultRepository === vaultRepository }?.let { return it }
+            return synchronized(this) {
+                instance?.takeIf { it.vaultRepository === vaultRepository }
+                    ?: VaultSessionManager(settingsRepository, cryptoManager, vaultRepository).also {
+                        instance = it
+                    }
             }
         }
         fun resetForTesting() {
@@ -67,19 +70,58 @@ class VaultSessionManager(
 
     fun getPerformingSystemOperation(): Boolean = isPerformingSystemOperation
 
+    /**
+     * Lock-only. Opening goes through [openVault], which loads the key and the unlocked flag
+     * together and refuses if a lock ran meanwhile; setting the flag alone could say "unlocked"
+     * with no key loaded.
+     */
     fun setUnlocked(unlocked: Boolean) {
-        _isUnlocked.value = unlocked
-        if (!unlocked) {
-            lock()
+        require(!unlocked) { "Open the vault with openVault(dek, epoch)" }
+        lock()
+    }
+
+    // lock() and openVault() run one at a time, so the vault is either open (key loaded and
+    // unlocked) or locked (no key, not unlocked), never half of each.
+    private val openLock = Any()
+
+    // Changed only under openLock.
+    private val _lockEpoch = MutableStateFlow(0L)
+
+    /**
+     * Moves on every [lock], whatever called it (auto-lock included). Unlike [isUnlocked], a
+     * collector can't miss a lock that follows an unlock it hadn't seen yet: every lock is a new value.
+     */
+    val lockEpochs: StateFlow<Long> = _lockEpoch.asStateFlow()
+
+    /**
+     * Moves on every [lock]. An unlock reads it when it starts and passes it to [openVault]: a lock
+     * that ran meanwhile (e.g. the app went to the background during the key derivation) wins.
+     */
+    fun currentLockEpoch(): Long = _lockEpoch.value
+
+    /**
+     * Loads [dek] and marks the vault unlocked, unless [lock] ran since [epoch] was read: then
+     * nothing changes, the vault stays locked and it returns false.
+     */
+    fun openVault(dek: ByteArray, epoch: Long): Boolean {
+        synchronized(openLock) {
+            if (_lockEpoch.value != epoch) return false
+            vaultRepository.injectSoftwareDek(dek)
+            _isUnlocked.value = true
+            return true
         }
     }
 
     fun lock() {
-        autoLockJob?.cancel()
-        autoLockJob = null
-        _isUnlocked.value = false
-        vaultRepository.clearSoftwareDek()
-        cryptoManager.clearSoftwareDek()
+        synchronized(openLock) {
+            _lockEpoch.value = _lockEpoch.value + 1
+            autoLockJob?.cancel()
+            autoLockJob = null
+            _isUnlocked.value = false
+            // Clears the key in the CryptoManager too, under the repository's key lock. A second clear
+            // here, outside that lock, could undo an unlock that ran in between.
+            vaultRepository.clearSoftwareDek()
+        }
     }
 
     override fun onStop(owner: LifecycleOwner) {

@@ -1,0 +1,26 @@
+Public Suffix List
+==================
+
+File:        assets/public_suffix_list.dat (unmodified copy)
+Source:      https://publicsuffix.org/list/public_suffix_list.dat
+Downloaded:  2026-10-01
+Header:      // VERSION: 2026-09-30_20-56-07_UTC
+             // COMMIT: 714ac1bf5f2d038161c7419478cc3207431d706d
+Size:        334832 bytes
+SHA-256:     73c95828f5f62a3fce06d3fa9b2efd3f0a45a8c8dc2a65411545fab898a576f7
+
+VaultPass uses this list (ICANN and PRIVATE sections) only to decide which websites belong to the same site
+for autofill.
+
+License
+-------
+
+The Public Suffix List is maintained by the Mozilla Foundation and its contributors and is distributed under
+the Mozilla Public License, version 2.0:
+
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+The source of this file is available at https://publicsuffix.org/list/ and
+https://github.com/publicsuffix/list.

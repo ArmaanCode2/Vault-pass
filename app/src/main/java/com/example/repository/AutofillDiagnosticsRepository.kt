@@ -2,27 +2,46 @@ package com.example.repository
 
 import android.util.Log
 
-class AutofillDiagnosticsRepository {
-    
+/**
+ * Autofill diagnostics for debug builds. Release builds write nothing: [enabled] defaults to BuildConfig.DEBUG.
+ * Callers never pass entry titles, usernames, passwords, notes or field values; counts, scores and match
+ * reasons only (package names and web domains appear in debug builds only, because nothing is written otherwise).
+ */
+class AutofillDiagnosticsRepository(
+    private val enabled: Boolean = com.example.BuildConfig.DEBUG,
+    private val sink: Sink = AndroidLogSink
+) {
+
+    /** Where diagnostics go when [enabled]; tests inject their own. */
+    fun interface Sink {
+        fun write(isError: Boolean, tag: String, message: String)
+    }
+
+    private object AndroidLogSink : Sink {
+        override fun write(isError: Boolean, tag: String, message: String) {
+            if (isError) Log.e(tag, message) else Log.d(tag, message)
+        }
+    }
+
     private val TAG = "AutofillDiagnostics"
 
     fun log(message: String) {
-        Log.d(TAG, message)
+        if (enabled) sink.write(false, TAG, message)
     }
 
     fun logError(error: String) {
-        Log.e(TAG, error)
+        if (enabled) sink.write(true, TAG, error)
     }
 
     fun updateRequestStart() {
-        Log.d(TAG, "--- New Autofill Request Started ---")
+        log("--- New Autofill Request Started ---")
     }
 
     fun updatePackageAndDomain(packageName: String?, webDomain: String?) {
-        Log.d(TAG, "Package: ${packageName ?: "None"}, WebDomain: ${webDomain ?: "None"}")
+        log("Package: ${packageName ?: "None"}, WebDomain: ${webDomain ?: "None"}")
     }
 
     fun updateMatches(matched: Int, returned: Int) {
-        Log.d(TAG, "Matches found: $matched, Datasets returned: $returned")
+        log("Matches found: $matched, Datasets returned: $returned")
     }
 }

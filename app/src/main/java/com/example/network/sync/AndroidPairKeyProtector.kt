@@ -11,8 +11,12 @@ class AndroidPairKeyProtector(private val cryptoManager: CryptoManager) : PairKe
 
     override fun seal(pairKey: ByteArray): String? {
         if (pairKey.size != SyncCrypto.KEY_BYTES) return null
-        // encrypt() returns "" when the vault is locked or encryption fails.
-        val sealed = cryptoManager.encrypt(Hex.encode(pairKey))
+        // encrypt() throws when the vault is locked or encryption fails.
+        val sealed = try {
+            cryptoManager.encrypt(Hex.encode(pairKey))
+        } catch (e: Exception) {
+            return null
+        }
         return if (sealed.isEmpty()) null else PairKeyFormat.PREFIX + sealed
     }
 

@@ -1,79 +1,64 @@
 package com.example.domain.sync.diff
 
 import com.example.domain.models.VaultEntry
+import com.vaultpass.synccore.SyncChange
+import com.vaultpass.synccore.SyncOutcomes
+import com.vaultpass.synccore.SyncPlanner
+import com.vaultpass.synccore.SyncRecord
 
 object SyncDiffEngine {
 
+    /**
+     * Builds the review list from [SyncPlanner.plan]. [localEntries] maps our syncIds to local
+     * entries (recycle bin included) so the review can show what we have.
+     */
     fun computeDiff(
-        localEntries: List<VaultEntry>,
-        remoteEntries: List<VaultEntry>,
-        recycleBinKeys: Set<String> = emptySet()
+        localRecords: List<SyncRecord>,
+        remoteRecords: List<SyncRecord>,
+        lastSyncAt: Long,
+        blockedIds: Set<String> = emptySet(),
+        localEntries: Map<String, VaultEntry> = emptyMap()
     ): SyncDiffResult {
-        val activeLocals = localEntries.filter { !it.isDeleted && !it.isDecryptionFailed }
-        val activeRemotes = remoteEntries.filter { !it.isDeleted && !it.isDecryptionFailed }
+        val decisions = SyncPlanner.plan(localRecords, remoteRecords, lastSyncAt, blockedIds)
 
-        val localMap = activeLocals.associateBy { SyncEntryManifest.computeSyncKey(it.title, it.username) }
-        val remoteMap = activeRemotes.associateBy { SyncEntryManifest.computeSyncKey(it.title, it.username) }
-
-        val allKeys = (localMap.keys + remoteMap.keys).toList().sorted()
-        val diffItems = mutableListOf<EntryDiffItem>()
-
-        for (key in allKeys) {
-            val local = localMap[key]
-            val remote = remoteMap[key]
-
-            if (local == null && remote != null) {
-                // Entry exists only on remote device
-                val isInRecycleBin = key in recycleBinKeys
-                val fieldDiffs = buildFieldDiffs(null, remote)
-                diffItems.add(
-                    EntryDiffItem(
-                        syncKey = key,
-                        category = if (isInRecycleBin) EntrySyncCategory.DELETED_LOCAL else EntrySyncCategory.NEW_REMOTE,
-                        localEntry = null,
-                        remoteEntry = remote,
-                        fieldDiffs = fieldDiffs,
-                        isSelectedForSync = !isInRecycleBin,
-                        editedEntry = null
-                    )
-                )
-            } else if (local != null && remote == null) {
-                // Entry exists only on local phone
-                val fieldDiffs = buildFieldDiffs(local, null)
-                diffItems.add(
-                    EntryDiffItem(
-                        syncKey = key,
-                        category = EntrySyncCategory.NEW_LOCAL,
-                        localEntry = local,
-                        remoteEntry = null,
-                        fieldDiffs = fieldDiffs,
-                        isSelectedForSync = false,
-                        editedEntry = null
-                    )
-                )
-            } else if (local != null && remote != null) {
-                val fieldDiffs = buildFieldDiffs(local, remote)
-                val hasDifferences = fieldDiffs.any { it.changeType == FieldChangeType.MODIFIED }
-
-                val category = if (hasDifferences) {
-                    EntrySyncCategory.MODIFIED
-                } else {
-                    EntrySyncCategory.UNCHANGED
-                }
-
-                diffItems.add(
-                    EntryDiffItem(
-                        syncKey = key,
-                        category = category,
-                        localEntry = local,
-                        remoteEntry = remote,
-                        fieldDiffs = fieldDiffs,
-                        isSelectedForSync = (category == EntrySyncCategory.MODIFIED),
-                        editedEntry = null
-                    )
-                )
+        val diffItems = decisions.map { decision ->
+            val localSyncId = decision.localIdToReplace ?: decision.syncId
+            val localEntry = localEntries[localSyncId]
+                ?: decision.local?.takeIf { !it.deleted }?.let { SyncRecordMapper.toVaultEntry(it) }
+            val remoteEntry = decision.remote?.takeIf { !it.deleted }
+                ?.let { SyncRecordMapper.toVaultEntry(it).copy(syncId = decision.syncId) }
+            val category = when (decision.change) {
+                SyncChange.NEW_REMOTE -> EntrySyncCategory.NEW_REMOTE
+                SyncChange.NEW_LOCAL -> EntrySyncCategory.NEW_LOCAL
+                SyncChange.UNCHANGED -> EntrySyncCategory.UNCHANGED
+                SyncChange.REMOTE_CHANGED, SyncChange.LOCAL_CHANGED -> EntrySyncCategory.MODIFIED
+                SyncChange.CONFLICT -> EntrySyncCategory.CONFLICT
+                SyncChange.DELETED_REMOTE -> EntrySyncCategory.DELETED_REMOTE
+                SyncChange.DELETED_LOCAL -> EntrySyncCategory.DELETED_LOCAL
             }
-        }
+            val needsChoice = SyncOutcomes.needsChoice(decision.change)
+            val outcome = if (decision.change == SyncChange.DELETED_REMOTE && decision.remote != null) {
+                SyncOutcomes.defaultForRemoteDeletion(decision.local, decision.remote)
+            } else {
+                SyncOutcomes.defaultFor(decision.change)
+            }
+            EntryDiffItem(
+                syncKey = decision.syncId,
+                change = decision.change,
+                category = category,
+                localEntry = localEntry,
+                remoteEntry = remoteEntry,
+                localRecord = decision.local?.let { it.copy(syncId = decision.syncId) },
+                remoteRecord = decision.remote,
+                fieldDiffs = buildFieldDiffs(localEntry, remoteEntry),
+                choices = SyncOutcomes.choicesFor(decision.change),
+                outcome = outcome,
+                needsChoice = needsChoice,
+                answered = !needsChoice,
+                editedEntry = null,
+                localSyncIdToReplace = decision.localIdToReplace
+            )
+        }.sortedWith(compareBy({ displayTitle(it).lowercase() }, { it.syncKey }))
 
         return SyncDiffResult(
             newRemoteCount = diffItems.count { it.category == EntrySyncCategory.NEW_REMOTE },
@@ -81,9 +66,14 @@ object SyncDiffEngine {
             modifiedCount = diffItems.count { it.category == EntrySyncCategory.MODIFIED },
             unchangedCount = diffItems.count { it.category == EntrySyncCategory.UNCHANGED },
             deletedLocalCount = diffItems.count { it.category == EntrySyncCategory.DELETED_LOCAL },
-            diffItems = diffItems
+            diffItems = diffItems,
+            conflictCount = diffItems.count { it.category == EntrySyncCategory.CONFLICT },
+            deletedRemoteCount = diffItems.count { it.category == EntrySyncCategory.DELETED_REMOTE }
         )
     }
+
+    private fun displayTitle(item: EntryDiffItem): String =
+        (item.remoteEntry ?: item.localEntry)?.title ?: ""
 
     private fun buildFieldDiffs(local: VaultEntry?, remote: VaultEntry?): List<FieldDiff> {
         val diffs = mutableListOf<FieldDiff>()
@@ -107,9 +97,11 @@ object SyncDiffEngine {
         val remoteTags = remote?.tags?.sorted()?.joinToString(", ") ?: ""
         addDiff("Tags", localTags, remoteTags)
 
-        val localCustom = local?.customFields?.sortedBy { it.key }?.joinToString("; ") { "${it.key}:${it.value}" } ?: ""
-        val remoteCustom = remote?.customFields?.sortedBy { it.key }?.joinToString("; ") { "${it.key}:${it.value}" } ?: ""
-        addDiff("Custom Fields", localCustom, remoteCustom)
+        // Same order as the content fingerprint, so equal fields never show as changed.
+        fun customFields(entry: VaultEntry?) = entry?.customFields
+            ?.sortedWith(compareBy({ it.key }, { it.value }))
+            ?.joinToString("; ") { "${it.key}:${it.value}" } ?: ""
+        addDiff("Custom Fields", customFields(local), customFields(remote))
 
         return diffs
     }

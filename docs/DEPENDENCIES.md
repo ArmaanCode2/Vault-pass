@@ -30,8 +30,21 @@
 - **Kotlinx Serialization JSON**: `1.6.3`
 - **Google Accompanist Permissions**: `0.37.3` (Declared in TOML)
 
+## LAN Sync & QR Pairing
+- **ZXing Core**: `3.5.3` (decodes the pairing QR code on the device)
+- **CameraX (camera2, lifecycle, view)**: `1.5.0` (camera preview for the QR scanner)
+- Networking uses plain Java sockets; no networking library is involved.
+
+## In-App Updates
+- No library. The update check and download use `java.net.HttpURLConnection`, the install uses Android's `PackageInstaller`, and the GitHub response is parsed with Kotlinx Serialization JSON (already listed above).
+- The release signing check in `app/build.gradle.kts` uses `com.android.apksig.ApkVerifier`, which comes with the Android Gradle Plugin; it runs at build time only and is not part of the app.
+
+## Bundled Data
+- **Public Suffix List**: `app/src/main/assets/public_suffix_list.dat`, an unmodified copy of https://publicsuffix.org/list/public_suffix_list.dat, version `2026-09-30_20-56-07_UTC` (commit `714ac1bf5f2d038161c7419478cc3207431d706d`), 334,832 bytes. Licensed under the Mozilla Public License 2.0; the notice with source, download date and SHA-256 is `app/src/main/assets/licenses/public_suffix_list_NOTICE.txt`. Autofill uses it (`com.example.service.PublicSuffixList`) to decide which hosts belong to the same site. It is read from the APK; the app never downloads it.
+- **Privileged apps list**: `app/src/main/assets/privileged_browsers.json`, an unmodified copy of https://www.gstatic.com/gpm-passkeys-privileged-apps/apps.json (the list Google Password Manager uses, linked from developer.android.com/identity/sign-in/credential-provider), downloaded 2026-10-02, 29,657 bytes. The notice with source, SHA-256 and the license statement is `app/src/main/assets/licenses/privileged_browsers_NOTICE.txt`. Autofill uses it (`com.example.service.BrowserVerifier`) to trust a browser's web domain only when the browser's signing certificate is listed. It is read from the APK; the app never downloads it.
+
 ## Networking & APIs
-*(Note: These are declared in `libs.versions.toml` but the app operates strictly offline. They may be present for future integrations.)*
+*(Note: These are declared in `libs.versions.toml` but none of them is compiled into the app. They may be present for future integrations.)*
 - **Retrofit**: `2.12.0`
 - **Moshi (Kotlin & Codegen)**: `1.15.2`
 - **OkHttp (Logging Interceptor)**: `4.10.0`

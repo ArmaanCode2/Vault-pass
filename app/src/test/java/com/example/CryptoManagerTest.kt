@@ -2,6 +2,7 @@ package com.example
 
 import androidx.test.core.app.ApplicationProvider
 import com.example.security.CryptoManager
+import com.example.security.VaultLockedException
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -119,6 +120,28 @@ class CryptoManagerTest {
     }
 
     @Test
+    fun encrypt_aCipherFailure_throwsInsteadOfReturningEmpty() {
+        cryptoManager.encryptCipherFactory = { throw java.security.NoSuchAlgorithmException("forced") }
+        val error = assertThrows(IllegalStateException::class.java) { cryptoManager.encrypt("secret") }
+        assertEquals("Encryption failed", error.message)
+        assertFalse("A failure, not a lock", error is VaultLockedException)
+        assertTrue(error.cause is java.security.NoSuchAlgorithmException)
+    }
+
+    @Test
+    fun injectingTheLoadedKeyAgain_changesNothing() {
+        val before = cryptoManager.keyState()
+        assertFalse(cryptoManager.loadSoftwareDek(rawDek.clone()))
+        cryptoManager.injectSoftwareDek(rawDek.clone())
+        assertEquals("Same key: no new generation", before, cryptoManager.keyState())
+
+        val otherKey = ByteArray(32).also { SecureRandom().nextBytes(it) }
+        assertTrue(cryptoManager.loadSoftwareDek(otherKey))
+        assertNotEquals(before.generation, cryptoManager.keyState().generation)
+        assertArrayEquals(otherKey, cryptoManager.getSoftwareDek())
+    }
+
+    @Test
     fun lifecycle_clearSoftwareDek_clearsKeyMaterial() {
         val retrievedBefore = cryptoManager.getSoftwareDek()
         assertNotNull(retrievedBefore)
@@ -127,8 +150,9 @@ class CryptoManagerTest {
         cryptoManager.clearSoftwareDek()
         assertNull(cryptoManager.getSoftwareDek())
 
-        val encrypted = cryptoManager.encrypt("ShouldFailWhenLocked")
-        assertEquals("", encrypted)
+        // Never "" for non-empty input: a locked vault refuses to encrypt.
+        assertThrows(VaultLockedException::class.java) { cryptoManager.encrypt("ShouldFailWhenLocked") }
+        assertFalse(cryptoManager.hasKey())
 
         val decrypted = cryptoManager.decrypt("anyCiphertext")
         assertNull(decrypted)

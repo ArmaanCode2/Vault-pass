@@ -75,6 +75,11 @@ fun LanSyncScreen(
     val diffResult by viewModel.diffResult.collectAsState()
     val activeSyncDevice by viewModel.activeSyncDevice.collectAsState()
     val syncState by viewModel.syncState.collectAsState()
+    val sessionState by viewModel.sessionState.collectAsState()
+    val pendingPlanApproval by viewModel.pendingPlanApproval.collectAsState()
+    val successMessage by viewModel.successMessage.collectAsState()
+    val errorCode by viewModel.errorCode.collectAsState()
+    val retryDevice by viewModel.retryDevice.collectAsState()
 
     var deviceToUnpair by remember { mutableStateOf<PairedDevice?>(null) }
 
@@ -86,7 +91,10 @@ fun LanSyncScreen(
 
     androidx.compose.runtime.DisposableEffect(Unit) {
         onDispose {
-            if (isSyncing) {
+            // Leaving for the review screen is not leaving the sync.
+            if (viewModel.isSyncing.value && viewModel.diffResult.value == null &&
+                viewModel.pendingPlanApproval.value == null
+            ) {
                 viewModel.cancelActiveSync()
             }
         }
@@ -267,6 +275,51 @@ fun LanSyncScreen(
             )
         }
 
+        // The other device reviewed the sync: this device only approves what it will change.
+        pendingPlanApproval?.let { request ->
+            AlertDialog(
+                onDismissRequest = { viewModel.declinePlan() },
+                title = { Text("Apply Changes To This Device?") },
+                text = {
+                    Column {
+                        Text(request.sentence)
+                        if (request.summary.renamed > 0) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "${request.summary.renamed} entries also get their shared id.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = { viewModel.approvePlan() }) {
+                        Text("Apply")
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(onClick = { viewModel.declinePlan() }) {
+                        Text("Decline")
+                    }
+                }
+            )
+        }
+
+        // Both devices proved they hold the same entries.
+        successMessage?.let { message ->
+            AlertDialog(
+                onDismissRequest = { viewModel.clearSuccess() },
+                title = { Text("Sync Complete") },
+                text = { Text(message) },
+                confirmButton = {
+                    Button(onClick = { viewModel.clearSuccess() }) {
+                        Text("Done")
+                    }
+                }
+            )
+        }
+
         // Sync Progress Dialog
         if (isSyncing) {
             AlertDialog(
@@ -304,8 +357,17 @@ fun LanSyncScreen(
                 technicalDetails = buildString {
                     appendLine("Target Device: ${activeSyncDevice?.deviceName ?: "Unknown Device"}")
                     appendLine("Target IP: ${activeSyncDevice?.ipAddress ?: "Unknown IP"}:${activeSyncDevice?.port ?: 53853}")
+                    appendLine("Session State: ${sessionState.name}")
                     appendLine("Sync State: ${syncState.name}")
+                    appendLine("Error Code: ${errorCode ?: "none"}")
                     appendLine("Local IP: ${viewModel.getLocalIp() ?: "Unavailable"}")
+                },
+                actionLabel = retryDevice?.let { "Sync again" },
+                onAction = retryDevice?.let { device ->
+                    {
+                        viewModel.clearError()
+                        viewModel.initiateSyncWithDevice(device)
+                    }
                 },
                 onDismiss = { viewModel.clearError() }
             )

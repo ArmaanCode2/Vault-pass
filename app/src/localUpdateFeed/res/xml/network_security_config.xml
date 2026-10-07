@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Debug and updateTest builds only (see app/build.gradle.kts): replaces the main config so a local update
+    feed reached through `adb reverse` can be served over plain HTTP. Cleartext is allowed for these two exact
+    hosts and nothing else; release builds use src/main/res/xml/network_security_config.xml (HTTPS only).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>

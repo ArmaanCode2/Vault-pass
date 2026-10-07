@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
@@ -25,13 +26,61 @@ import kotlinx.serialization.json.*
 enum class AuthResult {
     SUCCESS,
     INVALID_PASSWORD,
-    LOCKED_OUT
+    LOCKED_OUT,
+    /** Right password, but the old vault couldn't be upgraded. Nothing was changed; not a failed attempt. */
+    MIGRATION_FAILED,
+    /** Right password, but the vault was locked again while it opened (e.g. the app went to the background). It stays locked; not a failed attempt. */
+    INTERRUPTED
+}
+
+enum class SetupResult {
+    CREATED,
+    /** A vault (wrapped key or entries) already exists: nothing was overwritten (F17). */
+    VAULT_EXISTS,
+    /** Another setup is still running (double submit). */
+    IN_PROGRESS,
+    /** The vault key couldn't be saved. Nothing is kept (Setup shows again); not unlocked. */
+    FAILED
+}
+
+/** First screen: Setup only when there is provably no vault; a read error never looks like "no vault". */
+enum class VaultLaunchState {
+    SETUP,
+    LOCK,
+    /** Settings can't be read, or master_hash is missing while vault data exists. */
+    UNREADABLE;
+
+    companion object {
+        fun decide(hash: com.example.repository.MasterHashRead, vaultDataExists: Boolean): VaultLaunchState = when (hash) {
+            com.example.repository.MasterHashRead.PRESENT -> LOCK
+            com.example.repository.MasterHashRead.READ_ERROR -> UNREADABLE
+            com.example.repository.MasterHashRead.ABSENT -> if (vaultDataExists) UNREADABLE else SETUP
+        }
+    }
+}
+
+/** Shortest password a .vpex export accepts (the export dialog asks for the same). */
+const val EXPORT_PASSWORD_MIN_LENGTH = 8
+
+/** An export file and how many entries it left out because they can't be decrypted. */
+class ExportPayload(val bytes: ByteArray, val skippedEntries: Int)
+
+private sealed class MigrationOutcome {
+    /** Unlocked; [unreadableEntries] rows were left untouched because they couldn't be read. */
+    class Unlocked(val unreadableEntries: Int) : MigrationOutcome()
+    object Failed : MigrationOutcome()
+    /** Upgraded (leaving [unreadableEntries] rows untouched), but a lock ran while it did: the vault stays locked. */
+    class Interrupted(val unreadableEntries: Int) : MigrationOutcome()
 }
 
 class VaultViewModel(
     val vaultRepository: VaultRepository,
     val settingsRepository: SettingsRepository,
-    injectedSessionManager: com.example.security.VaultSessionManager? = null
+    injectedSessionManager: com.example.security.VaultSessionManager? = null,
+    private val deviceClock: com.example.security.DeviceClock = settingsRepository.deviceClock,
+    private val legacyVaultKeys: com.example.security.LegacyVaultKeys = com.example.security.LegacyVaultKeys.forDevice(settingsRepository),
+    /** Saves the wrapped DEK of a new vault; true only when it is on disk. Injectable for tests. */
+    private val saveNewVaultKey: (String) -> Boolean = { settingsRepository.saveDekMpWrappedSync(it) }
 ) : ViewModel() {
 
     val sessionManager: com.example.security.VaultSessionManager = injectedSessionManager
@@ -46,30 +95,41 @@ class VaultViewModel(
     }
 
     init {
+        // Does nothing while locked (it needs the vault key to tell readable rows from unreadable ones).
         viewModelScope.launch { vaultRepository.cleanupRecycleBin() }
     }
 
     // Auth State
     private val _isUnlocking = MutableStateFlow(false)
     val isUnlocking: StateFlow<Boolean> = _isUnlocking.asStateFlow()
+    private val unlockCallsLock = Any()
+    private var unlockCalls = 0
 
-    private fun getLockoutDurationMs(attempts: Int): Long {
-        return when {
-            attempts >= 20 -> 15 * 60 * 1000L
-            attempts >= 15 -> 5 * 60 * 1000L
-            attempts >= 10 -> 60 * 1000L
-            attempts >= 5 -> 30 * 1000L
-            else -> 0L
-        }
+    /** [isUnlocking] stays true while any unlock call of this view model runs (they wait on [com.example.security.VaultUnlockLock]). */
+    private fun countUnlockCall(delta: Int) = synchronized(unlockCallsLock) {
+        unlockCalls += delta
+        _isUnlocking.value = unlockCalls > 0
     }
 
-    val lockoutEndTime: StateFlow<Long> = combine(
-        settingsRepository.failedAuthAttempts,
-        settingsRepository.lastFailedAuthTimestamp
-    ) { attempts, lastAttemptTime ->
-        val duration = getLockoutDurationMs(attempts)
-        if (duration > 0) lastAttemptTime + duration else 0L
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
+    /** The vault is open in this process: unlocked and its key in memory. */
+    private fun isVaultOpen(): Boolean {
+        if (!sessionManager.isUnlocked.value) return false
+        val dek = vaultRepository.getSoftwareDek() ?: return false
+        java.util.Arrays.fill(dek, 0.toByte())
+        return true
+    }
+
+    /** Stored lockout data for the lock screen countdown (see [lockoutRemainingMs]). */
+    val lockoutState: StateFlow<com.example.security.AuthLockout.State> = settingsRepository.authLockoutState
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.example.security.AuthLockout.State.NONE)
+
+    /** Lockout time left for [state] right now. Same function the unlock check uses. */
+    fun lockoutRemainingMs(state: com.example.security.AuthLockout.State): Long =
+        com.example.security.AuthLockout.remainingMs(state, deviceClock.elapsedRealtime(), deviceClock.bootCount())
+
+    private suspend fun recordFailedAttempt() {
+        settingsRepository.incrementFailedAttempts(deviceClock.elapsedRealtime(), deviceClock.bootCount())
+    }
 
     val isUnlocked: StateFlow<Boolean> = sessionManager.isUnlocked
 
@@ -113,30 +173,57 @@ class VaultViewModel(
         .map { SecurityAnalyzer.analyze(it) }
         .flowOn(Dispatchers.Default)
 
+    /** Running [recalculateSecurityStats] jobs; each ends with a DataStore write. */
+    private val securityStatsJobs: MutableSet<kotlinx.coroutines.Job> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
+    /** Tests: waits until no background security-stats run (a DataStore write) is in progress. */
+    @androidx.annotation.VisibleForTesting
+    internal suspend fun awaitSecurityStatsRecalculation() {
+        while (true) {
+            // A snapshot via toArray: toList() can throw when a job finishes between its size check and read.
+            val running = ArrayList(securityStatsJobs)
+            if (running.isEmpty()) return
+            running.forEach { it.join() }
+        }
+    }
+
     fun recalculateSecurityStats() {
         viewModelScope.launch(Dispatchers.Default) {
             try {
+                // While locked there is nothing to analyze: keep the last stats instead of saving empty ones.
+                val crypto = vaultRepository.cryptoManager
+                val start = crypto.keyState()
+                if (!start.hasKey) return@launch
                 val entries = vaultRepository.getAllEntriesSync()
-                if (entries.isEmpty()) {
-                    settingsRepository.saveSecurityStatsSummary(com.example.domain.security.SecurityStatsSummary.Empty)
-                    return@launch
+                val summary = if (entries.isEmpty()) {
+                    com.example.domain.security.SecurityStatsSummary.Empty
+                } else {
+                    val stats = SecurityAnalyzer.analyze(entries)
+                    SecurityStatsSummary(
+                        securityScore = stats.securityScore,
+                        totalPasswords = stats.totalPasswords,
+                        strongPasswordCount = stats.strongPasswords,
+                        mediumPasswordCount = stats.mediumPasswords,
+                        weakPasswordCount = stats.weakPasswords,
+                        reusedPasswordCount = stats.reusedPasswords,
+                        missingPasswordCount = stats.missingPasswords,
+                        securityStatus = stats.securityStatus,
+                        lastUpdatedTimestamp = System.currentTimeMillis()
+                    )
                 }
-                val stats = SecurityAnalyzer.analyze(entries)
-                val summary = SecurityStatsSummary(
-                    securityScore = stats.securityScore,
-                    totalPasswords = stats.totalPasswords,
-                    strongPasswordCount = stats.strongPasswords,
-                    mediumPasswordCount = stats.mediumPasswords,
-                    weakPasswordCount = stats.weakPasswords,
-                    reusedPasswordCount = stats.reusedPasswords,
-                    missingPasswordCount = stats.missingPasswords,
-                    securityStatus = stats.securityStatus,
-                    lastUpdatedTimestamp = System.currentTimeMillis()
-                )
+                // The vault may have locked while this ran: what was read then is not the vault.
+                if (crypto.keyState() != start) return@launch
                 settingsRepository.saveSecurityStatsSummary(summary)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (com.example.BuildConfig.DEBUG) e.printStackTrace()
             } finally {
                 isRecalculating.set(false)
             }
+        }.also { job ->
+            securityStatsJobs += job
+            job.invokeOnCompletion { securityStatsJobs -= job }
         }
     }
 
@@ -147,7 +234,7 @@ class VaultViewModel(
         if (decrypted == null || stats == null) return@combine null
         decrypted.filter { stats.weakEntryIds.contains(it.id) }.map { full ->
             WeakEntryData(
-                entry = VaultListEntry(full.id, full.title, full.username, full.isFavorite),
+                entry = vaultRepository.entryToVaultListEntry(full),
                 score = stats.passwordScores[full.id] ?: 0,
                 reasons = stats.passwordReasons[full.id] ?: emptyList()
             )
@@ -166,7 +253,7 @@ class VaultViewModel(
         grouped.map { (pwd, entries) ->
             ReusedGroupData(
                 passwordScore = stats.passwordScores[entries.first().id] ?: 0,
-                entries = entries.map { VaultListEntry(it.id, it.title, it.username, it.isFavorite) }
+                entries = entries.map { vaultRepository.entryToVaultListEntry(it) }
             )
         }.sortedByDescending { it.entries.size }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -177,7 +264,7 @@ class VaultViewModel(
     ) { decrypted, stats ->
         if (decrypted == null || stats == null) return@combine null
         decrypted.filter { stats.missingEntryIds.contains(it.id) }.map { full ->
-            VaultListEntry(full.id, full.title, full.username, full.isFavorite)
+            vaultRepository.entryToVaultListEntry(full)
         }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -220,152 +307,353 @@ class VaultViewModel(
     val masterHash = settingsRepository.masterPasswordHash.stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val masterSalt = settingsRepository.masterPasswordSalt.stateIn(viewModelScope, SharingStarted.Eagerly, null)
     
-    val isFirstLaunch: StateFlow<Boolean?> = settingsRepository.masterPasswordHash.map { it == null }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    private val launchCheck = MutableStateFlow(0)
 
-    private suspend fun performMigration(password: String, salt: String) {
-        val newDek = ByteArray(32)
-        var mpKek: ByteArray? = null
-        try {
-            // 1. Generate new software DEK
-            java.security.SecureRandom().nextBytes(newDek)
+    /** Setup, Lock, or "vault can't be read" (F17: a read error never shows Setup). */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val launchState: StateFlow<VaultLaunchState?> = launchCheck
+        .flatMapLatest {
+            settingsRepository.masterHashRead
+                .distinctUntilChanged()
+                .mapLatest { read ->
+                    val exists = read == com.example.repository.MasterHashRead.ABSENT && vaultDataExists()
+                    VaultLaunchState.decide(read, exists)
+                }
+        }
+        .flowOn(Dispatchers.IO)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-            // 2. Wrap new DEK with Master Password KEK
-            mpKek = PasswordHashHelper.deriveMasterKey(password, salt)
-            val dekMpWrapped = com.example.security.CryptoManager.wrapDekWithKek(newDek, mpKek)
-            
-            // 3. (Removed Biometric Wrapping in Background: Requires User Authentication)
+    val isFirstLaunch: StateFlow<Boolean?> = launchState
+        .map { state -> state?.let { it == VaultLaunchState.SETUP } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-            // 4. PREPARE PHASE: Save pending wrapped DEKs
-            settingsRepository.savePendingDekMpWrappedSync(dekMpWrapped)
+    /** Reads the launch state again (after a read error). */
+    fun retryLaunchCheck() {
+        launchCheck.value++
+    }
 
-            // 5. COMMIT PHASE (DB): Translate Data
-            // Read all current entries using OLD Keystore key (CryptoManager hasn't been injected yet)
-            val currentEntries = vaultRepository.getAllEntriesSync()
-            
-            // Inject new DEK
-            vaultRepository.injectSoftwareDek(newDek)
+    /** A wrapped vault key or any entry row exists. Fails closed: an error counts as "exists". */
+    private suspend fun vaultDataExists(): Boolean = try {
+        settingsRepository.hasStoredVaultKeySync() || vaultRepository.hasAnyEntryRows()
+    } catch (e: Exception) {
+        if (com.example.BuildConfig.DEBUG) e.printStackTrace()
+        true
+    }
 
-            // Rewrite all entries to trigger encryption with new DEK
-            vaultRepository.updateEntries(currentEntries)
+    private val _migrationUnreadableCount = MutableStateFlow<Int?>(null)
 
-            // 6. FINALIZE PHASE: Commit permanent keys and clear pending
-            settingsRepository.saveDekMpWrappedSync(dekMpWrapped)
-            settingsRepository.clearPendingKeysSync()
-            
-            recalculateSecurityStats()
-            sessionManager.setUnlocked(true)
+    /** Set once after a legacy-vault upgrade that left some entries untouched (they couldn't be read). */
+    val migrationUnreadableCount: StateFlow<Int?> = _migrationUnreadableCount.asStateFlow()
+
+    fun dismissMigrationNotice() {
+        _migrationUnreadableCount.value = null
+    }
+
+    /**
+     * Upgrades a vault from before the software DEK (F18), using the KDF parameters unlock used.
+     * 1. Reads every row (recycle bin included) and decrypts it with the legacy keys. Nothing is
+     *    written; if no row with content can be read, a legacy key exists but can't be loaded, or a
+     *    decryption fails for any reason but a wrong key, it stops here (Failed, nothing changed).
+     * 2. New DEK, wrapped with the KEK; readable rows re-encrypted in memory and checked.
+     * 3. Saves the pending wrapped DEK (crash recovery, see [recoverMigration]).
+     * 4. Writes the migrated rows in one transaction. Unreadable rows stay byte-for-byte as they
+     *    are. On a rollback the pending key is removed again: back to the state before step 3.
+     * 5. Finalizes the wrapped DEK, upgrades a pre-domain-separation auth hash, unlocks.
+     * Legacy keys and legacy prefs are never deleted.
+     */
+    private suspend fun performMigration(password: String, salt: String, iterations: Int, algorithm: String, lockEpoch: Long): MigrationOutcome {
+        // 1. Read and decrypt everything first.
+        // A legacy key that exists but can't be loaded, or any decryption error other than a wrong
+        // key, ends here (Failed, nothing written): migrating only what the other key opens would
+        // switch the vault to the new key and leave the rest behind.
+        val decrypted = try {
+            val rows = vaultRepository.getAllRawEntitiesSync()
+            // Nothing encrypted: no key needed, so an unusable legacy key can't block an empty vault.
+            val keys = if (rows.any { com.example.security.LegacyVaultMigration.hasContent(it) }) legacyVaultKeys.load() else emptyList()
+            com.example.security.LegacyVaultMigration.decryptAll(rows, keys)
         } catch (e: Exception) {
             if (com.example.BuildConfig.DEBUG) e.printStackTrace()
+            return MigrationOutcome.Failed
+        }
+        if (!decrypted.canMigrate) return MigrationOutcome.Failed
+
+        val newDek = ByteArray(32)
+        var mpKek: ByteArray? = null
+        var checkDek: ByteArray? = null
+        try {
+            // 2. New DEK, wrapped and re-encrypted rows, all in memory.
+            java.security.SecureRandom().nextBytes(newDek)
+            mpKek = PasswordHashHelper.deriveMasterKey(password, salt, iterations, algorithm)
+            val dekMpWrapped = com.example.security.CryptoManager.wrapDekWithKek(newDek, mpKek)
+            checkDek = com.example.security.CryptoManager.unwrapDekWithKek(dekMpWrapped, mpKek)
+            if (checkDek == null || !checkDek.contentEquals(newDek)) return MigrationOutcome.Failed
+            val migratedRows = com.example.security.LegacyVaultMigration.reencrypt(decrypted.readable, newDek)
+
+            // 3. PREPARE: pending wrapped DEK, on disk before the database changes.
+            if (!settingsRepository.savePendingDekMpWrappedSync(dekMpWrapped)) {
+                settingsRepository.clearPendingKeysSync()
+                return MigrationOutcome.Failed
+            }
+
+            // 4. COMMIT: every migrated row in one transaction.
+            val committed = try {
+                vaultRepository.replaceMigratedRows(decrypted.readable.map { it.original }, migratedRows)
+                true
+            } catch (e: Exception) {
+                if (com.example.BuildConfig.DEBUG) e.printStackTrace()
+                false
+            }
+            if (!committed) {
+                // Make sure no row is under the new DEK before dropping its pending key.
+                val check = try {
+                    com.example.security.LegacyVaultMigration.checkWithDek(vaultRepository.getAllRawEntitiesSync(), newDek)
+                } catch (e: Exception) {
+                    null // Unknown: keep the pending key, the next unlock sorts it out.
+                }
+                if (check == null || check.anyContentReadable) return MigrationOutcome.Failed
+                settingsRepository.clearPendingKeysSync()
+                return MigrationOutcome.Failed
+            }
+
+            // 5. FINALIZE. If saving fails the pending key stays, and the next unlock finishes it.
+            if (settingsRepository.saveDekMpWrappedSync(dekMpWrapped)) {
+                settingsRepository.clearPendingKeysSync()
+            }
+            upgradeAuthHash(password, salt, iterations, algorithm)
+            // The upgrade is stored either way; a lock that ran meanwhile keeps the vault locked.
+            if (!sessionManager.openVault(newDek, lockEpoch)) return MigrationOutcome.Interrupted(decrypted.unreadable.size)
+            vaultOpenedHook?.invoke()
+            recalculateSecurityStats()
+            return MigrationOutcome.Unlocked(decrypted.unreadable.size)
+        } catch (e: Exception) {
+            if (com.example.BuildConfig.DEBUG) e.printStackTrace()
+            return MigrationOutcome.Failed
         } finally {
             java.util.Arrays.fill(newDek, 0.toByte())
             mpKek?.let { java.util.Arrays.fill(it, 0.toByte()) }
+            checkDek?.let { java.util.Arrays.fill(it, 0.toByte()) }
         }
     }
 
-    suspend fun unlockWithPassword(password: String): AuthResult {
-        if (_isUnlocking.value) return AuthResult.INVALID_PASSWORD
-        
-        val end = lockoutEndTime.value
-        val now = android.os.SystemClock.elapsedRealtime()
-        
-        if (now < end) {
-            return AuthResult.LOCKED_OUT
+    /**
+     * Pre-2026-06 builds stored the raw PBKDF2 output as master_hash, from which the KEK can be
+     * derived. After an upgrade, replace it with the domain-separated auth hash (same salt and KDF).
+     * Failure is harmless: the old hash still verifies.
+     */
+    private suspend fun upgradeAuthHash(password: String, salt: String, iterations: Int, algorithm: String) {
+        try {
+            val authHash = PasswordHashHelper.hashPassword(password, salt, iterations, algorithm)
+            if (settingsRepository.masterPasswordHash.firstOrNull() != authHash) {
+                settingsRepository.saveMasterPasswordAndKdfMetadata(
+                    authHash,
+                    salt,
+                    settingsRepository.masterKdfVersion.firstOrNull() ?: 1,
+                    iterations,
+                    algorithm
+                )
+            }
+        } catch (e: Exception) {
+            if (com.example.BuildConfig.DEBUG) e.printStackTrace()
         }
-        
-        _isUnlocking.value = true
+    }
+
+    /**
+     * Checks [password] and opens the vault, upgrading a legacy vault on the way. Runs under the
+     * process-wide [com.example.security.VaultUnlockLock]: a second call (another screen, a double
+     * submit) waits, and if the vault is open by then it only checks the password.
+     */
+    suspend fun unlockWithPassword(password: String): AuthResult {
+        // Read before anything else: a lock from here on (even while this waits) keeps the vault locked.
+        val lockEpoch = sessionManager.currentLockEpoch()
+        countUnlockCall(1)
+        try {
+            return com.example.security.VaultUnlockLock.mutex.withLock { unlockWithPasswordLocked(password, lockEpoch) }
+        } finally {
+            countUnlockCall(-1)
+        }
+    }
+
+    private suspend fun unlockWithPasswordLocked(password: String, lockEpoch: Long): AuthResult {
         return withContext(Dispatchers.Default) {
-            try {
-                val hash = settingsRepository.masterPasswordHash.firstOrNull() ?: masterHash.value ?: return@withContext AuthResult.INVALID_PASSWORD
-                val salt = settingsRepository.masterPasswordSalt.firstOrNull() ?: masterSalt.value ?: return@withContext AuthResult.INVALID_PASSWORD
-                val iterations = settingsRepository.masterKdfIterations.firstOrNull() ?: 100000
-                val algorithm = settingsRepository.masterKdfAlgorithm.firstOrNull() ?: "PBKDF2WithHmacSHA256"
+            // Computed fresh from storage, never from the lock screen's StateFlow.
+            val lockout = settingsRepository.authLockoutState.first()
+            if (lockoutRemainingMs(lockout) > 0) {
+                return@withContext AuthResult.LOCKED_OUT
+            }
 
-                val isValid = PasswordHashHelper.verifyPassword(password, salt, hash, iterations, algorithm)
-                if (isValid) {
-                    val mpWrapped = settingsRepository.getDekMpWrappedSync()
-                    if (mpWrapped != null) {
-                        // User is migrated, unwrap DEK
-                        val kek = PasswordHashHelper.deriveMasterKey(password, salt, iterations, algorithm)
-                        var dek = com.example.security.CryptoManager.unwrapDekWithKek(mpWrapped, kek)
-                        var legacyMigrated = false
+            // One read of all four values, under DataStore's write lock. Separate unlocked reads can
+            // race a background write (e.g. the security stats saved after another unlock) and see
+            // the file mid-replace as empty, which turned a correct password into INVALID_PASSWORD.
+            // A read error falls back to the flows, as before.
+            val stored = try {
+                settingsRepository.readStoredPreferencesOrThrow()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (com.example.BuildConfig.DEBUG) e.printStackTrace()
+                null
+            }
+            val hash = (if (stored != null) stored[SettingsRepository.MASTER_HASH] else settingsRepository.masterPasswordHash.firstOrNull())
+                ?: masterHash.value ?: return@withContext AuthResult.INVALID_PASSWORD
+            val salt = (if (stored != null) stored[SettingsRepository.MASTER_SALT] else settingsRepository.masterPasswordSalt.firstOrNull())
+                ?: masterSalt.value ?: return@withContext AuthResult.INVALID_PASSWORD
+            val iterations = (if (stored != null) stored[SettingsRepository.MASTER_KDF_ITERATIONS] else settingsRepository.masterKdfIterations.firstOrNull())
+                ?: 100000
+            val algorithm = (if (stored != null) stored[SettingsRepository.MASTER_KDF_ALGORITHM] else settingsRepository.masterKdfAlgorithm.firstOrNull())
+                ?: com.example.security.SecurityPolicy.CURRENT_KDF_ALGORITHM
 
-                        // If domain-separated KEK fails, fallback to legacy KEK derivation
-                        if (dek == null) {
-                            val legacyKek = PasswordHashHelper.deriveLegacyMasterKey(password, salt, iterations, algorithm)
-                            try {
-                                dek = com.example.security.CryptoManager.unwrapDekWithKek(mpWrapped, legacyKek)
-                                if (dek != null) {
-                                    legacyMigrated = true
-                                }
-                            } finally {
-                                java.util.Arrays.fill(legacyKek, 0.toByte())
-                            }
-                        }
-                        
-                        // KDF MIGRATION CRASH RECOVERY
-                        if (dek == null) {
-                            val pendingV2 = settingsRepository.getPendingDekMpWrappedV2Sync()
-                            if (pendingV2 != null) {
-                                dek = com.example.security.CryptoManager.unwrapDekWithKek(pendingV2, kek)
-                                if (dek != null) {
-                                    // Recover split-brain: Finalize phase 3 quietly
-                                    settingsRepository.saveDekMpWrappedSync(pendingV2)
-                                    settingsRepository.clearPendingKeysSync()
-                                }
-                            }
-                        }
+            val isValid = PasswordHashHelper.verifyPassword(password, salt, hash, iterations, algorithm)
+            if (isValid && isVaultOpen()) {
+                // Another call opened (or upgraded) the vault while this one waited: nothing left to do.
+                settingsRepository.resetFailedAttempts()
+                return@withContext AuthResult.SUCCESS
+            }
+            if (isValid) {
+                val mpWrapped = settingsRepository.getDekMpWrappedSync()
+                if (mpWrapped != null) {
+                    // User is migrated, unwrap DEK
+                    val kek = PasswordHashHelper.deriveMasterKey(password, salt, iterations, algorithm)
+                    var dek = com.example.security.CryptoManager.unwrapDekWithKek(mpWrapped, kek)
+                    var legacyMigrated = false
 
-                        if (dek != null) {
-                            if (legacyMigrated) {
-                                // Transparently upgrade legacy vault: re-wrap with new domain-separated KEK & save AuthHash
-                                val newWrapped = com.example.security.CryptoManager.wrapDekWithKek(dek, kek)
-                                settingsRepository.saveDekMpWrappedSync(newWrapped)
-                                val newAuthHash = PasswordHashHelper.hashPassword(password, salt, iterations, algorithm)
-                                settingsRepository.saveMasterPasswordAndKdfMetadata(
-                                    newAuthHash,
-                                    salt,
-                                    settingsRepository.masterKdfVersion.firstOrNull() ?: 1,
-                                    iterations,
-                                    algorithm
-                                )
+                    // If domain-separated KEK fails, fallback to legacy KEK derivation
+                    if (dek == null) {
+                        val legacyKek = PasswordHashHelper.deriveLegacyMasterKey(password, salt, iterations, algorithm)
+                        try {
+                            dek = com.example.security.CryptoManager.unwrapDekWithKek(mpWrapped, legacyKek)
+                            if (dek != null) {
+                                legacyMigrated = true
                             }
-                            java.util.Arrays.fill(kek, 0.toByte())
-
-                            settingsRepository.resetFailedAttempts()
-                            vaultRepository.injectSoftwareDek(dek)
-                            java.util.Arrays.fill(dek, 0.toByte())
-                            sessionManager.setUnlocked(true)
-                            launch { vaultRepository.cleanupRecycleBin() }
-                            
-                            // Check if KDF Migration is needed
-                            if (iterations < com.example.security.SecurityPolicy.CURRENT_KDF_ITERATIONS) {
-                                launch { performKdfMigration(password) }
-                            }
-                            
-                            return@withContext AuthResult.SUCCESS
-                        }
-                        java.util.Arrays.fill(kek, 0.toByte())
-                        settingsRepository.incrementFailedAttempts(android.os.SystemClock.elapsedRealtime())
-                        return@withContext AuthResult.INVALID_PASSWORD
-                    } else {
-                        val pendingMpWrapped = settingsRepository.getPendingDekMpWrappedSync()
-                        if (pendingMpWrapped != null) {
-                            // MIGRATION CRASH RECOVERY
-                            recoverMigration(password, salt, pendingMpWrapped)
-                        } else {
-                            // User has NOT migrated, trigger migration
-                            performMigration(password, salt)
+                        } finally {
+                            java.util.Arrays.fill(legacyKek, 0.toByte())
                         }
                     }
-                    settingsRepository.resetFailedAttempts()
-                    launch { vaultRepository.cleanupRecycleBin() }
+                    
+                    // KDF MIGRATION CRASH RECOVERY
+                    if (dek == null) {
+                        val pendingV2 = settingsRepository.getPendingDekMpWrappedV2Sync()
+                        if (pendingV2 != null) {
+                            dek = com.example.security.CryptoManager.unwrapDekWithKek(pendingV2, kek)
+                            if (dek != null) {
+                                // Recover split-brain: Finalize phase 3 quietly
+                                settingsRepository.saveDekMpWrappedSync(pendingV2)
+                                settingsRepository.clearPendingKeysSync()
+                            }
+                        }
+                    }
+
+                    if (dek != null) {
+                        if (legacyMigrated) {
+                            // Transparently upgrade legacy vault: re-wrap with new domain-separated KEK & save AuthHash
+                            val newWrapped = com.example.security.CryptoManager.wrapDekWithKek(dek, kek)
+                            settingsRepository.saveDekMpWrappedSync(newWrapped)
+                            val newAuthHash = PasswordHashHelper.hashPassword(password, salt, iterations, algorithm)
+                            settingsRepository.saveMasterPasswordAndKdfMetadata(
+                                newAuthHash,
+                                salt,
+                                settingsRepository.masterKdfVersion.firstOrNull() ?: 1,
+                                iterations,
+                                algorithm
+                            )
+                        }
+                        java.util.Arrays.fill(kek, 0.toByte())
+
+                        settingsRepository.resetFailedAttempts()
+                        val opened = sessionManager.openVault(dek, lockEpoch)
+                        java.util.Arrays.fill(dek, 0.toByte())
+                        if (!opened) return@withContext AuthResult.INTERRUPTED
+                        vaultOpenedHook?.invoke()
+                        val unlockScope = this
+                        // Opening the vault replaces the lock screen, which cancels the caller's
+                        // scope: the steps after it must not be skipped (same order as before).
+                        withContext(kotlinx.coroutines.NonCancellable) {
+                            retryLegacyRows()
+                            val cleanup = viewModelScope.launch(Dispatchers.Default) { vaultRepository.cleanupRecycleBin() }
+
+                            // Check if KDF Migration is needed (F13: launched in the unlock's own scope, as before)
+                            if (iterations < com.example.security.SecurityPolicy.CURRENT_KDF_ITERATIONS) {
+                                unlockScope.launch { performKdfMigration(password) }
+                            }
+
+                            // A run dropped by a quick lock (it never saves while locked) is redone here.
+                            recalculateSecurityStats()
+                            cleanup.join()
+                        }
+
+                        return@withContext AuthResult.SUCCESS
+                    }
+                    java.util.Arrays.fill(kek, 0.toByte())
+                    recordFailedAttempt()
+                    return@withContext AuthResult.INVALID_PASSWORD
+                } else {
+                    val pendingMpWrapped = settingsRepository.getPendingDekMpWrappedSync()
+                    val outcome = if (pendingMpWrapped != null) {
+                        // MIGRATION CRASH RECOVERY
+                        recoverMigration(password, salt, iterations, algorithm, pendingMpWrapped, lockEpoch)
+                    } else {
+                        // User has NOT migrated, trigger migration
+                        performMigration(password, salt, iterations, algorithm, lockEpoch)
+                    }
+                    // The password was right: never a failed attempt. Never SUCCESS without unlocking.
+                    // Upgraded, but locked again before or right after the vault opened: the data
+                    // is migrated, so the next unlock just opens it (and shows the notice then).
+                    val interruptedUnreadable = when {
+                        outcome is MigrationOutcome.Interrupted -> outcome.unreadableEntries
+                        outcome is MigrationOutcome.Unlocked && !sessionManager.isUnlocked.value -> outcome.unreadableEntries
+                        else -> null
+                    }
+                    if (interruptedUnreadable != null) {
+                        if (interruptedUnreadable > 0) _migrationUnreadableCount.value = interruptedUnreadable
+                        settingsRepository.resetFailedAttempts()
+                        return@withContext AuthResult.INTERRUPTED
+                    }
+                    if (outcome !is MigrationOutcome.Unlocked) {
+                        return@withContext AuthResult.MIGRATION_FAILED
+                    }
+                    // The vault is open, which cancels the caller's scope (see above): finish anyway.
+                    withContext(kotlinx.coroutines.NonCancellable) {
+                        // After crash recovery, rows left under a legacy key may open now. (A fresh
+                        // upgrade has just tried the same keys.)
+                        val recovered = if (pendingMpWrapped != null) retryLegacyRows() else 0
+                        val unreadable = outcome.unreadableEntries - recovered
+                        if (unreadable > 0) {
+                            _migrationUnreadableCount.value = unreadable
+                        }
+                        settingsRepository.resetFailedAttempts()
+                        viewModelScope.launch(Dispatchers.Default) { vaultRepository.cleanupRecycleBin() }.join()
+                    }
                     return@withContext AuthResult.SUCCESS
                 }
-                settingsRepository.incrementFailedAttempts(android.os.SystemClock.elapsedRealtime())
-                return@withContext AuthResult.INVALID_PASSWORD
-            } finally {
-                _isUnlocking.value = false
             }
+            recordFailedAttempt()
+            return@withContext AuthResult.INVALID_PASSWORD
+        }
+    }
+
+    /**
+     * Rows the current DEK can't read (left under a legacy key by an earlier upgrade) are retried
+     * with the legacy keys at every unlock. Rows that now fully decrypt are re-encrypted with the
+     * DEK in one transaction; rows that still fail are not touched. On any error nothing is
+     * written and the next unlock tries again. Never blocks the unlock. Returns the rows recovered.
+     */
+    private suspend fun retryLegacyRows(): Int {
+        val dek = vaultRepository.getSoftwareDek() ?: return 0
+        try {
+            val unreadable = com.example.security.LegacyVaultMigration.unreadableWithDek(vaultRepository.getAllRawEntitiesSync(), dek)
+            if (unreadable.isEmpty()) return 0
+            val (originals, replacements) =
+                com.example.security.LegacyVaultMigration.recoverWithLegacyKeys(unreadable, legacyVaultKeys.load(), dek)
+            if (originals.isEmpty()) return 0
+            vaultRepository.replaceMigratedRows(originals, replacements)
+            recalculateSecurityStats()
+            return originals.size
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (com.example.BuildConfig.DEBUG) e.printStackTrace()
+            return 0
+        } finally {
+            java.util.Arrays.fill(dek, 0.toByte())
         }
     }
 
@@ -410,66 +698,139 @@ class VaultViewModel(
         }
     }
 
-    private suspend fun recoverMigration(password: String, salt: String, pendingMpWrapped: String) {
-        var kek: ByteArray? = null
+    /**
+     * A pending wrapped DEK exists: an upgrade stopped between steps 3 and 5 of [performMigration].
+     * If any row with content decrypts with the pending DEK, the transaction was committed: finish
+     * it. Otherwise no row is under that DEK, and the upgrade runs again from the legacy keys
+     * (which replaces the pending key only after every read has succeeded).
+     */
+    private suspend fun recoverMigration(
+        password: String,
+        salt: String,
+        iterations: Int,
+        algorithm: String,
+        pendingMpWrapped: String,
+        lockEpoch: Long
+    ): MigrationOutcome {
         var dek: ByteArray? = null
         try {
-            kek = PasswordHashHelper.deriveMasterKey(password, salt)
-            dek = com.example.security.CryptoManager.unwrapDekWithKek(pendingMpWrapped, kek)
-            if (dek != null) {
-                vaultRepository.injectSoftwareDek(dek)
-                
-                val testEntry = vaultRepository.allRawEntities.first().firstOrNull()
-                var dbUpdateSucceeded = true
-                if (testEntry != null) {
-                    val decrypted = vaultRepository.decryptEntity(testEntry)
-                    if (decrypted.isDecryptionFailed) {
-                        dbUpdateSucceeded = false
-                    }
-                }
+            val pending = unwrapPendingDek(password, salt, iterations, algorithm, pendingMpWrapped)
+                ?: return performMigration(password, salt, iterations, algorithm, lockEpoch)
+            dek = pending.dek
 
-                if (dbUpdateSucceeded) {
-                    // DB was updated successfully. Finalize migration.
-                    settingsRepository.saveDekMpWrappedSync(pendingMpWrapped)
-                    val pendingBioWrapped = settingsRepository.getPendingDekBioWrappedSync()
-                    if (pendingBioWrapped != null) {
-                        settingsRepository.saveDekBioWrappedSync(pendingBioWrapped)
-                    }
-                    settingsRepository.clearPendingKeysSync()
-                    sessionManager.setUnlocked(true)
-                    viewModelScope.launch { vaultRepository.cleanupRecycleBin() }
-                } else {
-                    // DB was NOT updated (transaction rolled back). 
-                    // Clear pending keys and start migration again.
-                    settingsRepository.clearPendingKeysSync()
-                    vaultRepository.clearSoftwareDek()
-                    performMigration(password, salt)
-                }
-            } else {
-                // If we can't unwrap pending DEK, clear and restart
-                settingsRepository.clearPendingKeysSync()
-                performMigration(password, salt)
+            val check = try {
+                com.example.security.LegacyVaultMigration.checkWithDek(vaultRepository.getAllRawEntitiesSync(), dek)
+            } catch (e: Exception) {
+                if (com.example.BuildConfig.DEBUG) e.printStackTrace()
+                return MigrationOutcome.Failed
             }
+            if (check.hasContent && !check.anyContentReadable) {
+                // DB was NOT updated (transaction rolled back or never ran).
+                return performMigration(password, salt, iterations, algorithm, lockEpoch)
+            }
+
+            // DB was updated (or holds nothing encrypted). Finalize migration. A pending key wrapped
+            // with another KEK is re-wrapped first: unlock only derives the KEK from the stored parameters.
+            val finalWrapped = if (pending.wrappedWithCurrentKek) {
+                pendingMpWrapped
+            } else {
+                wrapWithCurrentKek(dek, password, salt, iterations, algorithm)
+            }
+            // If it can't be finalized the pending key stays, and the next unlock finishes it.
+            if (finalWrapped != null && settingsRepository.saveDekMpWrappedSync(finalWrapped)) {
+                val pendingBioWrapped = settingsRepository.getPendingDekBioWrappedSync()
+                if (pendingBioWrapped != null) {
+                    settingsRepository.saveDekBioWrappedSync(pendingBioWrapped)
+                }
+                settingsRepository.clearPendingKeysSync()
+            }
+            upgradeAuthHash(password, salt, iterations, algorithm)
+            if (!sessionManager.openVault(dek, lockEpoch)) return MigrationOutcome.Interrupted(check.unreadableCount)
+            vaultOpenedHook?.invoke()
+            recalculateSecurityStats()
+            return MigrationOutcome.Unlocked(check.unreadableCount)
         } finally {
-            kek?.let { java.util.Arrays.fill(it, 0.toByte()) }
             dek?.let { java.util.Arrays.fill(it, 0.toByte()) }
         }
     }
-    
 
-    suspend fun unlockWithBiometrics(dek: ByteArray): Boolean {
-        if (_isUnlocking.value) return false
-        _isUnlocking.value = true
-        return withContext(Dispatchers.Default) {
-            try {
-                vaultRepository.injectSoftwareDek(dek)
-                settingsRepository.resetFailedAttempts()
-                sessionManager.setUnlocked(true)
-                launch { vaultRepository.cleanupRecycleBin() }
-                return@withContext true
-            } finally {
-                _isUnlocking.value = false
+    private class PendingDek(val dek: ByteArray, val wrappedWithCurrentKek: Boolean)
+
+    /**
+     * Unwraps a pending DEK. Candidates in order: the KEK from the stored KDF parameters, the
+     * 100k defaults (2.6.x wrote pending keys with those), then the legacy KEK (the raw PBKDF2 key,
+     * before KEK domain separation) with each of those parameter sets.
+     */
+    private fun unwrapPendingDek(password: String, salt: String, iterations: Int, algorithm: String, wrapped: String): PendingDek? {
+        val params = linkedSetOf(iterations to algorithm, 100000 to "PBKDF2WithHmacSHA256")
+        val candidates = params.map { Triple(it.first, it.second, false) } + params.map { Triple(it.first, it.second, true) }
+        candidates.forEachIndexed { index, (iter, alg, legacy) ->
+            val kek = if (legacy) {
+                PasswordHashHelper.deriveLegacyMasterKey(password, salt, iter, alg)
+            } else {
+                PasswordHashHelper.deriveMasterKey(password, salt, iter, alg)
             }
+            try {
+                com.example.security.CryptoManager.unwrapDekWithKek(wrapped, kek)?.let { return PendingDek(it, index == 0) }
+            } finally {
+                java.util.Arrays.fill(kek, 0.toByte())
+            }
+        }
+        return null
+    }
+
+    /** [dek] wrapped with the KEK from the stored KDF parameters, checked; null on any failure. */
+    private fun wrapWithCurrentKek(dek: ByteArray, password: String, salt: String, iterations: Int, algorithm: String): String? {
+        val kek = PasswordHashHelper.deriveMasterKey(password, salt, iterations, algorithm)
+        var check: ByteArray? = null
+        return try {
+            val wrapped = com.example.security.CryptoManager.wrapDekWithKek(dek, kek)
+            check = com.example.security.CryptoManager.unwrapDekWithKek(wrapped, kek)
+            if (check != null && check.contentEquals(dek)) wrapped else null
+        } catch (e: Exception) {
+            if (com.example.BuildConfig.DEBUG) e.printStackTrace()
+            null
+        } finally {
+            java.util.Arrays.fill(kek, 0.toByte())
+            check?.let { java.util.Arrays.fill(it, 0.toByte()) }
+        }
+    }
+
+    /**
+     * Opens the vault with the biometric-unwrapped [dek]. Returns false, leaving it locked, if the
+     * vault was locked again while this ran.
+     */
+    suspend fun unlockWithBiometrics(dek: ByteArray): Boolean {
+        // Read before anything else: a lock from here on (even while this waits) keeps the vault locked.
+        val lockEpoch = sessionManager.currentLockEpoch()
+        countUnlockCall(1)
+        try {
+            return com.example.security.VaultUnlockLock.mutex.withLock {
+                withContext(Dispatchers.Default) {
+                    if (isVaultOpen()) {
+                        // Already open (e.g. autofill asked while the app is unlocked): nothing to load.
+                        settingsRepository.resetFailedAttempts()
+                        return@withContext true
+                    }
+                    val opened = sessionManager.openVault(dek, lockEpoch)
+                    if (opened) vaultOpenedHook?.invoke()
+                    // Opening the vault can cancel the caller's scope: the steps after it must not
+                    // be skipped (same order as before).
+                    withContext(kotlinx.coroutines.NonCancellable) {
+                        settingsRepository.resetFailedAttempts()
+                        if (opened) {
+                            retryLegacyRows()
+                            val cleanup = viewModelScope.launch(Dispatchers.Default) { vaultRepository.cleanupRecycleBin() }
+                            // A run dropped by a quick lock (it never saves while locked) is redone here.
+                            recalculateSecurityStats()
+                            cleanup.join()
+                        }
+                    }
+                    opened
+                }
+            }
+        } finally {
+            countUnlockCall(-1)
         }
     }
 
@@ -524,10 +885,16 @@ class VaultViewModel(
     }
 
     fun lock() {
+        // Clears the key too (the session manager manages this repository, see getInstance). A
+        // second clear here could undo an unlock that ran in between.
         sessionManager.lock()
-        vaultRepository.clearSoftwareDek()
+        clearExportPassword()
         clipboardJob?.cancel()
     }
+
+    private val setupInProgress = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val _isSettingUp = MutableStateFlow(false)
+    val isSettingUp: StateFlow<Boolean> = _isSettingUp.asStateFlow()
 
     fun setupMasterPassword(password: String) {
         viewModelScope.launch {
@@ -535,36 +902,104 @@ class VaultViewModel(
         }
     }
 
-    suspend fun setupMasterPasswordSync(password: String) = withContext(Dispatchers.Default) {
+    /**
+     * Creates a new vault. Refuses (F17) when a wrapped vault key or any entry row exists, so an
+     * existing vault is never overwritten; one setup at a time (double submit).
+     */
+    suspend fun setupMasterPasswordSync(password: String): SetupResult {
+        if (!setupInProgress.compareAndSet(false, true)) return SetupResult.IN_PROGRESS
+        _isSettingUp.value = true
+        val lockEpoch = sessionManager.currentLockEpoch()
+        try {
+            return withContext(Dispatchers.Default) {
+                // Same process-wide lock as unlock: no upgrade or other setup can run in between.
+                com.example.security.VaultUnlockLock.mutex.withLock {
+                    when {
+                        vaultDataExists() -> SetupResult.VAULT_EXISTS
+                        createVault(password, lockEpoch) -> SetupResult.CREATED
+                        else -> SetupResult.FAILED
+                    }
+                }
+            }
+        } finally {
+            _isSettingUp.value = false
+            setupInProgress.set(false)
+        }
+    }
+
+    /**
+     * Writes a new vault's master hash, KDF metadata and wrapped DEK, then unlocks. If any of that
+     * fails, what was written is rolled back (so the next launch shows Setup again), the DEK is
+     * never put in memory, and it returns false. Caller holds [com.example.security.VaultUnlockLock]
+     * and has checked that no vault exists.
+     */
+    private suspend fun createVault(password: String, lockEpoch: Long): Boolean {
         val targetIterations = com.example.security.SecurityPolicy.CURRENT_KDF_ITERATIONS
         val targetVersion = com.example.security.SecurityPolicy.CURRENT_KDF_VERSION
         val targetAlgorithm = com.example.security.SecurityPolicy.CURRENT_KDF_ALGORITHM
 
-        // 1. Generate salt and hash for master password
-        val salt = PasswordHashHelper.generateSalt()
-        val hash = PasswordHashHelper.hashPassword(password, salt, targetIterations, targetAlgorithm)
-        settingsRepository.saveMasterPasswordAndKdfMetadata(hash, salt, targetVersion, targetIterations, targetAlgorithm)
-        
-        // 2. Generate the Software DEK
         val newDek = ByteArray(32)
-        java.security.SecureRandom().nextBytes(newDek)
-        
         var mpKek: ByteArray? = null
+        var checkDek: ByteArray? = null
         try {
-            // 3. Wrap DEK with Master Password KEK
+            // 1. Generate salt and hash for master password
+            val salt = PasswordHashHelper.generateSalt()
+            val hash = PasswordHashHelper.hashPassword(password, salt, targetIterations, targetAlgorithm)
+            settingsRepository.saveMasterPasswordAndKdfMetadata(hash, salt, targetVersion, targetIterations, targetAlgorithm)
+
+            // 2. Generate the Software DEK and wrap it with the Master Password KEK
+            java.security.SecureRandom().nextBytes(newDek)
             mpKek = PasswordHashHelper.deriveMasterKey(password, salt, targetIterations, targetAlgorithm)
             val dekMpWrapped = com.example.security.CryptoManager.wrapDekWithKek(newDek, mpKek)
-            
-            // 4. Save the wrapped DEK
-            settingsRepository.saveDekMpWrappedSync(dekMpWrapped)
-            
-            // 5. Inject the DEK so it's ready for immediate use
-            vaultRepository.injectSoftwareDek(newDek)
-            
-            sessionManager.setUnlocked(true)
+            checkDek = com.example.security.CryptoManager.unwrapDekWithKek(dekMpWrapped, mpKek)
+            if (checkDek == null || !checkDek.contentEquals(newDek)) {
+                rollBackVaultCreation()
+                return false
+            }
+
+            // 3. Save the wrapped DEK; only once it is on disk may the vault be used.
+            if (!saveNewVaultKey(dekMpWrapped)) {
+                rollBackVaultCreation()
+                return false
+            }
+
+            // 4. Inject the DEK so it's ready for immediate use, unless a lock ran meanwhile:
+            // then the new vault exists but stays locked.
+            sessionManager.openVault(newDek, lockEpoch)
+            return true
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            rollBackVaultCreation()
+            throw e
+        } catch (e: Exception) {
+            if (com.example.BuildConfig.DEBUG) e.printStackTrace()
+            rollBackVaultCreation()
+            return false
         } finally {
             java.util.Arrays.fill(newDek, 0.toByte())
             mpKek?.let { java.util.Arrays.fill(it, 0.toByte()) }
+            checkDek?.let { java.util.Arrays.fill(it, 0.toByte()) }
+        }
+    }
+
+    /**
+     * Undoes a failed [createVault]: no DEK in memory, no wrapped DEK, no master hash or KDF
+     * metadata, so the next launch shows Setup. Safe because no vault existed before (checked under
+     * the lock) and nothing was encrypted with the new key. Best effort: a hash left behind with
+     * no key and no rows still unlocks (as an empty vault) with the same password.
+     */
+    private suspend fun rollBackVaultCreation() {
+        sessionManager.lock()
+        try {
+            settingsRepository.removeDekMpWrappedSync()
+        } catch (e: Exception) {
+            if (com.example.BuildConfig.DEBUG) e.printStackTrace()
+        }
+        try {
+            withContext(kotlinx.coroutines.NonCancellable) {
+                settingsRepository.clearMasterPasswordAndKdfMetadata()
+            }
+        } catch (e: Exception) {
+            if (com.example.BuildConfig.DEBUG) e.printStackTrace()
         }
     }
 
@@ -577,9 +1012,16 @@ class VaultViewModel(
     }
 
     fun addEntry(entry: VaultEntry) {
-        viewModelScope.launch { 
-            vaultRepository.insertEntry(entry)
-            recalculateSecurityStats()
+        viewModelScope.launch {
+            try {
+                vaultRepository.insertEntry(entry)
+                recalculateSecurityStats()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // E.g. the vault locked first: nothing was saved.
+                if (com.example.BuildConfig.DEBUG) e.printStackTrace()
+            }
         }
     }
 
@@ -601,8 +1043,96 @@ class VaultViewModel(
         recalculateSecurityStats()
     }
 
-    suspend fun generateTxtExportPayload(): ByteArray {
-        val entries = getAllEntriesDecrypted()
+    /**
+     * The export file for [format] ("txt", "json", anything else: password-protected .vpex) and how
+     * many entries were left out because they can't be decrypted (their placeholder would come back
+     * as a junk entry on import). Throws [com.example.security.VaultLockedException] while locked.
+     */
+    suspend fun generateExportPayload(format: String, password: String): ExportPayload {
+        if (format != "txt" && format != "json") requireBackupPassword(password)
+        val (entries, skipped) = exportableEntries()
+        val bytes = when (format) {
+            "txt" -> txtExport(entries)
+            "json" -> jsonExport(entries)
+            else -> vpexExport(jsonExport(entries), password)
+        }
+        return ExportPayload(bytes, skipped)
+    }
+
+    // The password for a .vpex export. Kept here, never in saved instance state, and only while
+    // its dialog is shown or the file picker it was typed for is open; cleared after every attempt
+    // and whenever the vault locks.
+    private val _exportPassword = MutableStateFlow("")
+    val exportPassword: StateFlow<String> = _exportPassword.asStateFlow()
+
+    // True from the picker launch for the current password until the picker returns.
+    @Volatile
+    private var exportPickerPending = false
+
+    init {
+        // However the vault locks (lock(), auto-lock, the session manager directly), the password
+        // goes. Every lock is a new epoch, so none is missed (isUnlocked could conflate one away).
+        viewModelScope.launch {
+            sessionManager.lockEpochs.collect { clearExportPassword() }
+        }
+    }
+
+    fun setExportPassword(password: String) {
+        _exportPassword.value = password
+    }
+
+    fun clearExportPassword() {
+        exportPickerPending = false
+        _exportPassword.value = ""
+    }
+
+    /** The file picker was opened for the current password: it must outlive the dialog until the picker returns. */
+    fun onExportPickerLaunched() {
+        exportPickerPending = true
+    }
+
+    /** The password dialog left the screen (closed, navigated away, or the screen was recreated). */
+    fun onExportPasswordDialogGone() {
+        if (!exportPickerPending) _exportPassword.value = ""
+    }
+
+    /** An export attempt: what happened, and how many unreadable entries were left out. */
+    class ExportReport(val outcome: ExportOutcome, val skippedEntries: Int)
+
+    /**
+     * Exports the vault in [format] to [document] (see [ExportWriter]), with the password set by
+     * [setExportPassword] for .vpex. The password is cleared afterwards, whatever happened.
+     */
+    suspend fun exportTo(document: ExportDocument, format: String): ExportReport {
+        exportPickerPending = false
+        val password = _exportPassword.value
+        try {
+            var skipped = 0
+            val outcome = ExportWriter.export(document) {
+                generateExportPayload(format, password).also { skipped = it.skippedEntries }.bytes
+            }
+            return ExportReport(outcome, skipped)
+        } finally {
+            // Only this attempt's password: one typed meanwhile for the next attempt stays.
+            _exportPassword.compareAndSet(password, "")
+        }
+    }
+
+    /** Tests: runs right after an unlock opened the vault (where the lock screen's scope goes away). */
+    @androidx.annotation.VisibleForTesting
+    @Volatile
+    internal var vaultOpenedHook: (() -> Unit)? = null
+
+    /** The entries an export writes, and how many undecryptable ones it leaves out. */
+    private suspend fun exportableEntries(): Pair<List<VaultEntry>, Int> {
+        val all = getAllEntriesDecrypted()
+        val readable = all.filter { !it.isDecryptionFailed }
+        return readable to (all.size - readable.size)
+    }
+
+    suspend fun generateTxtExportPayload(): ByteArray = txtExport(exportableEntries().first)
+
+    private fun txtExport(entries: List<VaultEntry>): ByteArray {
         val builder = StringBuilder()
         for (entry in entries) {
             builder.appendLine("Title: ${entry.title}")
@@ -651,8 +1181,9 @@ class VaultViewModel(
         return builder.toString().toByteArray(Charsets.UTF_8)
     }
 
-    suspend fun generateSimplifiedJsonExportPayload(): ByteArray {
-        val entries = getAllEntriesDecrypted()
+    suspend fun generateSimplifiedJsonExportPayload(): ByteArray = jsonExport(exportableEntries().first)
+
+    private fun jsonExport(entries: List<VaultEntry>): ByteArray {
         val usedTitles = mutableSetOf<String>()
         
         val rootObj = buildJsonObject {
@@ -694,7 +1225,19 @@ class VaultViewModel(
     }
 
     suspend fun generateVpexExportPayload(password: String): ByteArray {
-        val jsonString = String(generateSimplifiedJsonExportPayload(), Charsets.UTF_8)
+        requireBackupPassword(password)
+        return vpexExport(generateSimplifiedJsonExportPayload(), password)
+    }
+
+    /** Never a backup "protected" by an empty or short password (e.g. one lost with the screen state). */
+    private fun requireBackupPassword(password: String) {
+        require(password.length >= EXPORT_PASSWORD_MIN_LENGTH) {
+            "The backup password must be at least $EXPORT_PASSWORD_MIN_LENGTH characters."
+        }
+    }
+
+    private fun vpexExport(json: ByteArray, password: String): ByteArray {
+        val jsonString = String(json, Charsets.UTF_8)
         val backupData = com.example.security.CryptoManager.encryptBackup(jsonString, password)
         val base64Backup = android.util.Base64.encodeToString(backupData, android.util.Base64.NO_WRAP)
         return base64Backup.toByteArray(Charsets.UTF_8)
@@ -881,8 +1424,15 @@ class VaultViewModel(
         return Pair(validEntries, localInvalidCount)
     }
 
+    /** For exports: throws [com.example.security.VaultLockedException] rather than return an empty list when locked. */
     suspend fun getAllEntriesDecrypted(): List<VaultEntry> {
-        return vaultRepository.getAllEntriesSync()
+        val crypto = vaultRepository.cryptoManager
+        val start = crypto.keyState()
+        if (!start.hasKey) throw com.example.security.VaultLockedException()
+        val entries = vaultRepository.getAllEntriesSync()
+        // Locked while reading: the list may be empty or partial, so it must not be exported.
+        if (crypto.keyState() != start) throw com.example.security.VaultLockedException()
+        return entries
     }
 
     suspend fun getEntryById(id: Int): VaultEntry? {
@@ -890,9 +1440,16 @@ class VaultViewModel(
     }
 
     fun updateEntry(entry: VaultEntry) {
-        viewModelScope.launch { 
-            vaultRepository.updateEntry(entry)
-            recalculateSecurityStats()
+        viewModelScope.launch {
+            try {
+                vaultRepository.updateEntry(entry)
+                recalculateSecurityStats()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // E.g. the vault locked first: nothing was saved.
+                if (com.example.BuildConfig.DEBUG) e.printStackTrace()
+            }
         }
     }
 

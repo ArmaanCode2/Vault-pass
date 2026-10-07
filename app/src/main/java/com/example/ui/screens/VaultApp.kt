@@ -1,7 +1,20 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import com.example.R
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -34,10 +47,10 @@ fun VaultApp(
     viewModel: VaultViewModel,
     onShowBiometricPrompt: () -> Unit
 ) {
-    val isFirstLaunch by viewModel.isFirstLaunch.collectAsStateWithLifecycle()
+    val launchState by viewModel.launchState.collectAsStateWithLifecycle()
     val isUnlocked by viewModel.isUnlocked.collectAsStateWithLifecycle()
 
-    if (isFirstLaunch == null) {
+    if (launchState == null) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
@@ -47,11 +60,28 @@ fun VaultApp(
         return
     }
 
-    if (isFirstLaunch == true) {
+    if (launchState == com.example.ui.VaultLaunchState.SETUP) {
         SetupScreen(viewModel)
+    } else if (launchState == com.example.ui.VaultLaunchState.UNREADABLE && !isUnlocked) {
+        // F17: a settings read error never shows Setup (which would overwrite the vault key).
+        VaultUnreadableScreen(onRetry = { viewModel.retryLaunchCheck() })
     } else if (!isUnlocked) {
         LockScreen(viewModel, onShowBiometricPrompt)
     } else {
+        val migrationUnreadable by viewModel.migrationUnreadableCount.collectAsStateWithLifecycle()
+        migrationUnreadable?.let { count ->
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissMigrationNotice() },
+                title = { Text(stringResource(R.string.migration_partial_title)) },
+                text = { Text(stringResource(R.string.migration_partial_message, count)) },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.dismissMigrationNotice() }) {
+                        Text(stringResource(R.string.migration_partial_ok))
+                    }
+                }
+            )
+        }
+        rememberUpdateController()?.let { UpdateDialogHost(it) }
         val navController = rememberNavController()
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route?.substringBefore("/")
@@ -109,7 +139,8 @@ fun VaultApp(
                                 pairedDeviceRepository = app.container.pairedDeviceRepository,
                                 lanDiscoveryManager = app.container.lanDiscoveryManager,
                                 lanSocketTransport = app.container.lanSocketTransport,
-                                vaultRepository = app.container.vaultRepository
+                                vaultRepository = app.container.vaultRepository,
+                                isVaultUnlocked = viewModel.isUnlocked
                             )
                         )
                         com.example.ui.sync.LanSyncScreen(
@@ -132,23 +163,82 @@ fun VaultApp(
                     composable("sync_review") {
                         val context = androidx.compose.ui.platform.LocalContext.current
                         val app = context.applicationContext as com.example.VaultPassApplication
-                        val lanSyncViewModel: com.example.ui.sync.LanSyncViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-                            factory = com.example.ui.sync.LanSyncViewModelFactory(
-                                pairedDeviceRepository = app.container.pairedDeviceRepository,
-                                lanDiscoveryManager = app.container.lanDiscoveryManager,
-                                lanSocketTransport = app.container.lanSocketTransport,
-                                vaultRepository = app.container.vaultRepository
+                        val parentEntry: androidx.navigation.NavBackStackEntry? = androidx.compose.runtime.remember(navController) {
+                            try {
+                                navController.getBackStackEntry("lan_sync")
+                            } catch (_: Exception) {
+                                null
+                            }
+                        }
+                        val lanSyncViewModel: com.example.ui.sync.LanSyncViewModel = if (parentEntry != null) {
+                            androidx.lifecycle.viewmodel.compose.viewModel(
+                                viewModelStoreOwner = parentEntry,
+                                factory = com.example.ui.sync.LanSyncViewModelFactory(
+                                    pairedDeviceRepository = app.container.pairedDeviceRepository,
+                                    lanDiscoveryManager = app.container.lanDiscoveryManager,
+                                    lanSocketTransport = app.container.lanSocketTransport,
+                                    vaultRepository = app.container.vaultRepository,
+                                    isVaultUnlocked = viewModel.isUnlocked
+                                )
                             )
-                        )
+                        } else {
+                            androidx.lifecycle.viewmodel.compose.viewModel(
+                                factory = com.example.ui.sync.LanSyncViewModelFactory(
+                                    pairedDeviceRepository = app.container.pairedDeviceRepository,
+                                    lanDiscoveryManager = app.container.lanDiscoveryManager,
+                                    lanSocketTransport = app.container.lanSocketTransport,
+                                    vaultRepository = app.container.vaultRepository,
+                                    isVaultUnlocked = viewModel.isUnlocked
+                                )
+                            )
+                        }
                         com.example.ui.sync.SyncReviewScreen(
                             viewModel = lanSyncViewModel,
                             onNavigateBack = { navController.popBackStack() },
-                            onSyncCompleted = {
-                                navController.popBackStack("lan_sync", inclusive = false)
-                            }
+                            onSyncCompleted = { navController.popBackStack("lan_sync", inclusive = false) }
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VaultUnreadableScreen(onRetry: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .systemBarsPadding()
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                Icons.Default.Shield,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(48.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                stringResource(R.string.vault_unreadable_title),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                stringResource(R.string.vault_unreadable_message),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(onClick = onRetry) {
+                Text(stringResource(R.string.vault_unreadable_retry))
             }
         }
     }

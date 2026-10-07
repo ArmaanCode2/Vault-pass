@@ -9,6 +9,8 @@ class VaultPassApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        // First start after an in-app update was installed: drop the downloaded APK (and stale leftovers).
+        // Runs on a background thread; the update engine waits for it before any update state is read.
+        container.updateEngine.startStartupCleanup(container.applicationScope)
     }
 }
-

@@ -1,15 +1,6 @@
 package com.example.domain.sync.models
 
-import kotlinx.serialization.Serializable
-
-@Serializable
-data class BeaconPayload(
-    val deviceId: String,
-    val deviceName: String,
-    val port: Int = 53853,
-    val type: String = "BEACON"
-)
-
+/** A paired device seen on the local network through an authentic beacon. */
 data class DevicePresence(
     val deviceId: String,
     val deviceName: String,

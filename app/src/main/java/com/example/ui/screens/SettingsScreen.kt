@@ -19,6 +19,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -57,6 +58,13 @@ fun getFileName(context: Context, uri: Uri): String {
     return result ?: "Unknown file"
 }
 
+/**
+ * The export format the user picked. Saved with the screen state: the file picker's result can
+ * arrive after the screen was recreated (rotation, or the process was killed meanwhile).
+ */
+@Composable
+fun rememberExportFormat(): MutableState<String> = rememberSaveable { mutableStateOf("vpex") }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
@@ -89,9 +97,10 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
     var invalidCount by remember { mutableStateOf(0) }
     
     var showExportPasswordDialog by remember { mutableStateOf(false) }
-    var exportPassword by remember { mutableStateOf("") }
+    // The password lives in the view model (never in saved state) and is cleared after each attempt.
+    val exportPassword by viewModel.exportPassword.collectAsStateWithLifecycle()
     var showExportFormatDialog by remember { mutableStateOf(false) }
-    var pendingExportFormat by remember { mutableStateOf("vpex") }
+    var pendingExportFormat by rememberExportFormat()
     var exportPasswordVisible by remember { mutableStateOf(false) }
     
     var showImportPasswordDialog by remember { mutableStateOf(false) }
@@ -111,29 +120,37 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri: Uri? ->
         viewModel.setPerformingSystemOperation(false)
         if (com.example.BuildConfig.DEBUG) Log.d("VaultPass", "Export launcher returned URI: $uri")
+        if (uri == null) {
+            // The picker was cancelled: that attempt is over too.
+            viewModel.clearExportPassword()
+        }
         uri?.let {
             scope.launch {
-                try {
-                    val payload = when (pendingExportFormat) {
-                        "txt" -> viewModel.generateTxtExportPayload()
-                        "json" -> viewModel.generateSimplifiedJsonExportPayload()
-                        else -> viewModel.generateVpexExportPayload(exportPassword)
-                    }
-                    withContext(Dispatchers.IO) {
-                        val outputStream = context.contentResolver.openOutputStream(it)
-                            ?: throw java.io.IOException("Unable to open output stream for destination: $it")
-                        outputStream.use { out ->
-                            out.write(payload)
-                            out.flush()
+                // Never deletes a file the user picked to overwrite, nor a finished export (see
+                // ExportWriter). The password is cleared whatever happens.
+                val report = viewModel.exportTo(com.example.ui.SafExportDocument(context.contentResolver, it), pendingExportFormat)
+                when (val outcome = report.outcome) {
+                    is com.example.ui.ExportOutcome.Written -> {
+                        val fileName = outcome.fileName
+                            ?: try { getFileName(context, uri) } catch (e: Exception) { "Unknown file" }
+                        if (com.example.BuildConfig.DEBUG) Log.d("VaultPass", "Secure export successful to file: $fileName")
+                        val skipped = report.skippedEntries
+                        val skippedNote = if (skipped > 0) {
+                            "\n$skipped unreadable ${if (skipped == 1) "entry was" else "entries were"} left out"
+                        } else {
+                            ""
                         }
+                        Toast.makeText(context, "Secure export completed\nSaved to: $fileName$skippedNote", Toast.LENGTH_LONG).show()
                     }
-                    val fileName = getFileName(context, uri)
-                    if (com.example.BuildConfig.DEBUG) Log.d("VaultPass", "Secure export successful to file: $fileName")
-                    Toast.makeText(context, "Secure export completed\nSaved to: $fileName", Toast.LENGTH_LONG).show()
-                    exportPassword = ""
-                } catch (e: Exception) {
-                    if (com.example.BuildConfig.DEBUG) Log.e("VaultPass", "Exception during export data generation/write", e)
-                    Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                    is com.example.ui.ExportOutcome.Failed -> {
+                        if (com.example.BuildConfig.DEBUG) Log.e("VaultPass", "Exception during export data generation/write", outcome.error)
+                        val message = if (outcome.mayBeIncomplete) {
+                            "Export failed: ${outcome.error.message}\nThe file may be incomplete."
+                        } else {
+                            "Export failed: ${outcome.error.message}"
+                        }
+                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                    }
                 }
             }
         }
@@ -247,8 +264,13 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
         }
 
         if (showExportPasswordDialog) {
+            // However the dialog goes (closed, navigation, the screen recreated on rotation), the
+            // password goes with it, unless the file picker was opened for it.
+            DisposableEffect(Unit) {
+                onDispose { viewModel.onExportPasswordDialogGone() }
+            }
             AlertDialog(
-                onDismissRequest = { showExportPasswordDialog = false },
+                onDismissRequest = { showExportPasswordDialog = false; viewModel.clearExportPassword() },
                 title = { Text(stringResource(R.string.settings_secure_export)) },
                 text = {
                     Column {
@@ -256,7 +278,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                         Spacer(modifier = Modifier.height(16.dp))
                         OutlinedTextField(
                             value = exportPassword,
-                            onValueChange = { exportPassword = it },
+                            onValueChange = { viewModel.setExportPassword(it) },
                             label = { Text(stringResource(R.string.settings_backup_password)) },
                             singleLine = true,
                             visualTransformation = if (exportPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
@@ -275,17 +297,20 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            if (exportPassword.length >= 8) {
+                            if (exportPassword.length >= com.example.ui.EXPORT_PASSWORD_MIN_LENGTH) {
+                                // Before the dialog goes: the password must wait for the picker.
+                                viewModel.onExportPickerLaunched()
                                 showExportPasswordDialog = false
                                 try {
                                     viewModel.setPerformingSystemOperation(true)
                                     exportLauncher.launch("vaultpass_backup.vpex")
                                 } catch (e: Exception) {
                                     viewModel.setPerformingSystemOperation(false)
+                                    viewModel.clearExportPassword()
                                     Toast.makeText(context, "Launch failed: ${e.message}", Toast.LENGTH_LONG).show()
                                 }
                             } else {
-                                Toast.makeText(context, "Password must be at least 8 characters", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Password must be at least ${com.example.ui.EXPORT_PASSWORD_MIN_LENGTH} characters", Toast.LENGTH_SHORT).show()
                             }
                         }
                     ) {
@@ -293,7 +318,7 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showExportPasswordDialog = false; exportPassword = "" }) {
+                    TextButton(onClick = { showExportPasswordDialog = false; viewModel.clearExportPassword() }) {
                         Text(stringResource(R.string.common_cancel))
                     }
                 }
@@ -850,6 +875,11 @@ fun SettingsScreen(viewModel: VaultViewModel, navController: NavController) {
                             onClick = { navController.navigate("lan_sync") }
                         )
                     }
+                }
+
+                // Updates (hidden in builds without an update feed)
+                rememberUpdateController()?.let { updateController ->
+                    UpdateSettingsSection(updateController, viewModel.settingsRepository)
                 }
 
                 Spacer(modifier = Modifier.height(40.dp))

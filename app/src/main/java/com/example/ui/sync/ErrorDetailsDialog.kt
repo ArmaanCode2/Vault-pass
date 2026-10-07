@@ -47,6 +47,9 @@ import java.util.Locale
 fun ErrorDetailsDialog(
     errorMessage: String,
     technicalDetails: String? = null,
+    /** An extra button, for example "Sync again" after the devices came out different. */
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -89,7 +92,7 @@ fun ErrorDetailsDialog(
                             color = MaterialTheme.colorScheme.error
                         )
                         Text(
-                            text = "Contact Administrator for Solution",
+                            text = "Try again, or restart VaultPass and try again. Don't uninstall VaultPass or clear its data: that would delete your vault. If it keeps failing, ask for help at https://github.com/ArmaanCode2/Vault-pass/issues",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -136,6 +139,15 @@ fun ErrorDetailsDialog(
                         Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Copy Error")
+                    }
+                    if (actionLabel != null && onAction != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        OutlinedButton(
+                            onClick = onAction,
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(actionLabel)
+                        }
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(

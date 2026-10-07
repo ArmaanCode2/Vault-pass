@@ -1,0 +1,23 @@
+Privileged apps list (Credential Manager / Google Password Manager)
+===================================================================
+
+File:          assets/privileged_browsers.json (unmodified copy)
+Source:        https://www.gstatic.com/gpm-passkeys-privileged-apps/apps.json
+Referenced by: https://developer.android.com/identity/sign-in/credential-provider
+               ("Google Password Manager uses an openly-available allowlist for calls to getOrigin(). As a
+               credential provider, you can use this list or provide your own in the JSON format described by
+               the API.")
+Downloaded:    2026-10-02 (server Last-Modified: Wed, 16 Sep 2026 17:08:00 GMT)
+Size:          29657 bytes
+SHA-256:       0891ee2507894999ead3eb4f42e17936a2e8ed8f8fd95592535c9811ef319481
+
+VaultPass uses this list only to decide whether the web domain an app reports to autofill can be trusted: the
+requesting package must be listed and its current signing certificate must match one of the "release"
+fingerprints listed for it. "userdebug" fingerprints are ignored.
+
+License
+-------
+
+The list file itself carries no license statement. The Android developer documentation page that links to it
+states: "Content and code samples on this page are subject to the licenses described in the Content License"
+(https://developer.android.com/license). The list is maintained by Google.

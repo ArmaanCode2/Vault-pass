@@ -112,18 +112,27 @@ fun CameraQrScanScreen(
     var errorDialogDetails by remember { mutableStateOf<Pair<String, String?>?>(null) }
 
     val syncState by lanSocketTransport.syncState.collectAsState()
-    val pendingPairingRequest by lanSocketTransport.pendingPairingRequest.collectAsState()
+    val lastError by lanSocketTransport.lastError.collectAsState()
 
-    LaunchedEffect(syncState) {
+    // Set once this screen's pairing request is on its way, so only its outcome is acted on
+    // (not a PAIRED or ERROR state left over from an earlier pairing).
+    var awaitingPairingResult by remember { mutableStateOf(false) }
+
+    LaunchedEffect(syncState, awaitingPairingResult) {
+        if (!awaitingPairingResult) return@LaunchedEffect
         if (syncState == SyncState.PAIRED) {
+            awaitingPairingResult = false
             isConnectingOrWaiting = false
             onPairingSuccess()
         } else if (syncState == SyncState.ERROR) {
+            awaitingPairingResult = false
             isConnectingOrWaiting = false
             if (errorDialogDetails == null) {
                 errorDialogDetails = Pair(
-                    "Failed to connect to peer device.",
-                    "Please ensure both devices are on the same Wi-Fi network and firewalls allow LAN traffic."
+                    lastError ?: "Failed to connect to peer device.",
+                    if (lastError == null) {
+                        "Please ensure both devices are on the same Wi-Fi network and firewalls allow LAN traffic."
+                    } else null
                 )
             }
         }
@@ -132,59 +141,54 @@ fun CameraQrScanScreen(
     val qrAnalyzer = remember(discoveryManager, lanSocketTransport) {
         lateinit var analyzer: QrCodeAnalyzer
         analyzer = QrCodeAnalyzer { qrContent ->
+            if (isConnectingOrWaiting || errorDialogDetails != null) return@QrCodeAnalyzer
             val pairingData = LanSocketTransport.parseQrPairingUri(qrContent)
-            if (pairingData != null && !isConnectingOrWaiting) {
-                analyzer.pause()
-                targetDeviceName = pairingData.deviceName
-                isConnectingOrWaiting = true
-                scope.launch {
-                    val localIp = discoveryManager?.getLocalIpAddress() ?: "127.0.0.1"
-                    val localPrefix = if (localIp.contains(".")) localIp.substringBeforeLast(".") + "." else ""
-
-                    // 1. Start Mobile TCP Server for reverse connection
-                    lanSocketTransport.startServer()
-
-                    // 2. Send UDP Reverse Connect Signal to Desktop
-                    discoveryManager?.sendReverseConnectSignal(
-                        desktopIp = pairingData.primaryIpAddress,
-                        pairingToken = pairingData.pairingToken,
-                        mobileIp = localIp
+            if (pairingData == null) {
+                if (LanSocketTransport.isLegacyPairingUri(qrContent)) {
+                    analyzer.pause()
+                    errorDialogDetails = Pair(
+                        "This QR code is from an older version of VaultPass Desktop.",
+                        "Update VaultPass on your computer, then show a new pairing code and scan it."
                     )
+                }
+                return@QrCodeAnalyzer
+            }
+            analyzer.pause()
+            targetDeviceName = pairingData.deviceName
+            isConnectingOrWaiting = true
+            scope.launch {
+                val localIp = discoveryManager?.getLocalIpAddress() ?: "127.0.0.1"
+                val localPrefix = if (localIp.contains(".")) localIp.substringBeforeLast(".") + "." else ""
 
-                    // 3. Sort candidate IPs: Known UDP first, then subnet matching
-                    val knownUdpIp = discoveryManager?.discoveredDevices?.value?.get(pairingData.deviceId)?.ipAddress
-                    val candidates = pairingData.candidateIpAddresses.toMutableList()
-                    if (knownUdpIp != null && !candidates.contains(knownUdpIp)) {
-                        candidates.add(0, knownUdpIp)
+                // Try addresses on this phone's subnet first.
+                val sortedCandidates = pairingData.candidateIpAddresses.sortedWith(Comparator { a, b ->
+                    when {
+                        localPrefix.isNotEmpty() && a.startsWith(localPrefix) && !b.startsWith(localPrefix) -> -1
+                        localPrefix.isNotEmpty() && b.startsWith(localPrefix) && !a.startsWith(localPrefix) -> 1
+                        else -> 0
                     }
+                })
+                val orderedData = QrPairingData(
+                    deviceId = pairingData.deviceId,
+                    deviceName = pairingData.deviceName,
+                    pairingSecret = pairingData.pairingSecret,
+                    primaryIpAddress = pairingData.primaryIpAddress,
+                    candidateIpAddresses = sortedCandidates,
+                    port = pairingData.port
+                )
 
-                    val sortedCandidates = candidates.sortedWith(Comparator { a, b ->
-                        when {
-                            knownUdpIp != null && a == knownUdpIp -> -1
-                            knownUdpIp != null && b == knownUdpIp -> 1
-                            localPrefix.isNotEmpty() && a.startsWith(localPrefix) && !b.startsWith(localPrefix) -> -1
-                            localPrefix.isNotEmpty() && b.startsWith(localPrefix) && !a.startsWith(localPrefix) -> 1
-                            else -> 0
-                        }
-                    })
-
-                    // 4. Attempt direct connect with fallback
-                    val result = lanSocketTransport.connectToPeerCandidates(sortedCandidates, pairingData.port)
-                    if (result.isSuccess) {
-                        lanSocketTransport.initiatePairing(pairingData)
-                    } else {
-                        // Check if Desktop reverse connected to us in the meantime
-                        if (lanSocketTransport.syncState.value != SyncState.AWAITING_LOCAL_APPROVAL &&
-                            lanSocketTransport.syncState.value != SyncState.WAITING_FOR_REMOTE_APPROVAL &&
-                            lanSocketTransport.syncState.value != SyncState.PAIRED
-                        ) {
-                            isConnectingOrWaiting = false
-                            val errorDetail = result.exceptionOrNull()?.message ?: "Socket timeout"
-                            errorDialogDetails = Pair(
-                                "Could not establish connection to ${pairingData.deviceName}.",
-                                "Candidate IPs tried:\n${sortedCandidates.joinToString("\n")}\n\n$errorDetail"
-                            )
-                        }
+                when (val start = lanSocketTransport.pairWithDesktop(orderedData)) {
+                    is LanSocketTransport.PairingStart.Started -> awaitingPairingResult = true
+                    is LanSocketTransport.PairingStart.Unreachable -> {
+                        isConnectingOrWaiting = false
+                        errorDialogDetails = Pair(
+                            "Could not establish connection to ${pairingData.deviceName}.",
+                            "Candidate IPs tried:\n${sortedCandidates.joinToString("\n")}\n\n${start.details}"
+                        )
+                    }
+                    is LanSocketTransport.PairingStart.Failed -> {
+                        isConnectingOrWaiting = false
+                        errorDialogDetails = Pair("Could not pair with ${pairingData.deviceName}.", start.details)
                     }
                 }
             }
@@ -264,9 +268,8 @@ fun CameraQrScanScreen(
                         }
                         cameraExecutor.shutdown()
                         if (isConnectingOrWaiting) {
-                            scope.launch {
-                                lanSocketTransport.disconnect()
-                            }
+                            // Not via `scope`: it is already cancelled when this runs.
+                            lanSocketTransport.disconnect()
                         }
                     }
                 }
@@ -382,7 +385,7 @@ fun CameraQrScanScreen(
             }
 
             // Connecting & Waiting for Remote Approval Dialog
-            if (isConnectingOrWaiting && pendingPairingRequest == null) {
+            if (isConnectingOrWaiting) {
                 AlertDialog(
                     onDismissRequest = { /* Require explicit cancel */ },
                     title = { Text("LAN Sync Pairing") },
@@ -407,6 +410,7 @@ fun CameraQrScanScreen(
                         TextButton(
                             onClick = {
                                 isConnectingOrWaiting = false
+                                awaitingPairingResult = false
                                 scope.launch {
                                     lanSocketTransport.disconnect()
                                     qrAnalyzer.resume()
@@ -414,45 +418,6 @@ fun CameraQrScanScreen(
                             }
                         ) {
                             Text("Cancel")
-                        }
-                    }
-                )
-            }
-
-            // Incoming Pairing Request Dialog (e.g. via Reverse Connect)
-            pendingPairingRequest?.let { request ->
-                AlertDialog(
-                    onDismissRequest = {
-                        scope.launch {
-                            lanSocketTransport.declinePairing(request)
-                            qrAnalyzer.resume()
-                        }
-                    },
-                    title = { Text("Accept Pairing Request") },
-                    text = {
-                        Text("Device \"${request.deviceName}\" wants to pair with this device.")
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                scope.launch {
-                                    lanSocketTransport.acceptPairing(request)
-                                }
-                            }
-                        ) {
-                            Text("Accept")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(
-                            onClick = {
-                                scope.launch {
-                                    lanSocketTransport.declinePairing(request)
-                                    qrAnalyzer.resume()
-                                }
-                            }
-                        ) {
-                            Text("Decline")
                         }
                     }
                 )

@@ -10,6 +10,7 @@ import com.example.security.CryptoManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 
 class AppContainer(private val context: Context) {
     val cryptoManager: CryptoManager by lazy {
@@ -25,7 +26,7 @@ class AppContainer(private val context: Context) {
     }
     
     val vaultRepository: VaultRepository by lazy {
-        VaultRepository(appDatabase.vaultDao(), cryptoManager)
+        VaultRepository(appDatabase.vaultDao(), cryptoManager, appDatabase)
     }
     
     val autofillDiagnosticsRepository: com.example.repository.AutofillDiagnosticsRepository by lazy {
@@ -34,6 +35,22 @@ class AppContainer(private val context: Context) {
 
     val vaultSessionManager: com.example.security.VaultSessionManager by lazy {
         com.example.security.VaultSessionManager.getInstance(settingsRepository, cryptoManager, vaultRepository)
+    }
+
+    /** Process-wide scope for work that outlives screens (update check, download, install). */
+    val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    val updateEngine: com.example.update.UpdateEngine by lazy {
+        com.example.update.UpdateEngine(context)
+    }
+
+    val updateController: com.example.update.UpdateController by lazy {
+        com.example.update.UpdateController(
+            updates = updateEngine,
+            installer = com.example.update.UpdateInstaller(context, updateEngine),
+            checkOnOpen = { settingsRepository.checkUpdatesOnOpen.first() },
+            scope = applicationScope
+        )
     }
 
     val pairedDeviceRepository: PairedDeviceRepository by lazy {
@@ -47,7 +64,9 @@ class AppContainer(private val context: Context) {
             context = context,
             deviceId = deviceId,
             deviceName = deviceName,
-            scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+            scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
+            pairedDeviceRepository = pairedDeviceRepository,
+            pairKeyProtector = com.example.network.sync.AndroidPairKeyProtector(cryptoManager)
         )
     }
 
@@ -59,7 +78,8 @@ class AppContainer(private val context: Context) {
             localDeviceId = deviceId,
             localDeviceName = deviceName,
             pairedDeviceRepository = pairedDeviceRepository,
-            scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+            scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
+            pairKeyProtector = com.example.network.sync.AndroidPairKeyProtector(cryptoManager)
         )
     }
 }

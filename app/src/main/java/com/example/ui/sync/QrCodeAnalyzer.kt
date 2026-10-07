@@ -47,17 +47,15 @@ class QrCodeAnalyzer(
 
             val width = image.width
             val height = image.height
+            // Rows are rowStride bytes apart (padding after each row); the last row may be unpadded.
+            val rowStride = plane.rowStride
+            if (width <= 0 || height <= 0 || rowStride < width ||
+                data.size.toLong() < rowStride.toLong() * (height - 1) + width
+            ) {
+                return
+            }
 
-            val source = PlanarYUVLuminanceSource(
-                data,
-                width,
-                height,
-                0,
-                0,
-                width,
-                height,
-                false
-            )
+            val source = luminanceSource(data, width, height, rowStride)
 
             val binaryBitmap = BinaryBitmap(HybridBinarizer(source))
             val result = reader.decodeWithState(binaryBitmap)
@@ -72,6 +70,18 @@ class QrCodeAnalyzer(
         } finally {
             reader.reset()
             image.close()
+        }
+    }
+
+    companion object {
+        /**
+         * The Y plane as zxing reads it: [rowStride] bytes per row in [data], of which the first
+         * [width] are pixels. zxing only reads y * rowStride + x for x < width, so [data] needs
+         * rowStride * (height - 1) + width bytes (the last row may be unpadded).
+         */
+        internal fun luminanceSource(data: ByteArray, width: Int, height: Int, rowStride: Int): PlanarYUVLuminanceSource {
+            require(rowStride >= width) { "rowStride $rowStride is smaller than the width $width" }
+            return PlanarYUVLuminanceSource(data, rowStride, height, 0, 0, width, height, false)
         }
     }
 }

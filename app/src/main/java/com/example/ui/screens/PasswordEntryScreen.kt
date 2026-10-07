@@ -49,6 +49,7 @@ import androidx.navigation.NavController
 import com.example.domain.models.CustomField
 import com.example.domain.models.VaultEntry
 import com.example.ui.VaultViewModel
+import com.vaultpass.synccore.EntryLimits
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -87,7 +88,10 @@ fun PasswordEntryScreen(
         )
     ) { mutableStateOf(emptyList<String>()) }
     var newTagText by rememberSaveable { mutableStateOf("") }
-    
+    /** Why the last "add tag" did nothing; a silent no-op looks like a broken button. */
+    var tagMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var customFieldMessage by rememberSaveable { mutableStateOf<String?>(null) }
+
     var passwordVisible by rememberSaveable { mutableStateOf(!hidePasswordsByDefault) }
     var showDeleteConfirm by rememberSaveable { mutableStateOf(false) }
     var showDiscardConfirm by rememberSaveable { mutableStateOf(false) }
@@ -177,25 +181,33 @@ fun PasswordEntryScreen(
         showDiscardConfirm = true
     }
     
-    val titleError = if (title.length > 100) "Max 100 characters" else if (title.isBlank()) "Title is required" else null
-    val usernameError = if (username.length > 150) "Max 150 characters" else null
-    val passwordError = if (password.length > 500) "Max 500 characters" else null
-    val websiteError = if (website.length > 250) "Max 250 characters" else null
-    val notesError = if (notes.length > 2000) "Max 2000 characters" else null
-    
-    val customFieldsErrors = customFields.map { 
-        if (it.key.length > 50) "Key max 50 characters" 
-        else if (it.value.length > 200) "Value max 200 characters" 
+    // Every limit comes from the shared core, so an entry made here also fits on the desktop.
+    val titleError = if (title.length > EntryLimits.TITLE) EntryLimits.tooLong(EntryLimits.TITLE)
+        else if (title.isBlank()) "Title is required" else null
+    val usernameError = if (username.length > EntryLimits.USERNAME) EntryLimits.tooLong(EntryLimits.USERNAME) else null
+    val passwordError = if (password.length > EntryLimits.PASSWORD) EntryLimits.tooLong(EntryLimits.PASSWORD) else null
+    val websiteError = if (website.length > EntryLimits.WEBSITE) EntryLimits.tooLong(EntryLimits.WEBSITE) else null
+    val notesError = if (notes.length > EntryLimits.NOTES) EntryLimits.tooLong(EntryLimits.NOTES) else null
+
+    val customFieldsErrors = customFields.map {
+        if (it.key.length > EntryLimits.CUSTOM_FIELD_KEY) "Key: ${EntryLimits.tooLong(EntryLimits.CUSTOM_FIELD_KEY)}"
+        else if (it.value.length > EntryLimits.CUSTOM_FIELD_VALUE) "Value: ${EntryLimits.tooLong(EntryLimits.CUSTOM_FIELD_VALUE)}"
         else null
     }
-    val hasCustomFieldsError = customFieldsErrors.any { it != null } || customFields.size > 20
-    
-    val hasErrors = titleError != null || usernameError != null || passwordError != null || websiteError != null || notesError != null || hasCustomFieldsError
+    val customFieldsFull = customFields.size >= EntryLimits.MAX_CUSTOM_FIELDS
+    val hasCustomFieldsError = customFieldsErrors.any { it != null } || customFields.size > EntryLimits.MAX_CUSTOM_FIELDS
+
+    val tagsFull = tags.size >= EntryLimits.MAX_TAGS
+    val tagError = if (tags.any { it.length > EntryLimits.TAG }) EntryLimits.tooLong(EntryLimits.TAG) else null
+
+    val hasErrors = titleError != null || usernameError != null || passwordError != null || websiteError != null ||
+        notesError != null || hasCustomFieldsError || tagError != null
 
     val saveEntry = {
         if (!hasErrors && !isSaving) {
             val newEntry = VaultEntry(
                 id = entryId ?: 0,
+                syncId = existingEntry?.syncId ?: "",
                 title = title.trim().takeIf { it.isNotBlank() } ?: "Untitled",
                 username = username.trim(),
                 password = password,
@@ -631,22 +643,44 @@ fun PasswordEntryScreen(
                                     keyboardActions = KeyboardActions(
                                         onDone = {
                                             val trimmed = newTagText.trim()
-                                            if (trimmed.isNotEmpty() && !tags.contains(trimmed) && tags.size < 10) {
-                                                tags = tags + trimmed
-                                                newTagText = ""
+                                            when {
+                                                trimmed.isEmpty() -> {}
+                                                trimmed.length > EntryLimits.TAG -> tagMessage = EntryLimits.tooLong(EntryLimits.TAG)
+                                                tags.contains(trimmed) -> tagMessage = "That tag is already added"
+                                                tagsFull -> tagMessage = "Max ${EntryLimits.MAX_TAGS} tags"
+                                                else -> {
+                                                    tags = tags + trimmed
+                                                    newTagText = ""
+                                                    tagMessage = null
+                                                }
                                             }
                                         }
                                     )
                                 )
                                 IconButton(onClick = {
                                     val trimmed = newTagText.trim()
-                                    if (trimmed.isNotEmpty() && !tags.contains(trimmed) && tags.size < 10) {
-                                        tags = tags + trimmed
-                                        newTagText = ""
+                                    when {
+                                        trimmed.isEmpty() -> {}
+                                        trimmed.length > EntryLimits.TAG -> tagMessage = EntryLimits.tooLong(EntryLimits.TAG)
+                                        tags.contains(trimmed) -> tagMessage = "That tag is already added"
+                                        tagsFull -> tagMessage = "Max ${EntryLimits.MAX_TAGS} tags"
+                                        else -> {
+                                            tags = tags + trimmed
+                                            newTagText = ""
+                                            tagMessage = null
+                                        }
                                     }
                                 }) {
                                     Icon(Icons.Default.Add, contentDescription = "Add tag", tint = MaterialTheme.colorScheme.primary)
                                 }
+                            }
+                            tagMessage?.let { message ->
+                                Text(
+                                    text = message,
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(top = 2.dp, start = 8.dp)
+                                )
                             }
                         }
 
@@ -669,7 +703,7 @@ fun PasswordEntryScreen(
                                             },
                                             placeholder = { Text("Key") },
                                             modifier = Modifier.weight(0.4f),
-                                            isError = field.key.length > 50,
+                                            isError = field.key.length > EntryLimits.CUSTOM_FIELD_KEY,
                                             colors = TextFieldDefaults.colors(
                                                 focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant, unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                                                 focusedIndicatorColor = MaterialTheme.colorScheme.primaryContainer, unfocusedIndicatorColor = Color.Transparent
@@ -686,7 +720,7 @@ fun PasswordEntryScreen(
                                             },
                                             placeholder = { Text("Value") },
                                             modifier = Modifier.weight(0.6f),
-                                            isError = field.value.length > 200,
+                                            isError = field.value.length > EntryLimits.CUSTOM_FIELD_VALUE,
                                             colors = TextFieldDefaults.colors(
                                                 focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant, unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                                                 focusedIndicatorColor = MaterialTheme.colorScheme.primaryContainer, unfocusedIndicatorColor = Color.Transparent
@@ -711,10 +745,16 @@ fun PasswordEntryScreen(
 
                         OutlinedButton(
                             onClick = {
-                                val mut = customFields.toMutableList()
-                                mut.add(CustomField("", ""))
-                                customFields = mut
+                                if (customFieldsFull) {
+                                    customFieldMessage = "Max ${EntryLimits.MAX_CUSTOM_FIELDS} custom fields"
+                                } else {
+                                    val mut = customFields.toMutableList()
+                                    mut.add(CustomField("", ""))
+                                    customFields = mut
+                                    customFieldMessage = null
+                                }
                             },
+                            enabled = !customFieldsFull,
                             modifier = Modifier.fillMaxWidth().height(48.dp),
                             border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                             shape = RoundedCornerShape(8.dp)
@@ -722,6 +762,14 @@ fun PasswordEntryScreen(
                             Icon(Icons.Default.AddCircleOutline, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Add Custom Field", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (customFieldsFull) {
+                            Text(
+                                text = customFieldMessage ?: "Max ${EntryLimits.MAX_CUSTOM_FIELDS} custom fields",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(top = 2.dp, start = 8.dp)
+                            )
                         }
                     }
                 }

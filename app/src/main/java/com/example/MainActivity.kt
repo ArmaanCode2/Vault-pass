@@ -35,14 +35,29 @@ class MainActivity : FragmentActivity() {
     }
 
 
+    private val updateController get() = (application as VaultPassApplication).container.updateController
+
     override fun onStop() {
         super.onStop()
         viewModel.handleActivityStopped()
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Foreground tracking for the update installer (commit, confirmation, "Install unknown apps" return).
+        updateController.onActivityResumed(this)
+    }
+
+    override fun onPause() {
+        updateController.onActivityPaused(this)
+        super.onPause()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Background check (only if turned on) or an already downloaded update; never blocks unlock.
+        updateController.onAppOpen()
 
         lifecycleScope.launch {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -97,7 +112,14 @@ class MainActivity : FragmentActivity() {
         biometricPromptManager.showBiometricPrompt(
             settingsRepository = viewModel.settingsRepository,
             subtitle = "Log in using your biometric credential",
-            onSuccess = { dek -> viewModel.unlockWithBiometrics(dek) }
+            onSuccess = { dek ->
+                // False only when the vault was locked again while it opened.
+                if (!viewModel.unlockWithBiometrics(dek)) {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        android.widget.Toast.makeText(this@MainActivity, R.string.lock_interrupted, android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
         )
     }
 }

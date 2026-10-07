@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VaultPass — The Offline-First Android Password Manager</title>
-  <meta name="description" content="The 100% offline, zero-cloud Android password manager. Your credentials never leave your hardware.">
+  <title>VaultPass: Offline-First Android Password Manager</title>
+  <meta name="description" content="Android password manager with no cloud and no account. Your vault stays encrypted on your phone; the optional desktop sync runs over your local network only.">
   <meta name="theme-color" content="#05070d">
 
   <!-- Favicon using app icon -->
@@ -16,20 +16,24 @@
   <!-- OpenGraph / Social Media -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://vaultpass.org/">
-  <meta property="og:title" content="VaultPass — The Offline-First Android Password Manager">
-  <meta property="og:description" content="The 100% offline, zero-cloud Android password manager. Your credentials never leave your hardware.">
+  <meta property="og:title" content="VaultPass: Offline-First Android Password Manager">
+  <meta property="og:description" content="Android password manager with no cloud and no account. Your vault stays encrypted on your phone; the optional desktop sync runs over your local network only.">
   <meta property="og:image" content="https://vaultpass.org/assets/icon.png">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="VaultPass — The Offline-First Android Password Manager">
-  <meta name="twitter:description" content="The 100% offline, zero-cloud Android password manager. Your credentials never leave your hardware.">
+  <meta name="twitter:title" content="VaultPass: Offline-First Android Password Manager">
+  <meta name="twitter:description" content="Android password manager with no cloud and no account. Your vault stays encrypted on your phone; the optional desktop sync runs over your local network only.">
   <meta name="twitter:image" content="https://vaultpass.org/assets/icon.png">
 
-  <!-- Fonts -->
+  <!-- Fonts & DNS Prefetch Hints -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="dns-prefetch" href="https://raw.githubusercontent.com">
+  <link rel="dns-prefetch" href="https://api.github.com">
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" as="style">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"></noscript>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -39,12 +43,13 @@
       theme: {
         extend: {
           colors: {
+            // Channels defined in css/styles.css (:root)
             brand: {
-              dark: '#05070d',
-              surface: '#0b111e',
-              card: '#0e1626',
-              cyan: '#38debb',
-              mint: '#5ffbd6',
+              dark: 'rgb(var(--rgb-bg) / <alpha-value>)',
+              surface: 'rgb(var(--rgb-surface) / <alpha-value>)',
+              card: 'rgb(var(--rgb-card) / <alpha-value>)',
+              cyan: 'rgb(var(--rgb-accent) / <alpha-value>)',
+              mint: 'rgb(var(--rgb-accent-strong) / <alpha-value>)',
             }
           },
           fontFamily: {
@@ -56,20 +61,21 @@
     }
   </script>
 
-  <!-- Custom Stylesheet -->
+  <!-- Site stylesheet (color tokens, components) -->
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="bg-[#05070d] text-slate-100 antialiased selection:bg-[#38debb]/20 selection:text-white">
+<body class="bg-brand-dark text-slate-100 antialiased">
+  <a href="#main" class="skip-link">Skip to content</a>
 
   <!-- Gemini-style Slow-Moving Blurred Gradient Background -->
-  <div class="gradient-bg-container">
+  <div class="gradient-bg-container" aria-hidden="true">
     <div class="gradient-orb gradient-orb-1"></div>
     <div class="gradient-orb gradient-orb-2"></div>
     <div class="gradient-orb gradient-orb-3"></div>
     <div class="gradient-orb gradient-orb-4"></div>
   </div>
 
-  <!-- Page Content Container -->
+  <!-- Page content -->
   <div class="relative z-10">
 
     <!-- Simple, Centered Navbar (Logo only, 3 center links, Download APK) -->
@@ -77,49 +83,57 @@
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between relative">
         
         <!-- Left: Logo ONLY (No text, No version) -->
-        <a href="index.html" class="flex items-center group" aria-label="VaultPass Home">
-          <div class="w-9 h-9 rounded-xl bg-[#0b111e] border border-white/10 flex items-center justify-center p-0.5 overflow-hidden transition-transform group-hover:scale-105 group-hover:border-[#38debb]/40">
-            <img src="assets/icon.png" alt="VaultPass Icon" class="w-full h-full object-cover rounded-lg">
+        <a href="index.html" class="tap-target group rounded-xl" aria-label="VaultPass home">
+          <div class="w-9 h-9 rounded-xl bg-brand-surface border border-white/10 flex items-center justify-center p-0.5 overflow-hidden transition-transform group-hover:scale-105 group-hover:border-brand-cyan/40">
+            <picture>
+              <source srcset="assets/icon.webp" type="image/webp">
+              <img src="assets/icon.png" alt="" width="36" height="36" decoding="async" class="w-full h-full object-cover rounded-lg">
+            </picture>
           </div>
         </a>
 
         <!-- Center: 3 Navigation Links (Centered) -->
-        <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300 absolute left-1/2 -translate-x-1/2">
-          <a href="#features" class="hover:text-white transition-colors">Features</a>
-          <a href="security.html" class="hover:text-white transition-colors">Security Model</a>
-          <a href="download.html" class="hover:text-white transition-colors">Downloads</a>
+        <nav aria-label="Main" class="hidden md:flex items-center gap-8 text-sm font-medium absolute left-1/2 -translate-x-1/2">
+          <a href="#features" class="nav-link py-2">Features</a>
+          <a href="security.html" class="nav-link py-2">Security Model</a>
+          <a href="download.html" class="nav-link py-2">Downloads</a>
         </nav>
 
         <!-- Right: Download APK Button -->
         <div class="hidden sm:flex items-center gap-3">
-          <button data-direct-download class="btn-primary text-xs sm:text-sm px-4 py-2 rounded-lg flex items-center gap-2 cursor-pointer">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary text-xs sm:text-sm px-4 min-h-[40px] rounded-lg flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
             </svg>
             <span class="download-status">Download APK</span>
-          </button>
+          </a>
         </div>
 
         <!-- Mobile Menu Button -->
-        <button id="mobile-menu-btn" aria-expanded="false" class="md:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 focus:outline-none">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button type="button" id="mobile-menu-btn" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu" class="md:hidden w-11 h-11 flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-white/5">
+          <svg data-icon="open" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+          <svg data-icon="close" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>
       </div>
 
       <!-- Mobile Dropdown -->
-      <div id="mobile-menu" class="hidden md:hidden px-4 pt-2 pb-6 border-t border-white/5 bg-[#05070d]/95 backdrop-blur-xl">
-        <div class="flex flex-col gap-4 text-sm font-medium text-slate-300 pt-2 text-center">
-          <a href="#features" class="hover:text-white py-1">Features</a>
-          <a href="security.html" class="hover:text-white py-1">Security Model</a>
-          <a href="download.html" class="hover:text-white py-1">Downloads</a>
-          <button data-direct-download class="btn-primary text-center py-2.5 rounded-lg text-sm mt-2 w-full cursor-pointer">
-            Download APK
-          </button>
+      <nav id="mobile-menu" aria-label="Mobile" class="hidden md:hidden px-4 pt-2 pb-6 border-t border-white/5 bg-brand-dark/95 backdrop-blur-xl">
+        <div class="flex flex-col gap-1 text-sm font-medium pt-2 text-center">
+          <a href="#features" class="mobile-nav-link">Features</a>
+          <a href="security.html" class="mobile-nav-link">Security Model</a>
+          <a href="download.html" class="mobile-nav-link">Downloads</a>
+          <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary flex items-center justify-center gap-2 min-h-[44px] rounded-lg text-sm mt-3 w-full">
+            <span class="download-status">Download APK</span>
+          </a>
         </div>
-      </div>
+      </nav>
     </header>
+
+    <main id="main" tabindex="-1" class="outline-none">
 
     <!-- Hero Section with Side-by-Side Live Working Demo App -->
     <section class="pt-12 pb-16 sm:pt-16 sm:pb-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -129,54 +143,124 @@
         <div class="lg:col-span-5 text-left space-y-6">
           <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-[1.15]">
             Passwords stay on your device.
-            <span class="block bg-gradient-to-r from-[#5ffbd6] via-[#38debb] to-sky-400 bg-clip-text text-transparent">
+            <span class="block bg-gradient-to-r from-brand-mint via-brand-cyan to-sky-400 bg-clip-text text-transparent">
               Never in the cloud.
             </span>
           </h1>
 
-          <p class="text-sm sm:text-base text-slate-400 leading-relaxed font-normal">
-            The 100% offline, zero-cloud Android password manager. Your credentials never leave your hardware.
+          <p class="text-sm sm:text-base text-slate-300 leading-relaxed font-normal">
+            An Android password manager with no cloud and no account. Your vault is encrypted on your phone, and the optional sync with the VaultPass desktop app stays on your own Wi-Fi network.
           </p>
 
           <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
-            <button data-direct-download class="btn-primary px-5 py-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#38debb]/10">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary px-5 py-3 min-h-[48px] rounded-xl text-sm font-semibold flex items-center justify-center gap-2 shadow-lg shadow-brand-cyan/10">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
               </svg>
               <span class="download-status">Download APK</span>
-              <span class="text-xs opacity-75 font-mono" data-latest-size>23.2 MB</span>
-            </button>
+              <span class="text-xs opacity-75 font-mono" data-latest-size></span>
+            </a>
 
-            <a href="security.html" class="btn-secondary px-4 py-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-2">
+            <a href="security.html" class="btn-secondary px-4 py-3 min-h-[48px] rounded-xl text-sm font-medium flex items-center justify-center gap-2">
               <span>Security Model</span>
-              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
               </svg>
             </a>
           </div>
 
-          <div class="pt-2 flex flex-col gap-2.5 text-xs text-slate-400">
-            <div class="flex items-center gap-2">
-              <svg class="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <ul class="pt-2 flex flex-col gap-2.5 text-xs text-slate-400">
+            <li class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
               </svg>
-              <span>VirusTotal Verified Clean (0 Detections)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <svg class="w-4 h-4 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <span>SHA-256 published for the APK. <a href="#download" class="link-accent">Check it yourself</a></span>
+            </li>
+            <li class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
               </svg>
-              <span>Zero Telemetry / No Tracking SDKs</span>
-            </div>
-          </div>
+              <span>No telemetry, no tracking SDKs, no account</span>
+            </li>
+          </ul>
         </div>
 
         <!-- Right: Real Working Functional Mobile Demo App Component -->
         <div class="lg:col-span-7 flex justify-center">
-          <div id="vaultpass-demo-app" class="relative w-[320px] sm:w-[340px] max-w-full">
-            <!-- Loading placeholder while JS initializes -->
-            <div class="w-[320px] sm:w-[340px] max-w-full h-[640px] rounded-[46px] border-[10px] border-[#131c2e] bg-[#060b16] p-8 flex items-center justify-center text-center text-slate-500 font-mono text-xs shadow-2xl">
-              Initializing VaultPass Mobile Sandbox...
+          <div id="vaultpass-demo-app" role="region" aria-label="Interactive demo of the VaultPass app (sample data)" class="relative w-[320px] sm:w-[340px] max-w-full">
+            <!-- Loading Phone Skeleton Placeholder while JS initializes -->
+            <div aria-hidden="true" class="w-[320px] sm:w-[340px] max-w-full h-[640px] rounded-[46px] border-[10px] border-[#131c2e] bg-[#10131B] p-4 flex flex-col justify-between shadow-2xl overflow-hidden select-none">
+              <!-- Top bar & camera notch -->
+              <div>
+                <div class="flex justify-between items-center px-2 pt-1 pb-3 text-[11px] text-slate-500 font-mono">
+                  <span>9:41</span>
+                  <div class="w-16 h-3.5 bg-black/60 rounded-full flex items-center justify-center">
+                    <span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <div class="w-2.5 h-2.5 rounded-full border border-slate-600"></div>
+                    <div class="w-3.5 h-2 rounded-sm border border-slate-600"></div>
+                  </div>
+                </div>
+
+                <!-- Greeting / Search Bar Skeleton -->
+                <div class="flex items-center justify-between mt-2 mb-4 px-1">
+                  <div class="space-y-1.5">
+                    <div class="w-20 h-2.5 skeleton-shimmer skeleton-box"></div>
+                    <div class="w-28 h-4 skeleton-shimmer skeleton-box"></div>
+                  </div>
+                  <div class="w-8 h-8 skeleton-shimmer skeleton-circle"></div>
+                </div>
+
+                <!-- Circular Score Ring Card Skeleton -->
+                <div class="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-4 mb-3">
+                  <div class="w-14 h-14 skeleton-shimmer skeleton-circle flex-shrink-0"></div>
+                  <div class="flex-1 space-y-2">
+                    <div class="w-24 h-3.5 skeleton-shimmer skeleton-box"></div>
+                    <div class="w-full h-2 skeleton-shimmer skeleton-box"></div>
+                  </div>
+                </div>
+
+                <!-- Stat Cards Row -->
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                  <div class="h-14 rounded-xl bg-white/[0.03] border border-white/5 p-2 skeleton-shimmer skeleton-box"></div>
+                  <div class="h-14 rounded-xl bg-white/[0.03] border border-white/5 p-2 skeleton-shimmer skeleton-box"></div>
+                  <div class="h-14 rounded-xl bg-white/[0.03] border border-white/5 p-2 skeleton-shimmer skeleton-box"></div>
+                </div>
+
+                <!-- Entry Rows -->
+                <div class="space-y-2">
+                  <div class="h-12 rounded-xl bg-white/[0.03] border border-white/5 p-2.5 flex items-center gap-3">
+                    <div class="w-7 h-7 skeleton-shimmer skeleton-circle"></div>
+                    <div class="flex-1 space-y-1.5">
+                      <div class="w-20 h-3 skeleton-shimmer skeleton-box"></div>
+                      <div class="w-28 h-2 skeleton-shimmer skeleton-box"></div>
+                    </div>
+                  </div>
+                  <div class="h-12 rounded-xl bg-white/[0.03] border border-white/5 p-2.5 flex items-center gap-3">
+                    <div class="w-7 h-7 skeleton-shimmer skeleton-circle"></div>
+                    <div class="flex-1 space-y-1.5">
+                      <div class="w-24 h-3 skeleton-shimmer skeleton-box"></div>
+                      <div class="w-32 h-2 skeleton-shimmer skeleton-box"></div>
+                    </div>
+                  </div>
+                  <div class="h-12 rounded-xl bg-white/[0.03] border border-white/5 p-2.5 flex items-center gap-3">
+                    <div class="w-7 h-7 skeleton-shimmer skeleton-circle"></div>
+                    <div class="flex-1 space-y-1.5">
+                      <div class="w-16 h-3 skeleton-shimmer skeleton-box"></div>
+                      <div class="w-20 h-2 skeleton-shimmer skeleton-box"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Bottom Nav Bar Skeleton -->
+              <div class="pt-3 border-t border-white/5 flex justify-around items-center">
+                <div class="w-8 h-8 skeleton-shimmer skeleton-circle"></div>
+                <div class="w-8 h-8 skeleton-shimmer skeleton-circle"></div>
+                <div class="w-8 h-8 skeleton-shimmer skeleton-circle"></div>
+                <div class="w-8 h-8 skeleton-shimmer skeleton-circle"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -191,7 +275,7 @@
           Password Generator
         </h2>
         <p class="mt-2 text-sm sm:text-base text-slate-400">
-          VaultPass includes a high-entropy generator with customized character sets and real-time entropy calculation.
+          VaultPass has a generator built in. Try this one: it runs in your browser with <code class="font-mono text-emerald-300 text-xs sm:text-sm">crypto.getRandomValues</code>, and nothing you generate leaves the page.
         </p>
       </div>
 
@@ -200,29 +284,29 @@
         <div class="flex flex-col gap-6">
           <!-- Password Output Field -->
           <div class="relative flex items-center">
-            <input id="pw-output" type="text" readonly class="w-full bg-[#05070d] border border-white/10 rounded-xl px-5 py-3.5 font-mono text-base sm:text-lg text-emerald-300 tracking-wider focus:outline-none focus:border-[#38debb] pr-28 select-all" value="Generating...">
-            <div class="absolute right-3 flex items-center gap-2">
-              <button id="pw-regenerate-btn" title="Regenerate Password" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <input id="pw-output" type="text" readonly aria-label="Generated password" spellcheck="false" autocomplete="off" class="w-full min-w-0 bg-brand-dark border border-white/10 rounded-xl pl-4 sm:pl-5 py-3.5 font-mono text-sm sm:text-lg text-emerald-300 tracking-wider focus:border-brand-cyan pr-32 select-all" value="Generating...">
+            <div class="absolute right-2 flex items-center gap-1">
+              <button type="button" id="pw-regenerate-btn" aria-label="Generate a new password" title="Generate a new password" class="tap-target rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                 </svg>
               </button>
-              <button id="pw-copy-btn" title="Copy to Clipboard" class="btn-primary px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <button type="button" id="pw-copy-btn" aria-label="Copy generated password" title="Copy to clipboard" class="btn-primary px-3 min-h-[40px] rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
                 </svg>
-                <span>Copy</span>
+                <span data-copy-label>Copy</span>
               </button>
             </div>
           </div>
 
           <!-- Entropy & Strength Meter -->
           <div class="space-y-2">
-            <div class="flex items-center justify-between text-xs font-mono">
-              <span class="text-slate-400">Calculated Entropy: <span id="pw-entropy" class="text-emerald-400 font-semibold">96 bits</span></span>
-              <span class="text-slate-400">Strength: <span id="pw-strength-label" class="text-emerald-400 font-semibold">Military Grade</span></span>
+            <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs font-mono">
+              <span class="text-slate-400">Entropy: <span id="pw-entropy" class="text-emerald-400 font-semibold">114 bits</span></span>
+              <span class="text-slate-400">Strength: <span id="pw-strength-label" class="text-emerald-400 font-semibold">Very strong</span></span>
             </div>
-            <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+            <div id="pw-strength-meter" role="meter" aria-label="Password strength" aria-valuemin="0" aria-valuemax="128" aria-valuenow="114" aria-valuetext="Very strong, 114 bits" class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
               <div id="pw-strength-bar" class="h-full bg-emerald-400 w-full transition-all duration-300"></div>
             </div>
           </div>
@@ -232,35 +316,36 @@
             <!-- Length Slider -->
             <div class="space-y-3">
               <div class="flex justify-between items-center text-xs">
-                <span class="text-slate-300 font-medium">Password Length</span>
+                <label for="pw-length" class="text-slate-300 font-medium">Password Length</label>
                 <span class="font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 text-xs" id="pw-length-val">18</span>
               </div>
               <input id="pw-length" type="range" min="8" max="48" value="18" class="w-full">
             </div>
 
             <!-- Character Set Toggles -->
-            <div class="grid grid-cols-4 gap-2 text-xs font-medium">
+            <fieldset class="grid grid-cols-4 gap-2 text-xs font-medium">
+              <legend class="sr-only">Character sets</legend>
               <label class="toggle-chip flex flex-col items-center justify-center py-2.5 px-1 text-center">
-                <input type="checkbox" id="chk-upper" checked class="sr-only">
-                <span class="chip-code font-mono text-sm font-bold text-slate-200">A-Z</span>
+                <input type="checkbox" id="chk-upper" checked class="sr-only" aria-label="Uppercase letters">
+                <span class="chip-code font-mono text-sm font-bold text-slate-200" aria-hidden="true">A-Z</span>
                 <span class="chip-label text-[10px] text-slate-400 mt-0.5 tracking-tight">Upper</span>
               </label>
               <label class="toggle-chip flex flex-col items-center justify-center py-2.5 px-1 text-center">
-                <input type="checkbox" id="chk-lower" checked class="sr-only">
-                <span class="chip-code font-mono text-sm font-bold text-slate-200">a-z</span>
+                <input type="checkbox" id="chk-lower" checked class="sr-only" aria-label="Lowercase letters">
+                <span class="chip-code font-mono text-sm font-bold text-slate-200" aria-hidden="true">a-z</span>
                 <span class="chip-label text-[10px] text-slate-400 mt-0.5 tracking-tight">Lower</span>
               </label>
               <label class="toggle-chip flex flex-col items-center justify-center py-2.5 px-1 text-center">
-                <input type="checkbox" id="chk-numbers" checked class="sr-only">
-                <span class="chip-code font-mono text-sm font-bold text-slate-200">0-9</span>
+                <input type="checkbox" id="chk-numbers" checked class="sr-only" aria-label="Digits">
+                <span class="chip-code font-mono text-sm font-bold text-slate-200" aria-hidden="true">0-9</span>
                 <span class="chip-label text-[10px] text-slate-400 mt-0.5 tracking-tight">Digits</span>
               </label>
               <label class="toggle-chip flex flex-col items-center justify-center py-2.5 px-1 text-center">
-                <input type="checkbox" id="chk-symbols" checked class="sr-only">
-                <span class="chip-code font-mono text-sm font-bold text-slate-200">!@#</span>
+                <input type="checkbox" id="chk-symbols" checked class="sr-only" aria-label="Symbols">
+                <span class="chip-code font-mono text-sm font-bold text-slate-200" aria-hidden="true">!@#</span>
                 <span class="chip-label text-[10px] text-slate-400 mt-0.5 tracking-tight">Symbols</span>
               </label>
-            </div>
+            </fieldset>
           </div>
         </div>
       </div>
@@ -270,7 +355,7 @@
     <section class="py-16 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
         <!-- Cloud Managers -->
-        <div class="glass-card rounded-2xl p-8 border-rose-500/20 bg-rose-950/5">
+        <div class="glass-card rounded-2xl p-6 sm:p-8 border-rose-500/20 bg-rose-950/5">
           <div class="flex items-center gap-3 mb-4">
             <div class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -281,26 +366,26 @@
           </div>
           <ul class="space-y-3.5 text-sm text-slate-300">
             <li class="flex items-start gap-3">
-              <span class="text-rose-400 font-bold">✕</span>
-              <span><strong>Centralized Target:</strong> Breaches at major cloud providers put master databases at risk.</span>
+              <span class="text-rose-400 font-bold" aria-hidden="true">✕</span>
+              <span><strong>Centralized target:</strong> Your encrypted vault sits on the provider's servers next to everyone else's.</span>
             </li>
             <li class="flex items-start gap-3">
-              <span class="text-rose-400 font-bold">✕</span>
-              <span><strong>Opaque Telemetry:</strong> User habits, session lengths, and analytics are sent to remote servers.</span>
+              <span class="text-rose-400 font-bold" aria-hidden="true">✕</span>
+              <span><strong>Account required:</strong> You sign up with an email, and the provider knows who you are.</span>
             </li>
             <li class="flex items-start gap-3">
-              <span class="text-rose-400 font-bold">✕</span>
-              <span><strong>Subscription Lock-in:</strong> Access to your own passwords is gated behind monthly fees.</span>
+              <span class="text-rose-400 font-bold" aria-hidden="true">✕</span>
+              <span><strong>Subscriptions:</strong> Many charge monthly for features such as sync across devices.</span>
             </li>
             <li class="flex items-start gap-3">
-              <span class="text-rose-400 font-bold">✕</span>
-              <span><strong>Server Outages:</strong> Network drops or provider downtime leave you locked out.</span>
+              <span class="text-rose-400 font-bold" aria-hidden="true">✕</span>
+              <span><strong>Depends on their servers:</strong> Sync and sign-in need the provider to be up and reachable.</span>
             </li>
           </ul>
         </div>
 
         <!-- VaultPass -->
-        <div class="glass-card rounded-2xl p-8 border-emerald-500/30 bg-emerald-950/10">
+        <div class="glass-card rounded-2xl p-6 sm:p-8 border-emerald-500/30 bg-emerald-950/10">
           <div class="flex items-center gap-3 mb-4">
             <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -311,20 +396,20 @@
           </div>
           <ul class="space-y-3.5 text-sm text-slate-300">
             <li class="flex items-start gap-3">
-              <span class="text-emerald-400 font-bold">✓</span>
-              <span><strong>100% Offline:</strong> Operates locally on your device. Zero cloud sync, zero central server.</span>
+              <span class="text-emerald-400 font-bold" aria-hidden="true">✓</span>
+              <span><strong>No cloud:</strong> Your vault lives on your phone. The only sync is the optional one with the VaultPass desktop app, over your local network.</span>
             </li>
             <li class="flex items-start gap-3">
-              <span class="text-emerald-400 font-bold">✓</span>
-              <span><strong>Zero Tracking:</strong> No analytics SDKs, no ad trackers, no account registration.</span>
+              <span class="text-emerald-400 font-bold" aria-hidden="true">✓</span>
+              <span><strong>No tracking:</strong> No analytics SDKs, no ad trackers, no account registration.</span>
             </li>
             <li class="flex items-start gap-3">
-              <span class="text-emerald-400 font-bold">✓</span>
-              <span><strong>Hardware-Bound Keys:</strong> Uses Android Keystore hardware security module for biometrics.</span>
+              <span class="text-emerald-400 font-bold" aria-hidden="true">✓</span>
+              <span><strong>Keystore-backed biometrics:</strong> The biometric unlock key is kept in the Android Keystore, which is hardware-backed on phones that support it.</span>
             </li>
             <li class="flex items-start gap-3">
-              <span class="text-emerald-400 font-bold">✓</span>
-              <span><strong>Verifiable Integrity:</strong> Scanned clean on VirusTotal with reproducible release checksums.</span>
+              <span class="text-emerald-400 font-bold" aria-hidden="true">✓</span>
+              <span><strong>Checkable download:</strong> The APK's SHA-256 is listed on this site, with a VirusTotal lookup for that exact file.</span>
             </li>
           </ul>
         </div>
@@ -335,7 +420,7 @@
     <section id="features" class="py-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center mb-12">
         <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-          High-assurance security. Zero compromises.
+          What protects your vault
         </h2>
       </div>
 
@@ -344,17 +429,17 @@
         <!-- Item 1: Large Bento Card -->
         <div class="glass-card rounded-2xl p-8 md:col-span-2 flex flex-col justify-between">
           <div>
-            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-6">
+            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-6" aria-hidden="true">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
               </svg>
             </div>
-            <h3 class="text-xl font-bold text-white mb-2">Versioned PBKDF2-HMAC-SHA256 & AES-GCM</h3>
-            <p class="text-slate-400 text-xs leading-relaxed mb-6">
-              AES-256-GCM encryption reinforced by 300,000 PBKDF2 rounds.
+            <h3 class="text-xl font-bold text-white mb-2">PBKDF2-HMAC-SHA256 &amp; AES-256-GCM</h3>
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Your master password goes through 300,000 rounds of PBKDF2 before it can unlock the key that encrypts your entries with AES-256-GCM.
             </p>
           </div>
-          <div class="p-4 rounded-xl bg-[#05070d] border border-white/5 font-mono text-xs text-slate-400 space-y-1">
+          <div class="p-4 rounded-xl bg-brand-dark border border-white/5 font-mono text-xs text-slate-400 space-y-1 overflow-x-auto">
             <div class="text-emerald-400 font-semibold">// Cryptographic Parameters</div>
             <div>Algorithm: <span class="text-white">PBKDF2WithHmacSHA256</span></div>
             <div>Work Factor: <span class="text-white">300,000 rounds</span></div>
@@ -365,14 +450,14 @@
         <!-- Item 2: Biometric Keystore -->
         <div class="glass-card rounded-2xl p-8 flex flex-col justify-between">
           <div>
-            <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mb-6">
+            <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mb-6" aria-hidden="true">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a7.978 7.978 0 001.572 4.793"/>
               </svg>
             </div>
-            <h3 class="text-xl font-bold text-white mb-2">Hardware-Backed Biometrics</h3>
-            <p class="text-slate-400 text-xs leading-relaxed">
-              Instant biometric unlock backed by hardware security.
+            <h3 class="text-xl font-bold text-white mb-2">Biometric Unlock</h3>
+            <p class="text-slate-400 text-sm leading-relaxed">
+              Unlock with your fingerprint or face. The unlock key stays in the Android Keystore.
             </p>
           </div>
         </div>
@@ -380,14 +465,14 @@
         <!-- Item 3: Android Autofill Framework -->
         <div class="glass-card rounded-2xl p-8 flex flex-col justify-between">
           <div>
-            <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mb-6">
+            <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mb-6" aria-hidden="true">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
               </svg>
             </div>
             <h3 class="text-xl font-bold text-white mb-2">Native Android Autofill</h3>
-            <p class="text-slate-400 text-xs leading-relaxed">
-              Instant login autofill without clipboard exposure.
+            <p class="text-slate-400 text-sm leading-relaxed">
+              Fills logins in apps and browsers through Android's Autofill framework, so passwords don't pass through the clipboard.
             </p>
           </div>
         </div>
@@ -395,14 +480,14 @@
         <!-- Item 4: Security Center Hygiene -->
         <div class="glass-card rounded-2xl p-8 flex flex-col justify-between">
           <div>
-            <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-6">
+            <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-6" aria-hidden="true">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
               </svg>
             </div>
-            <h3 class="text-xl font-bold text-white mb-2">Security Center Hygiene</h3>
-            <p class="text-slate-400 text-xs leading-relaxed">
-              Flags weak, reused, and compromised passwords.
+            <h3 class="text-xl font-bold text-white mb-2">Security Center</h3>
+            <p class="text-slate-400 text-sm leading-relaxed">
+              Flags weak and reused passwords, and entries with no password, with a health score for the whole vault.
             </p>
           </div>
         </div>
@@ -410,14 +495,14 @@
         <!-- Item 5: Anti-Snoop & Memory Zeroization -->
         <div class="glass-card rounded-2xl p-8 flex flex-col justify-between">
           <div>
-            <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mb-6">
+            <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mb-6" aria-hidden="true">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
               </svg>
             </div>
             <h3 class="text-xl font-bold text-white mb-2">Anti-Snoop Shield</h3>
-            <p class="text-slate-400 text-xs leading-relaxed">
-              Blocks screen capture and wipes memory on lock.
+            <p class="text-slate-400 text-sm leading-relaxed">
+              Optional screenshot blocking, a clipboard that clears itself on a timer, and auto-lock that drops the vault key from memory.
             </p>
           </div>
         </div>
@@ -426,25 +511,29 @@
 
     <!-- VirusTotal & Verifiable Trust Section -->
     <section class="py-16 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="glass-card rounded-2xl p-8 border border-emerald-500/25 relative overflow-hidden">
+      <div class="glass-card rounded-2xl p-6 sm:p-8 border border-emerald-500/25 relative overflow-hidden">
         <div class="flex flex-col md:flex-row items-center justify-between gap-6">
           <div class="space-y-2 text-center md:text-left">
             <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-400 font-mono text-xs border border-emerald-500/20">
-              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-              VirusTotal Verified Clean
+              <span class="w-2 h-2 rounded-full bg-emerald-400" aria-hidden="true"></span>
+              Open source on GitHub
             </div>
-            <h3 class="text-2xl font-bold text-white">Trust through Transparency</h3>
+            <h2 class="text-2xl font-bold text-white">Check the download yourself</h2>
+            <p class="text-sm text-slate-400 max-w-md">Compare the APK's SHA-256 with the one below, look the same hash up on VirusTotal, or read the code.</p>
           </div>
 
-          <div class="flex flex-col sm:flex-row items-center gap-3">
-            <a data-virustotal-link href="https://www.virustotal.com/gui/file/ac993d64518225a9350b73f60edaafe82d7e8642dc864ba7c70c6aeccd4b20c7" target="_blank" rel="noopener noreferrer" class="btn-secondary px-5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2">
-              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3">
+            <a data-virustotal-link hidden target="_blank" rel="noopener noreferrer" class="btn-secondary px-5 min-h-[44px] rounded-xl text-sm font-semibold flex items-center gap-2">
+              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
               </svg>
-              <span>View VirusTotal Report</span>
+              <span>Look up on VirusTotal</span><span class="sr-only"> (opens in a new tab)</span>
             </a>
-            <a href="security.html" class="btn-primary px-5 py-2.5 rounded-xl text-xs font-semibold">
-              Read Security Specs
+            <a href="https://github.com/ArmaanCode2/Vault-pass" target="_blank" rel="noopener noreferrer" class="btn-secondary px-5 min-h-[44px] rounded-xl text-sm font-semibold flex items-center">
+              Source code<span class="sr-only"> (opens in a new tab)</span>
+            </a>
+            <a href="security.html" class="btn-primary px-5 min-h-[44px] rounded-xl text-sm font-semibold flex items-center">
+              Read the security model
             </a>
           </div>
         </div>
@@ -455,46 +544,50 @@
     <section id="download" class="py-20 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
       <div class="glass-card rounded-3xl p-8 sm:p-12 border border-white/10 relative overflow-hidden">
         
-        <div class="w-16 h-16 rounded-2xl bg-[#05070d] border border-white/10 mx-auto flex items-center justify-center p-1 mb-6 overflow-hidden">
-          <img src="assets/icon.png" alt="VaultPass App Icon" class="w-full h-full object-cover rounded-xl">
+        <div class="w-16 h-16 rounded-2xl bg-brand-dark border border-white/10 mx-auto flex items-center justify-center p-1 mb-6 overflow-hidden">
+          <picture>
+            <source srcset="assets/icon.webp" type="image/webp">
+            <img src="assets/icon.png" alt="" width="56" height="56" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-xl">
+          </picture>
         </div>
 
         <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-          Ready to reclaim your privacy?
+          Get VaultPass for Android
         </h2>
         <p class="mt-3 text-sm sm:text-base text-slate-400 max-w-xl mx-auto">
-          Download the latest release directly to your Android device. Direct file download with zero account sign-up, zero subscription fees, and no cloud permissions.
+          No account and no subscription. The APK comes straight from the project's GitHub releases and runs on Android 7.0 or newer.
         </p>
 
         <!-- Download Action -->
         <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-          <button data-direct-download class="btn-primary px-8 py-4 rounded-xl text-sm font-semibold flex items-center gap-3 cursor-pointer">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary w-full sm:w-auto px-6 sm:px-8 py-4 rounded-xl text-sm font-semibold flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
             </svg>
-            <span class="download-status">Download Latest APK (<span data-latest-version>v2.6.3</span>)</span>
-            <span class="text-xs opacity-75 font-mono" data-latest-size>23.2 MB</span>
-          </button>
+            <span class="download-status">Download APK (<span data-latest-version>latest</span>)</span>
+            <span class="text-xs opacity-75 font-mono" data-latest-size></span>
+          </a>
 
-          <a href="download.html" class="btn-secondary px-6 py-4 rounded-xl text-sm font-medium">
-            Installation & Verification Guide
+          <a href="download.html" class="btn-secondary w-full sm:w-auto px-6 py-4 rounded-xl text-sm font-medium text-center">
+            Install &amp; verify guide
           </a>
         </div>
 
         <!-- Checksum Snippet -->
         <div class="mt-8 pt-6 border-t border-white/5 max-w-2xl mx-auto text-left">
-          <div class="flex items-center justify-between text-xs text-slate-400 mb-1.5">
-            <span class="font-mono">SHA-256 Checksum:</span>
-            <button data-copy-target="a794d9e8bbeae8100ba5ae37c10cb3e39c9a2886e332212e11c0485178f5b7b2" class="text-xs text-[#5ffbd6] hover:underline flex items-center gap-1 font-mono cursor-pointer">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-              </svg>
-              Copy Hash
-            </button>
+          <div data-checksum-block hidden>
+            <div class="flex items-center justify-between gap-2 text-xs text-slate-400 mb-1.5">
+              <span class="font-mono">SHA-256 of <span data-latest-filename>VaultPass.apk</span>:</span>
+              <button type="button" data-sha256-copy data-copy-target="" class="btn-ghost px-2 min-h-[36px] text-xs text-brand-mint flex items-center gap-1 font-mono cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                <span data-copy-label>Copy hash</span>
+              </button>
+            </div>
+            <div data-sha256-text class="p-3 bg-brand-dark rounded-lg border border-white/5 font-mono text-[11px] text-slate-300 break-all select-all"></div>
           </div>
-          <div class="p-3 bg-[#05070d] rounded-lg border border-white/5 font-mono text-[11px] text-slate-300 break-all select-all">
-            a794d9e8bbeae8100ba5ae37c10cb3e39c9a2886e332212e11c0485178f5b7b2
-          </div>
+          <p data-checksum-missing class="text-xs text-slate-400">This release has no published SHA-256 yet, or it couldn't be loaded. See the <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest" class="link-accent" target="_blank" rel="noopener noreferrer">release page</a>.</p>
         </div>
 
       </div>
@@ -506,86 +599,103 @@
         <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">
           Frequently Asked Questions
         </h2>
-        <p class="mt-2 text-sm text-slate-400">Everything you need to know about VaultPass and its offline security model.</p>
       </div>
 
       <div class="space-y-4">
         <!-- FAQ 1 -->
-        <details class="glass-card rounded-xl p-5 group cursor-pointer">
-          <summary class="flex justify-between items-center font-medium text-white text-sm sm:text-base list-none">
+        <details class="glass-card rounded-xl p-5 group">
+          <summary class="flex justify-between items-center gap-3 font-medium text-white text-sm sm:text-base list-none">
             <span>Can you recover my master password if I forget it?</span>
-            <svg class="w-5 h-5 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 flex-shrink-0 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
             </svg>
           </summary>
           <p class="mt-3 text-sm text-slate-400 leading-relaxed">
-            <strong>No.</strong> VaultPass employs a zero-knowledge, zero-backdoor architecture. Your vault is encrypted using AES-GCM with keys derived via PBKDF2-HMAC-SHA256 from your master password. Because no servers or recovery keys exist, lost master passwords cannot be reset by anyone.
+            <strong>No.</strong> There is no server and no recovery key. Your vault is encrypted with AES-GCM using a key derived from your master password (PBKDF2-HMAC-SHA256), so nobody, including the developer, can reset a forgotten master password.
           </p>
         </details>
 
         <!-- FAQ 2 -->
-        <details class="glass-card rounded-xl p-5 group cursor-pointer">
-          <summary class="flex justify-between items-center font-medium text-white text-sm sm:text-base list-none">
+        <details class="glass-card rounded-xl p-5 group">
+          <summary class="flex justify-between items-center gap-3 font-medium text-white text-sm sm:text-base list-none">
             <span>How does the Android Autofill feature work?</span>
-            <svg class="w-5 h-5 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 flex-shrink-0 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
             </svg>
           </summary>
           <p class="mt-3 text-sm text-slate-400 leading-relaxed">
-            VaultPass integrates directly with Android's system Autofill framework. When an app or website presents a login form, VaultPass uses Breadth-First Search (BFS) DOM traversal to safely identify input fields and match credentials based on domain, app label, and package heuristics.
+            VaultPass registers as an Android Autofill service. When an app or website shows a login form, it walks the screen's view structure to find the username and password fields, then suggests matching entries. In a known browser, an entry matches when its website is on the same domain as the page. In other apps, VaultPass offers only entries you linked to that app: pick one once with "Search VaultPass…" and it is offered there from then on.
           </p>
         </details>
 
         <!-- FAQ 3 -->
-        <details class="glass-card rounded-xl p-5 group cursor-pointer">
-          <summary class="flex justify-between items-center font-medium text-white text-sm sm:text-base list-none">
-            <span>How do I backup my credentials without cloud servers?</span>
-            <svg class="w-5 h-5 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <details class="glass-card rounded-xl p-5 group">
+          <summary class="flex justify-between items-center gap-3 font-medium text-white text-sm sm:text-base list-none">
+            <span>How do I back up my passwords without a cloud?</span>
+            <svg class="w-5 h-5 flex-shrink-0 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
             </svg>
           </summary>
           <p class="mt-3 text-sm text-slate-400 leading-relaxed">
-            VaultPass provides an encrypted backup utility using the <code class="text-emerald-400 font-mono text-xs">.vpex</code> format. Backups are encrypted with Base64 AES-GCM, allowing you to safely store them on a flash drive, local hard drive, or your personal storage medium. Plain JSON and TXT exports are also supported.
+            Export an encrypted <code class="text-emerald-400 font-mono text-xs">.vpex</code> backup. The file is AES-GCM encrypted with a key derived from a password (PBKDF2), so you can keep it on a USB drive or your computer. JSON and TXT exports also exist, but those are unencrypted.
           </p>
         </details>
 
         <!-- FAQ 4 -->
-        <details class="glass-card rounded-xl p-5 group cursor-pointer">
-          <summary class="flex justify-between items-center font-medium text-white text-sm sm:text-base list-none">
-            <span>What happens if an unauthorized person tries brute-forcing my PIN/Password?</span>
-            <svg class="w-5 h-5 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <details class="glass-card rounded-xl p-5 group">
+          <summary class="flex justify-between items-center gap-3 font-medium text-white text-sm sm:text-base list-none">
+            <span>What if someone keeps guessing my master password?</span>
+            <svg class="w-5 h-5 flex-shrink-0 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
             </svg>
           </summary>
           <p class="mt-3 text-sm text-slate-400 leading-relaxed">
-            The application enforces strict hardware-persisted brute-force protection. Progressive lockout cooldowns trigger at 5, 10, 15, and 20+ failed attempts (30s, 60s, 5m, and 15m lockouts), effectively halting automated guessing attacks.
+            VaultPass counts failed attempts on disk, so restarting the app doesn't reset the count. After 5 failures it locks input for 30 seconds, after 10 for 60 seconds, after 15 for 5 minutes, and after 20 or more for 15 minutes.
+          </p>
+        </details>
+
+        <!-- FAQ 5 -->
+        <details class="glass-card rounded-xl p-5 group">
+          <summary class="flex justify-between items-center gap-3 font-medium text-white text-sm sm:text-base list-none">
+            <span>Does VaultPass use the internet?</span>
+            <svg class="w-5 h-5 flex-shrink-0 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </summary>
+          <p class="mt-3 text-sm text-slate-400 leading-relaxed">
+            Your vault is never sent to the internet or to a cloud service. There are two optional network features. Sync with the VaultPass desktop app for Windows: you pair the two by scanning a QR code, and they exchange changes directly over your local network. And an update check, off by default, that asks GitHub for the latest version and sends nothing from your vault.
           </p>
         </details>
       </div>
     </section>
 
+    </main>
+
     <!-- Minimalist Footer -->
     <footer class="mt-20 border-t border-white/5 py-12 text-xs text-slate-400">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
-        <div class="flex items-center gap-3">
-          <img src="assets/icon.png" alt="VaultPass" class="w-6 h-6 rounded-md object-cover">
-          <span class="text-slate-400 font-semibold">VaultPass</span>
-          <span>— Open-Source Offline Android Password Manager</span>
+        <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
+          <picture>
+            <source srcset="assets/icon.webp" type="image/webp">
+            <img src="assets/icon.png" alt="" width="24" height="24" loading="lazy" decoding="async" class="w-6 h-6 rounded-md object-cover">
+          </picture>
+          <span class="text-slate-300 font-semibold">VaultPass</span>
+          <span>Open-source Android password manager</span>
         </div>
 
-        <div class="flex items-center gap-6">
-          <a href="security.html" class="hover:text-slate-300 transition-colors">Security Model</a>
-          <a href="download.html" class="hover:text-slate-300 transition-colors">Downloads</a>
-          <a href="privacy.html" class="hover:text-slate-300 transition-colors">Privacy Policy</a>
-          <a data-virustotal-link href="https://www.virustotal.com/gui/file/ac993d64518225a9350b73f60edaafe82d7e8642dc864ba7c70c6aeccd4b20c7" target="_blank" rel="noopener noreferrer" class="hover:text-emerald-400 transition-colors">VirusTotal</a>
-        </div>
+        <nav aria-label="Footer" class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+          <a href="security.html" class="tap-target px-1 hover:text-white transition-colors">Security Model</a>
+          <a href="download.html" class="tap-target px-1 hover:text-white transition-colors">Downloads</a>
+          <a href="privacy.html" class="tap-target px-1 hover:text-white transition-colors">Privacy Policy</a>
+          <a data-virustotal-link hidden target="_blank" rel="noopener noreferrer" class="tap-target px-1 hover:text-emerald-300 transition-colors">VirusTotal<span class="sr-only"> (opens in a new tab)</span></a>
+        </nav>
       </div>
     </footer>
 
   </div>
 
-  <!-- JavaScript -->
-  <script src="js/app.js"></script>
-  <script src="js/demo-app.js"></script>
+  <!-- Site scripts -->
+  <script src="js/app.js" defer></script>
+  <script src="js/demo-app.js" defer></script>
 </body>
 </html>

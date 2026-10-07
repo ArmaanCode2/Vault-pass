@@ -2,8 +2,13 @@ package com.example.network.sync
 
 import android.content.Context
 import android.net.wifi.WifiManager
-import com.example.domain.sync.models.BeaconPayload
 import com.example.domain.sync.models.DevicePresence
+import com.example.domain.sync.models.PairedDevice
+import com.example.repository.PairedDeviceRepository
+import com.vaultpass.synccore.BeaconTracker
+import com.vaultpass.synccore.BeaconV2
+import com.vaultpass.synccore.Beacons
+import com.vaultpass.synccore.PairKeyProtector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -14,10 +19,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.Inet4Address
@@ -28,20 +29,17 @@ import java.net.SocketException
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
-@Serializable
-data class ReverseSyncSignal(
-    val type: String = "REVERSE_SYNC_REQUEST",
-    val deviceId: String = "",
-    val deviceName: String = "",
-    val mobileIp: String,
-    val mobilePort: Int = LanDiscoveryManager.SYNC_TCP_PORT
-)
-
+/**
+ * Finds paired devices on the local network with v2 beacons (see com.vaultpass.synccore.Beacons):
+ * a beacon names no device, and only a paired device can recognise it by its pair key.
+ */
 class LanDiscoveryManager(
     private val context: Context,
     val deviceId: String,
     val deviceName: String,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val pairedDeviceRepository: PairedDeviceRepository? = null,
+    private val pairKeyProtector: PairKeyProtector? = null
 ) {
     companion object {
         const val DISCOVERY_PORT = 53852
@@ -49,15 +47,9 @@ class LanDiscoveryManager(
         const val BEACON_INTERVAL_MS = 3_000L
         const val PEER_TTL_MS = 10_000L
         const val PING_MESSAGE = "PING"
-        const val BEACON_TYPE = "BEACON"
         private const val MULTICAST_LOCK_TAG = "vaultpass_multicast_lock"
         private const val PREFS_NAME = "vaultpass_sync_prefs"
         private const val KEY_LOCAL_DEVICE_ID = "local_device_id"
-
-        private val json = Json {
-            ignoreUnknownKeys = true
-            encodeDefaults = true
-        }
 
         fun getOrCreateDeviceId(context: Context): String {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -78,6 +70,12 @@ class LanDiscoveryManager(
     private var broadcastJob: Job? = null
     private var listenerJob: Job? = null
     private var multicastLock: WifiManager.MulticastLock? = null
+
+    /** Paired devices with their pair keys, reloaded every beacon cycle (needs an unlocked vault). */
+    @Volatile
+    private var pairedKeys: List<Pair<PairedDevice, ByteArray>> = emptyList()
+
+    private val tracker = BeaconTracker()
 
     private fun acquireMulticastLock() {
         try {
@@ -131,27 +129,32 @@ class LanDiscoveryManager(
 
     @Synchronized
     fun stop() {
-        if (!isRunning.getAndSet(false)) return
+        if (isRunning.getAndSet(false)) {
+            broadcastJob?.cancel()
+            broadcastJob = null
 
-        broadcastJob?.cancel()
-        broadcastJob = null
+            listenerJob?.cancel()
+            listenerJob = null
 
-        listenerJob?.cancel()
-        listenerJob = null
+            try {
+                socket?.close()
+            } catch (e: Exception) {
+                // ignore
+            }
+            socket = null
 
-        try {
-            socket?.close()
-        } catch (e: Exception) {
-            // ignore
+            releaseMulticastLock()
         }
-        socket = null
-
-        releaseMulticastLock()
+        pairedKeys = emptyList()
+        tracker.reset()
+        // Presence is only meaningful while listening; don't show stale devices as online.
+        clearDiscoveredDevices()
     }
 
     private fun startBroadcastLoop() {
         broadcastJob = scope.launch(Dispatchers.IO) {
             while (isActive && isRunning.get()) {
+                refreshPairedKeys()
                 sendBeaconBroadcast()
                 pruneExpiredPeers()
                 delay(BEACON_INTERVAL_MS)
@@ -182,21 +185,29 @@ class LanDiscoveryManager(
         }
     }
 
-    fun createBeaconPayload(): BeaconPayload =
-        BeaconPayload(
-            deviceId = deviceId,
-            deviceName = deviceName,
-            port = SYNC_TCP_PORT,
-            type = BEACON_TYPE
-        )
+    private suspend fun refreshPairedKeys() {
+        val repository = pairedDeviceRepository ?: return
+        val protector = pairKeyProtector ?: return
+        pairedKeys = try {
+            repository.getPairedDevices().mapNotNull { device ->
+                protector.open(device.sharedSecret)?.let { device to it }
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 
-    fun createBeaconJson(): String =
-        json.encodeToString(BeaconPayload.serializer(), createBeaconPayload())
+    /** Our beacon, or null when there is no paired device to be found by. */
+    private fun createBeacon(): BeaconV2? {
+        val keys = pairedKeys
+        if (keys.isEmpty()) return null
+        return Beacons.create(keys.map { it.second }, SYNC_TCP_PORT, System.currentTimeMillis())
+            .also { tracker.recordOwn(it) }
+    }
 
     private fun sendBeaconBroadcast() {
-        val beaconJson = createBeaconJson()
-        val data = beaconJson.toByteArray(Charsets.UTF_8)
-        broadcastBytes(data)
+        val beacon = createBeacon() ?: return
+        broadcastBytes(Beacons.encode(beacon).toByteArray(Charsets.UTF_8))
     }
 
     private fun broadcastPing() {
@@ -230,51 +241,42 @@ class LanDiscoveryManager(
             return
         }
 
-        val beacon = parseBeacon(rawMessage) ?: return
-        if (beacon.deviceId == deviceId) {
-            // Ignore packets sent by ourselves
-            return
-        }
+        val beacon = Beacons.parse(rawMessage) ?: return
+        if (tracker.isOwn(beacon)) return
 
-        _discoveredDevices.update { current ->
-            val updated = current.toMutableMap()
-            updated[beacon.deviceId] = DevicePresence(
-                deviceId = beacon.deviceId,
-                deviceName = beacon.deviceName,
-                ipAddress = senderIp,
-                port = beacon.port,
-                lastSeen = System.currentTimeMillis()
-            )
-            updated
+        val now = System.currentTimeMillis()
+        for (device in Beacons.identify(beacon, pairedKeys)) {
+            // Only a beacon newer than the last one from this device counts, so a recorded
+            // beacon can't be replayed to redirect it.
+            if (!tracker.acceptFrom(device.deviceId, beacon)) continue
+            _discoveredDevices.update { current ->
+                current + (device.deviceId to DevicePresence(
+                    deviceId = device.deviceId,
+                    deviceName = device.deviceName,
+                    ipAddress = senderIp,
+                    port = beacon.port,
+                    lastSeen = now
+                ))
+            }
         }
     }
 
     private fun sendBeaconResponse(targetAddress: InetAddress?) {
         if (targetAddress == null) return
+        val beacon = createBeacon() ?: return
         val currentSocket = socket
         if (currentSocket != null && !currentSocket.isClosed) {
             try {
-                val beaconBytes = createBeaconJson().toByteArray(Charsets.UTF_8)
-                val packet = DatagramPacket(beaconBytes, beaconBytes.size, targetAddress, DISCOVERY_PORT)
-                currentSocket.send(packet)
+                val bytes = Beacons.encode(beacon).toByteArray(Charsets.UTF_8)
+                currentSocket.send(DatagramPacket(bytes, bytes.size, targetAddress, DISCOVERY_PORT))
             } catch (e: Exception) {
                 // Ignore response errors
             }
         }
     }
 
-    fun parseBeacon(jsonString: String): BeaconPayload? {
-        return try {
-            val payload = json.decodeFromString<BeaconPayload>(jsonString)
-            if (payload.type == BEACON_TYPE && payload.deviceId.isNotBlank()) {
-                payload
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            null
-        }
-    }
+    /** Loads the pair keys now instead of waiting for the next beacon cycle. */
+    internal suspend fun refreshPairedKeysForTesting() = refreshPairedKeys()
 
     fun pruneExpiredPeers(currentTime: Long = System.currentTimeMillis()) {
         _discoveredDevices.update { current ->
@@ -368,64 +370,5 @@ class LanDiscoveryManager(
 
     fun clearDiscoveredDevices() {
         _discoveredDevices.value = emptyMap()
-    }
-
-    suspend fun sendReverseConnectSignal(
-        desktopIp: String,
-        pairingToken: String,
-        mobileIp: String,
-        mobilePort: Int = SYNC_TCP_PORT
-    ) = withContext(Dispatchers.IO) {
-        try {
-            val signalJson = """{"type":"REVERSE_PAIR_REQUEST","deviceId":"$deviceId","deviceName":"$deviceName","token":"$pairingToken","mobileIp":"$mobileIp","mobilePort":$mobilePort}"""
-            val bytes = signalJson.toByteArray(Charsets.UTF_8)
-            val currentSocket = socket
-            if (currentSocket != null && !currentSocket.isClosed) {
-                currentSocket.send(DatagramPacket(bytes, bytes.size, InetAddress.getByName(desktopIp), DISCOVERY_PORT))
-                currentSocket.send(DatagramPacket(bytes, bytes.size, InetAddress.getByName("255.255.255.255"), DISCOVERY_PORT))
-            } else {
-                DatagramSocket().use { tempSocket ->
-                    tempSocket.broadcast = true
-                    tempSocket.send(DatagramPacket(bytes, bytes.size, InetAddress.getByName(desktopIp), DISCOVERY_PORT))
-                    tempSocket.send(DatagramPacket(bytes, bytes.size, InetAddress.getByName("255.255.255.255"), DISCOVERY_PORT))
-                }
-            }
-        } catch (_: Exception) {}
-    }
-
-    suspend fun sendReverseSyncSignal(
-        desktopIp: String,
-        mobileIp: String,
-        mobilePort: Int = SYNC_TCP_PORT
-    ) = withContext(Dispatchers.IO) {
-        try {
-            val signal = ReverseSyncSignal(
-                type = "REVERSE_SYNC_REQUEST",
-                deviceId = deviceId,
-                deviceName = deviceName,
-                mobileIp = mobileIp,
-                mobilePort = mobilePort
-            )
-            val signalJson = json.encodeToString(signal)
-            val bytes = signalJson.toByteArray(Charsets.UTF_8)
-            val targets = (listOf(InetAddress.getByName(desktopIp)) + getBroadcastAddresses()).distinct()
-            val currentSocket = socket
-            if (currentSocket != null && !currentSocket.isClosed) {
-                for (target in targets) {
-                    try {
-                        currentSocket.send(DatagramPacket(bytes, bytes.size, target, DISCOVERY_PORT))
-                    } catch (_: Exception) {}
-                }
-            } else {
-                DatagramSocket().use { tempSocket ->
-                    tempSocket.broadcast = true
-                    for (target in targets) {
-                        try {
-                            tempSocket.send(DatagramPacket(bytes, bytes.size, target, DISCOVERY_PORT))
-                        } catch (_: Exception) {}
-                    }
-                }
-            }
-        } catch (_: Exception) {}
     }
 }

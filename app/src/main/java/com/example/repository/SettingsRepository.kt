@@ -9,9 +9,16 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import com.example.domain.security.SecurityStatsSummary
 
+/** What reading master_hash found. A read error is never "no vault". */
+enum class MasterHashRead { PRESENT, ABSENT, READ_ERROR }
+
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
-class SettingsRepository(private val context: Context) {
+class SettingsRepository(
+    private val context: Context,
+    /** Clock + boot count used for the failed-unlock lockout. */
+    val deviceClock: com.example.security.DeviceClock = com.example.security.AndroidDeviceClock(context)
+) {
 
     companion object {
         val MASTER_HASH = stringPreferencesKey("master_hash")
@@ -26,6 +33,7 @@ class SettingsRepository(private val context: Context) {
         val HIDE_PASSWORDS = booleanPreferencesKey("hide_passwords")
         val DISABLE_SCREENSHOTS = booleanPreferencesKey("disable_screenshots")
         val CLIPBOARD_CLEAR_TIMER = longPreferencesKey("clipboard_clear_timer")
+        val CHECK_UPDATES_ON_OPEN = booleanPreferencesKey("check_updates_on_open")
         
         // Security Summary Stats
         val SECURITY_SCORE = intPreferencesKey("security_score")
@@ -39,7 +47,10 @@ class SettingsRepository(private val context: Context) {
         val SECURITY_LAST_UPDATED = longPreferencesKey("security_last_updated")
         
         val FAILED_AUTH_ATTEMPTS = intPreferencesKey("failed_auth_attempts")
-        val LAST_FAILED_AUTH_TIMESTAMP = longPreferencesKey("last_failed_auth_timestamp")
+        val LAST_FAILED_AUTH_TIMESTAMP = longPreferencesKey("last_failed_auth_timestamp") // elapsedRealtime
+        // Added in 2.7.0 (absent in 2.6.x state): boot count and lockout duration stored at the last failure.
+        val LAST_FAILED_AUTH_BOOT_COUNT = intPreferencesKey("last_failed_auth_boot_count")
+        val LAST_FAILED_AUTH_LOCKOUT_MS = longPreferencesKey("last_failed_auth_lockout_ms")
         
         private const val PREFS_NAME = "vaultpass_sync_prefs"
         private const val DEK_MP_WRAPPED_PREF = "dek_mp_wrapped"
@@ -47,6 +58,8 @@ class SettingsRepository(private val context: Context) {
         private const val PENDING_DEK_MP_WRAPPED_PREF = "pending_dek_mp_wrapped"
         private const val PENDING_DEK_BIO_WRAPPED_PREF = "pending_dek_bio_wrapped"
         private const val PENDING_DEK_MP_WRAPPED_V2_PREF = "pending_dek_mp_wrapped_v2"
+        // Written only by builds before 2026-06-03 (legacy entry key). Read-only here, never written or deleted.
+        private const val LEGACY_FALLBACK_KEY_PREF = "fallback_key"
     }
 
     suspend fun saveMasterPasswordData(hash: String, salt: String) {
@@ -62,6 +75,26 @@ class SettingsRepository(private val context: Context) {
     }
 
     val masterPasswordHash: Flow<String?> = data.map { it[MASTER_HASH] }
+
+    /**
+     * Everything stored, read once. Unlike the flows here, a DataStore read error is thrown instead of
+     * reading as "nothing stored", for callers (and tests) that must tell the two apart.
+     *
+     * Read through updateData with an identity transform: DataStore then reads the file under its write
+     * lock (so never in the middle of a write) and writes nothing, because the data is unchanged. A plain
+     * `data.first()` that races a write reads the file without the lock, and on the Windows test JVM the
+     * file is briefly missing during the replace (Files.move with REPLACE_EXISTING deletes the target
+     * first), which DataStore reports as empty preferences.
+     */
+    internal suspend fun readStoredPreferencesOrThrow(): Preferences = context.dataStore.updateData { it }
+
+    /** Like [masterPasswordHash], but a read error stays a read error (decides Setup vs Lock, F17). */
+    val masterHashRead: Flow<MasterHashRead> = context.dataStore.data
+        .map { if (it[MASTER_HASH] != null) MasterHashRead.PRESENT else MasterHashRead.ABSENT }
+        .catch { exception ->
+            if (com.example.BuildConfig.DEBUG) exception.printStackTrace()
+            emit(MasterHashRead.READ_ERROR)
+        }
     val masterPasswordSalt: Flow<String?> = data.map { it[MASTER_SALT] }
 
     val masterKdfVersion: Flow<Int> = data.map { it[MASTER_KDF_VERSION] ?: 1 }
@@ -86,18 +119,45 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
-    val failedAuthAttempts: Flow<Int> = data.map { 
-        it[FAILED_AUTH_ATTEMPTS] ?: 0
-    }
-    val lastFailedAuthTimestamp: Flow<Long> = data.map { 
-        it[LAST_FAILED_AUTH_TIMESTAMP] ?: 0L
+    /**
+     * Removes the master password hash, salt and KDF metadata. Only for rolling back a vault
+     * creation that failed before its key was saved (then no vault exists and Setup shows again).
+     */
+    suspend fun clearMasterPasswordAndKdfMetadata() {
+        context.dataStore.edit { prefs ->
+            prefs.remove(MASTER_HASH)
+            prefs.remove(MASTER_SALT)
+            prefs.remove(MASTER_KDF_VERSION)
+            prefs.remove(MASTER_KDF_ITERATIONS)
+            prefs.remove(MASTER_KDF_ALGORITHM)
+        }
     }
 
-    suspend fun incrementFailedAttempts(timestamp: Long) {
+    /** Everything [com.example.security.AuthLockout.remainingMs] needs, as stored. */
+    val authLockoutState: Flow<com.example.security.AuthLockout.State> = data.map {
+        com.example.security.AuthLockout.State(
+            attempts = it[FAILED_AUTH_ATTEMPTS] ?: 0,
+            failElapsedMs = it[LAST_FAILED_AUTH_TIMESTAMP] ?: 0L,
+            bootCount = it[LAST_FAILED_AUTH_BOOT_COUNT],
+            tierMs = it[LAST_FAILED_AUTH_LOCKOUT_MS]
+        )
+    }
+
+    /**
+     * Records a failed unlock: [elapsedRealtime] and [bootCount] (null when unknown) at the time
+     * of the failure, plus the lockout duration that applies after it.
+     */
+    suspend fun incrementFailedAttempts(elapsedRealtime: Long, bootCount: Int?) {
         context.dataStore.edit { prefs ->
-            val current = prefs[FAILED_AUTH_ATTEMPTS] ?: 0
-            prefs[FAILED_AUTH_ATTEMPTS] = current + 1
-            prefs[LAST_FAILED_AUTH_TIMESTAMP] = timestamp
+            val attempts = (prefs[FAILED_AUTH_ATTEMPTS] ?: 0) + 1
+            prefs[FAILED_AUTH_ATTEMPTS] = attempts
+            prefs[LAST_FAILED_AUTH_TIMESTAMP] = elapsedRealtime
+            if (bootCount != null) {
+                prefs[LAST_FAILED_AUTH_BOOT_COUNT] = bootCount
+            } else {
+                prefs.remove(LAST_FAILED_AUTH_BOOT_COUNT)
+            }
+            prefs[LAST_FAILED_AUTH_LOCKOUT_MS] = com.example.security.AuthLockout.tierForAttempts(attempts)
         }
     }
 
@@ -105,6 +165,8 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { prefs ->
             prefs.remove(FAILED_AUTH_ATTEMPTS)
             prefs.remove(LAST_FAILED_AUTH_TIMESTAMP)
+            prefs.remove(LAST_FAILED_AUTH_BOOT_COUNT)
+            prefs.remove(LAST_FAILED_AUTH_LOCKOUT_MS)
         }
     }
 
@@ -143,6 +205,12 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { it[CLIPBOARD_CLEAR_TIMER] = timer }
     }
 
+    /** "Check for updates when the app opens". Off unless the user turns it on. */
+    val checkUpdatesOnOpen: Flow<Boolean> = data.map { it[CHECK_UPDATES_ON_OPEN] ?: false }
+    suspend fun setCheckUpdatesOnOpen(enabled: Boolean) {
+        context.dataStore.edit { it[CHECK_UPDATES_ON_OPEN] = enabled }
+    }
+
     val securityStatsSummary: Flow<SecurityStatsSummary?> = data.map { prefs ->
         if (!prefs.contains(SECURITY_SCORE)) return@map null
         SecurityStatsSummary(
@@ -178,9 +246,19 @@ class SettingsRepository(private val context: Context) {
         return prefs.getString(DEK_MP_WRAPPED_PREF, null)
     }
 
-    fun saveDekMpWrappedSync(wrappedBase64: String) {
+    /** Written to disk before returning; false if that failed. */
+    fun saveDekMpWrappedSync(wrappedBase64: String): Boolean {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putString(DEK_MP_WRAPPED_PREF, wrappedBase64).apply()
+        return prefs.edit().putString(DEK_MP_WRAPPED_PREF, wrappedBase64).commit()
+    }
+
+    /**
+     * Removes the wrapped DEK. Only for rolling back a vault creation that failed (no entry is
+     * encrypted with that key yet). Written to disk before returning; false if that failed.
+     */
+    fun removeDekMpWrappedSync(): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.edit().remove(DEK_MP_WRAPPED_PREF).commit()
     }
 
     fun getDekBioWrappedSync(): String? {
@@ -202,9 +280,10 @@ class SettingsRepository(private val context: Context) {
         return prefs.getString(PENDING_DEK_MP_WRAPPED_PREF, null)
     }
 
-    fun savePendingDekMpWrappedSync(wrappedBase64: String) {
+    /** Written to disk before returning; false if that failed. */
+    fun savePendingDekMpWrappedSync(wrappedBase64: String): Boolean {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putString(PENDING_DEK_MP_WRAPPED_PREF, wrappedBase64).apply()
+        return prefs.edit().putString(PENDING_DEK_MP_WRAPPED_PREF, wrappedBase64).commit()
     }
 
     fun getPendingDekBioWrappedSync(): String? {
@@ -217,13 +296,32 @@ class SettingsRepository(private val context: Context) {
         prefs.edit().putString(PENDING_DEK_BIO_WRAPPED_PREF, wrappedBase64).apply()
     }
 
-    fun clearPendingKeysSync() {
+    /** Written to disk before returning; false if that failed. */
+    fun clearPendingKeysSync(): Boolean {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit()
+        return prefs.edit()
             .remove(PENDING_DEK_MP_WRAPPED_PREF)
             .remove(PENDING_DEK_BIO_WRAPPED_PREF)
             .remove(PENDING_DEK_MP_WRAPPED_V2_PREF)
-            .apply()
+            .commit()
+    }
+
+    /** True when any wrapped vault key (final or pending) is stored: a vault exists on this device. */
+    fun hasStoredVaultKeySync(): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return listOf(
+            DEK_MP_WRAPPED_PREF,
+            DEK_BIO_WRAPPED_PREF,
+            PENDING_DEK_MP_WRAPPED_PREF,
+            PENDING_DEK_BIO_WRAPPED_PREF,
+            PENDING_DEK_MP_WRAPPED_V2_PREF
+        ).any { prefs.contains(it) }
+    }
+
+    /** The legacy fallback entry key (base64), if an old build stored one. Read-only. */
+    fun getLegacyFallbackKeySync(): String? {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getString(LEGACY_FALLBACK_KEY_PREF, null)
     }
 
     fun getPendingDekMpWrappedV2Sync(): String? {

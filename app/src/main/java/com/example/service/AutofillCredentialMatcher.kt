@@ -2,7 +2,64 @@ package com.example.service
 
 import com.example.domain.models.VaultEntry
 
+/**
+ * Decides which vault entries autofill may offer for a fill request (audit F3).
+ *
+ * - Web content: only when the requesting app is a verified browser (the caller checks it with [BrowserVerifier]:
+ *   listed in Google's privileged-apps list AND signed with a listed certificate) and reported a webDomain. An
+ *   entry matches on the exact host (200) or on the same registrable domain per the Public Suffix List (150).
+ *   On an http:// page (webScheme known) only entries saved with an explicit http:// URL match.
+ *   Any other app's webDomain is ignored: an app can put any domain into its view structure.
+ * - Native apps: entries the user linked to the requesting package (picked once through "Search VaultPass…",
+ *   stored locally in autofill_app_links) and entries whose website is exactly `androidapp://<requesting package>`.
+ *   Browsers are never linked, and links stored for a browser package are ignored. An app that is not verified
+ *   but uses a known browser's package name ([BROWSER_PACKAGE_NAMES]) gets nothing.
+ *
+ * Titles, app labels and package-name similarity are never used: they let lookalike apps and phishing pages
+ * receive credentials.
+ */
 object AutofillCredentialMatcher {
+
+    const val SCORE_EXACT_HOST = 200
+    const val SCORE_SAME_SITE = 150
+    const val SCORE_LINKED_APP = 200
+
+    /**
+     * Package names of browsers, used only to refuse app links and to give an unverified app using one of these
+     * names nothing. A name never makes a webDomain trusted: that needs [BrowserVerifier] (signing certificate).
+     * Kiwi, Cromite, Mull and Tor Browser are kept here although they are not in Google's privileged list (so
+     * their webDomain is not trusted any more).
+     */
+    val BROWSER_PACKAGE_NAMES: Set<String> = setOf(
+        // Chrome (stable, beta, dev, canary)
+        "com.android.chrome", "com.chrome.beta", "com.chrome.dev", "com.chrome.canary",
+        // Brave
+        "com.brave.browser",
+        // Firefox (release, beta, Focus, Nightly)
+        "org.mozilla.firefox", "org.mozilla.firefox_beta", "org.mozilla.focus", "org.mozilla.fenix",
+        // Microsoft Edge
+        "com.microsoft.emmx",
+        // Samsung Internet
+        "com.sec.android.app.sbrowser",
+        // DuckDuckGo
+        "com.duckduckgo.mobile.android",
+        // Opera, Opera Mini
+        "com.opera.browser", "com.opera.mini.native",
+        // Vivaldi
+        "com.vivaldi.browser",
+        // Kiwi
+        "com.kiwibrowser.browser",
+        // Cromite
+        "org.cromite.cromite",
+        // Mull
+        "us.spotco.fennec_dos",
+        // Tor Browser
+        "org.torproject.torbrowser"
+    )
+
+    private const val ANDROID_APP_SCHEME = "androidapp://"
+    private val SCHEME_PREFIX = Regex("^[a-zA-Z][a-zA-Z0-9+.-]*://")
+    private val ASCII_HOST = Regex("^[a-z0-9_-]+(\\.[a-z0-9_-]+)*$")
 
     data class ScoredEntry(
         val entry: VaultEntry,
@@ -10,124 +67,152 @@ object AutofillCredentialMatcher {
         val reason: String
     )
 
+    /** What a fill request is for, after deciding whether its webDomain can be trusted. */
+    sealed class Target {
+        /** [scheme]: the page's scheme when the browser reported it ("http", "https"), else null. */
+        data class Web(val host: String, val scheme: String? = null) : Target()
+        /** [linkedSyncIds]: entries linked to this app; ids without an entry (orphans) simply match nothing. */
+        data class App(val packageName: String, val linkedSyncIds: Set<String> = emptySet()) : Target()
+        object None : Target()
+    }
+
+    fun isBrowserPackageName(packageName: String?): Boolean = packageName != null && packageName in BROWSER_PACKAGE_NAMES
+
+    /** Whether a picked entry may be linked to [packageName]: any native app, never a browser. */
+    fun canLinkPackage(packageName: String?): Boolean = !packageName.isNullOrBlank() && !isBrowserPackageName(packageName)
+
+    /**
+     * [verifiedBrowser]: [requestedPackage] passed [BrowserVerifier.isVerifiedBrowser]. [webScheme]: the scheme
+     * of the login field's frame, when known.
+     */
+    fun resolveTarget(
+        requestedPackage: String?,
+        requestedWebDomain: String?,
+        verifiedBrowser: Boolean,
+        webScheme: String? = null
+    ): Target {
+        if (requestedPackage.isNullOrBlank()) return Target.None
+        if (verifiedBrowser) {
+            // A browser without a usable webDomain (its own UI, or an unidentifiable page) gets nothing.
+            return extractHost(requestedWebDomain)?.let { Target.Web(it, webScheme?.trim()?.lowercase()) } ?: Target.None
+        }
+        // An unverified app using a browser's package name (e.g. a sideloaded lookalike) gets nothing.
+        if (isBrowserPackageName(requestedPackage)) return Target.None
+        // Not a verified browser: its webDomain is ignored and the request is handled as a native app.
+        return Target.App(requestedPackage)
+    }
+
+    /** Whether [website] was saved with an explicit `http://` scheme. */
+    fun hasExplicitHttpScheme(website: String?): Boolean =
+        website?.trim()?.startsWith("http://", ignoreCase = true) == true
+
+    /**
+     * Normalised host of a URL, bare domain or webDomain: IDN to ASCII, lowercase, no trailing dot, no port,
+     * no user info. Null for non-web schemes (e.g. `androidapp://`) and anything that is not a valid host.
+     */
     fun extractHost(url: String?): String? {
         if (url.isNullOrBlank()) return null
         val trimmed = url.trim()
-        val parsedUrl = if (!trimmed.startsWith("http://", ignoreCase = true) && !trimmed.startsWith("https://", ignoreCase = true)) {
-            "https://$trimmed"
+        val scheme = SCHEME_PREFIX.find(trimmed)?.value?.lowercase()
+        if (scheme != null && scheme != "http://" && scheme != "https://") return null
+        val withoutScheme = if (scheme != null) trimmed.substring(scheme.length) else trimmed
+
+        // Authority = everything up to the first path/query/fragment delimiter, without user info and port.
+        var authority = withoutScheme.split('/', '?', '#', '\\').first().substringAfterLast('@')
+        authority = if (authority.startsWith("[")) {
+            authority.substringBefore(']') + "]"
         } else {
-            trimmed
+            authority.substringBefore(':')
         }
-        return try {
-            val uri = java.net.URI(parsedUrl)
-            var host = uri.host ?: fallbackExtractHost(trimmed) ?: return null
-            host = host.lowercase()
-            if (host.startsWith("www.")) host = host.substring(4)
-            if (host.isNotBlank()) host else null
-        } catch (e: Exception) {
-            fallbackExtractHost(trimmed)
-        }
+        val host = PublicSuffixList.normalizeHost(authority) ?: return null
+        val valid = (host.startsWith("[") && host.endsWith("]") && host.length > 2) || ASCII_HOST.matches(host)
+        return if (valid) host else null
     }
 
-    private fun fallbackExtractHost(raw: String): String? {
-        return try {
-            val cleaned = raw.replace(Regex("^[a-zA-Z]+://"), "")
-                .split('/', '?', '#', ':')[0].trim()
-            var host = cleaned.lowercase()
-            if (host.startsWith("www.")) host = host.substring(4)
-            if (host.isNotBlank()) host else null
-        } catch (e: Exception) {
-            null
-        }
+    /** `www.example.com` and `example.com` count as the same host (but `www.ck` stays `www.ck`). */
+    private fun sameHostKey(host: String): String {
+        if (host.startsWith("www.") && host.indexOf('.', startIndex = 4) > 0) return host.substring(4)
+        return host
     }
 
-    fun extractBaseDomain(url: String?): String? {
-        val host = extractHost(url) ?: return null
-        val parts = host.split(".")
-        if (parts.size <= 2) {
-            return host
-        }
-        val secondToLast = parts[parts.size - 2]
-        val commonSecondLevelDomains = setOf("co", "com", "org", "net", "edu", "gov", "ac")
-        if (parts.size >= 3 && commonSecondLevelDomains.contains(secondToLast) && parts.last().length == 2) {
-            return parts.takeLast(3).joinToString(".")
-        }
-        return parts.takeLast(2).joinToString(".")
+    /** `androidapp://<package>`: the scheme is case-insensitive, the package name must match exactly. */
+    fun linkedAppPackage(website: String?): String? {
+        val trimmed = website?.trim() ?: return null
+        if (!trimmed.startsWith(ANDROID_APP_SCHEME, ignoreCase = true)) return null
+        return trimmed.substring(ANDROID_APP_SCHEME.length).takeIf { it.isNotEmpty() }
     }
-
-    fun normalize(str: String): String = str.lowercase().replace(Regex("[^a-z0-9]"), "")
 
     fun calculateMatchScoreWithReason(
         entry: VaultEntry,
-        requestedPackage: String?,
-        requestedDomain: String?,
-        appLabel: String?
+        target: Target,
+        publicSuffixList: PublicSuffixList?
     ): Pair<Int, String> {
         if (entry.isDecryptionFailed) return Pair(0, "Decryption failed")
 
-        val reqHost = extractHost(requestedDomain)
-        val entryHost = extractHost(entry.website)
-
-        // 1. Web Domain Match
-        if (reqHost != null && entryHost != null) {
-            if (reqHost == entryHost) {
-                return Pair(200, "Exact domain match (Score 200)")
+        return when (target) {
+            is Target.Web -> {
+                val entryHost = extractHost(entry.website) ?: return Pair(0, "No match")
+                // An http:// page only gets entries the user saved for http:// (https or no scheme: not offered).
+                if (target.scheme == "http" && !hasExplicitHttpScheme(entry.website)) {
+                    return Pair(0, "Page is http, entry is not saved for http")
+                }
+                if (sameHostKey(entryHost) == sameHostKey(target.host)) {
+                    return Pair(SCORE_EXACT_HOST, "Exact host match (Score $SCORE_EXACT_HOST)")
+                }
+                val requestSite = publicSuffixList?.registrableDomain(target.host)
+                val entrySite = publicSuffixList?.registrableDomain(entryHost)
+                if (requestSite != null && requestSite == entrySite) {
+                    Pair(SCORE_SAME_SITE, "Same registrable domain $requestSite (Score $SCORE_SAME_SITE)")
+                } else {
+                    Pair(0, "No match")
+                }
             }
-            val reqBase = extractBaseDomain(requestedDomain)
-            val entryBase = extractBaseDomain(entry.website)
-            if (reqBase != null && reqBase == entryBase) {
-                return Pair(150, "Subdomain match (Score 150)")
+            // Native apps: explicit associations only (androidapp:// website or a stored link), nothing fuzzy.
+            is Target.App -> when {
+                linkedAppPackage(entry.website) == target.packageName ->
+                    Pair(SCORE_LINKED_APP, "Linked Android app (Score $SCORE_LINKED_APP)")
+                entry.syncId.isNotEmpty() && entry.syncId in target.linkedSyncIds ->
+                    Pair(SCORE_LINKED_APP, "Linked to this app by the user (Score $SCORE_LINKED_APP)")
+                else -> Pair(0, "No match")
             }
-            if (reqHost.endsWith(".$entryHost") || entryHost.endsWith(".$reqHost")) {
-                return Pair(150, "Subdomain match (Score 150)")
-            }
+            Target.None -> Pair(0, "No match")
         }
-
-        // 2. App Label Heuristics
-        val normalizedLabel = appLabel?.let { normalize(it) } ?: ""
-        val normalizedTitle = normalize(entry.title)
-
-        if (normalizedTitle.isNotEmpty() && normalizedLabel.isNotEmpty()) {
-            if (normalizedTitle == normalizedLabel) {
-                return Pair(100, "Exact title match (Score 100)")
-            } else if (normalizedTitle.contains(normalizedLabel)) {
-                return Pair(85, "Title contains app label (Score 85)")
-            } else if (normalizedLabel.contains(normalizedTitle)) {
-                return Pair(80, "App label contains title (Score 80)")
-            }
-        }
-
-        // 3. Package Name Fallback
-        if (requestedPackage != null) {
-            val isPackageMatch = entry.website.contains(requestedPackage, ignoreCase = true) ||
-                    requestedPackage.contains(entry.title.replace(" ", ""), ignoreCase = true)
-            if (isPackageMatch) {
-                return Pair(60, "Package name fallback (Score 60)")
-            }
-        }
-
-        return Pair(0, "No match")
     }
 
     fun calculateMatchScore(
         entry: VaultEntry,
         requestedPackage: String?,
-        requestedDomain: String?,
-        appLabel: String?
+        requestedWebDomain: String?,
+        publicSuffixList: PublicSuffixList?,
+        verifiedBrowser: Boolean,
+        webScheme: String? = null
     ): Int {
-        return calculateMatchScoreWithReason(entry, requestedPackage, requestedDomain, appLabel).first
+        val target = resolveTarget(requestedPackage, requestedWebDomain, verifiedBrowser, webScheme)
+        return calculateMatchScoreWithReason(entry, target, publicSuffixList).first
     }
 
+    /**
+     * [linkedSyncIds]: the entries linked to [requestedPackage]. Only used for native-app requests; ignored for
+     * browsers (web requests match on the domain only). [verifiedBrowser] and [webScheme]: see [resolveTarget].
+     */
     fun matchEntries(
         entries: List<VaultEntry>,
         requestedPackage: String?,
-        requestedDomain: String?,
-        appLabel: String?
+        requestedWebDomain: String?,
+        publicSuffixList: PublicSuffixList?,
+        verifiedBrowser: Boolean,
+        linkedSyncIds: Set<String> = emptySet(),
+        webScheme: String? = null
     ): List<ScoredEntry> {
+        val target = when (val resolved = resolveTarget(requestedPackage, requestedWebDomain, verifiedBrowser, webScheme)) {
+            is Target.App -> resolved.copy(linkedSyncIds = linkedSyncIds)
+            else -> resolved
+        }
+        if (target == Target.None) return emptyList()
         val matches = mutableListOf<ScoredEntry>()
         for (entry in entries) {
-            val (score, reason) = calculateMatchScoreWithReason(entry, requestedPackage, requestedDomain, appLabel)
-            if (score > 50) {
+            val (score, reason) = calculateMatchScoreWithReason(entry, target, publicSuffixList)
+            if (score > 0) {
                 matches.add(ScoredEntry(entry, score, reason))
             }
         }

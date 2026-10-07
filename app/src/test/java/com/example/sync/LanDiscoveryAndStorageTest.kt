@@ -2,12 +2,15 @@ package com.example.sync
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import com.example.domain.sync.models.BeaconPayload
 import com.example.domain.sync.models.PairedDevice
 import com.example.domain.sync.models.SyncFrame
 import com.example.domain.sync.models.SyncState
+import com.example.VaultPassApplication
+import com.example.network.sync.AndroidPairKeyProtector
 import com.example.network.sync.LanDiscoveryManager
-import com.example.network.sync.ReverseSyncSignal
+import com.example.security.CryptoManager
+import com.vaultpass.synccore.Beacons
+import com.vaultpass.synccore.SyncCrypto
 import com.example.repository.PairedDeviceRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -64,13 +67,12 @@ class LanDiscoveryAndStorageTest {
 
     @Test
     fun syncFrame_sealedClassSerialization_polymorphicRoundTrip() {
-        val request: SyncFrame = SyncFrame.PairingRequest(
+        val request: SyncFrame = SyncFrame.PairingInfo(
             deviceId = "dev-1",
-            deviceName = "Phone",
-            pairingToken = "token-999"
+            deviceName = "Phone"
         )
         val requestJson = json.encodeToString(request)
-        assertTrue("Discriminator should be PairingRequest without package name", requestJson.contains("PairingRequest"))
+        assertTrue("Discriminator should be PairingInfo without package name", requestJson.contains("\"PairingInfo\""))
         assertFalse("Wire format must not leak Android package prefix", requestJson.contains("com.example"))
         val decodedRequest = json.decodeFromString<SyncFrame>(requestJson)
         assertEquals(request, decodedRequest)
@@ -98,7 +100,7 @@ class LanDiscoveryAndStorageTest {
 
     @Test
     fun syncState_enumCoverage() {
-        assertEquals(9, SyncState.values().size)
+        assertEquals("Only the states the UI reads are left", 7, SyncState.values().size)
         assertEquals(SyncState.IDLE, SyncState.valueOf("IDLE"))
         assertEquals(SyncState.SYNCING, SyncState.valueOf("SYNCING"))
     }
@@ -112,12 +114,12 @@ class LanDiscoveryAndStorageTest {
         val device1 = PairedDevice(
             deviceId = "dev-alpha",
             deviceName = "Laptop",
-            sharedSecret = "secret-key-1"
+            sharedSecret = "v2:secret-key-1"
         )
         val device2 = PairedDevice(
             deviceId = "dev-beta",
             deviceName = "Tablet",
-            sharedSecret = "secret-key-2"
+            sharedSecret = "v2:secret-key-2"
         )
 
         // 1. Add device 1
@@ -162,80 +164,58 @@ class LanDiscoveryAndStorageTest {
     // --- LanDiscoveryManager Tests ---
 
     @Test
-    fun lanDiscoveryManager_beaconJsonParsing_validAndMalformed() {
-        val testScope = TestScope()
-        val manager = LanDiscoveryManager(
-            context = context,
-            deviceId = "local-device-id",
-            deviceName = "Local Device",
-            scope = testScope
-        )
+    fun lanDiscoveryManager_recognisesOnlyItsPairedDevicesBeacons() = runTest {
+        val (manager, key) = pairedManager()
 
-        val validBeaconJson = """{"deviceId":"remote-1","deviceName":"MacBook","port":53853,"type":"BEACON"}"""
-        val parsed = manager.parseBeacon(validBeaconJson)
-        assertNotNull(parsed)
-        assertEquals("remote-1", parsed?.deviceId)
-        assertEquals("MacBook", parsed?.deviceName)
-        assertEquals(53853, parsed?.port)
-        assertEquals("BEACON", parsed?.type)
-
-        // Missing deviceId / malformed
-        val malformedJson = """{"invalid_field":123}"""
-        assertNull(manager.parseBeacon(malformedJson))
-
-        // Wrong type
-        val wrongTypeJson = """{"deviceId":"remote-1","deviceName":"MacBook","port":53853,"type":"OTHER"}"""
-        assertNull(manager.parseBeacon(wrongTypeJson))
-
-        // Invalid JSON string
-        assertNull(manager.parseBeacon("NOT_JSON"))
-    }
-
-    @Test
-    fun lanDiscoveryManager_handlesIncomingBeaconsAndIgnoresSelf() {
-        val testScope = TestScope()
-        val manager = LanDiscoveryManager(
-            context = context,
-            deviceId = "local-uuid",
-            deviceName = "Local Device",
-            scope = testScope
-        )
-
-        val remoteBeacon = """{"deviceId":"remote-uuid","deviceName":"Desktop PC","port":53853,"type":"BEACON"}"""
-        manager.handleIncomingMessage(remoteBeacon, "192.168.1.100")
-
-        val discovered = manager.discoveredDevices.value
-        assertEquals(1, discovered.size)
-        val presence = discovered["remote-uuid"]
+        manager.handleIncomingMessage(beacon(key, ts = 1_000L), "192.168.1.100")
+        val presence = manager.discoveredDevices.value["remote-uuid"]
         assertNotNull(presence)
         assertEquals("Desktop PC", presence?.deviceName)
         assertEquals("192.168.1.100", presence?.ipAddress)
         assertEquals(53853, presence?.port)
         assertTrue(manager.isDeviceOnline("remote-uuid"))
 
-        // Self packet should be dropped
-        val selfBeacon = """{"deviceId":"local-uuid","deviceName":"Local Device","port":53853,"type":"BEACON"}"""
-        manager.handleIncomingMessage(selfBeacon, "192.168.1.101")
-        assertEquals("Self beacon must not be added to discovered devices", 1, manager.discoveredDevices.value.size)
-        assertFalse(manager.discoveredDevices.value.containsKey("local-uuid"))
+        // Beacons from unpaired devices, v1 beacons and garbage are ignored.
+        manager.handleIncomingMessage(beacon(SyncCrypto.randomBytes(32), ts = 2_000L), "192.168.1.66")
+        manager.handleIncomingMessage("""{"deviceId":"x","deviceName":"PC","port":53853,"type":"BEACON"}""", "192.168.1.67")
+        manager.handleIncomingMessage("NOT_JSON", "192.168.1.68")
+        assertEquals(1, manager.discoveredDevices.value.size)
+        assertEquals("192.168.1.100", manager.discoveredDevices.value["remote-uuid"]?.ipAddress)
     }
 
     @Test
-    fun lanDiscoveryManager_peerTimeoutPruning() {
-        val testScope = TestScope()
-        val manager = LanDiscoveryManager(
-            context = context,
-            deviceId = "local-uuid",
-            deviceName = "Local Device",
-            scope = testScope
-        )
+    fun lanDiscoveryManager_replayedBeaconCantMoveADevice() = runTest {
+        val (manager, key) = pairedManager()
+        val recorded = beacon(key, ts = 1_000L)
+        manager.handleIncomingMessage(recorded, "192.168.1.100")
 
-        val remoteBeacon = """{"deviceId":"remote-uuid","deviceName":"Desktop PC","port":53853,"type":"BEACON"}"""
-        manager.handleIncomingMessage(remoteBeacon, "192.168.1.100")
+        // Replaying the recorded beacon from another address changes nothing...
+        manager.handleIncomingMessage(recorded, "10.0.0.66")
+        assertEquals("192.168.1.100", manager.discoveredDevices.value["remote-uuid"]?.ipAddress)
+
+        // ...but a newer beacon from the device's new address does.
+        manager.handleIncomingMessage(beacon(key, ts = 5_000L), "192.168.1.101")
+        assertEquals("192.168.1.101", manager.discoveredDevices.value["remote-uuid"]?.ipAddress)
+    }
+
+    @Test
+    fun lanDiscoveryManager_stopClearsDiscoveredDevices() = runTest {
+        val (manager, key) = pairedManager()
+        manager.handleIncomingMessage(beacon(key, ts = 1_000L), "192.168.1.100")
         assertEquals(1, manager.discoveredDevices.value.size)
 
-        val initialPresence = manager.discoveredDevices.value["remote-uuid"]!!
-        val baselineTime = initialPresence.lastSeen
+        manager.stop()
+        assertTrue(manager.discoveredDevices.value.isEmpty())
+        assertFalse(manager.isDeviceOnline("remote-uuid"))
+    }
+
+    @Test
+    fun lanDiscoveryManager_peerTimeoutPruning() = runTest {
+        val (manager, key) = pairedManager()
+        manager.handleIncomingMessage(beacon(key, ts = 1_000L), "192.168.1.100")
+        assertEquals(1, manager.discoveredDevices.value.size)
+
+        val baselineTime = manager.discoveredDevices.value["remote-uuid"]!!.lastSeen
 
         // 1. Within TTL (e.g. 5 seconds later)
         manager.pruneExpiredPeers(currentTime = baselineTime + 5_000L)
@@ -275,34 +255,17 @@ class LanDiscoveryAndStorageTest {
     }
 
     @Test
-    fun lanDiscoveryManager_sendReverseConnectSignal_doesNotThrow() = runTest {
-        val manager = LanDiscoveryManager(
-            context = context,
-            deviceId = "local-uuid",
-            deviceName = "Local Device",
-            scope = this
-        )
-
-        // Should complete safely without exception
-        manager.sendReverseConnectSignal(
-            desktopIp = "127.0.0.1",
-            pairingToken = "test-token",
-            mobileIp = "127.0.0.1"
-        )
-    }
-
-    @Test
     fun pairedDeviceRepository_getPairedDevice_returnsCorrectDeviceOrNull() = runTest {
         val device1 = PairedDevice(
             deviceId = "dev-101",
             deviceName = "Work PC",
-            sharedSecret = "secret-101",
+            sharedSecret = "v2:secret-101",
             ipAddress = "192.168.1.101"
         )
         val device2 = PairedDevice(
             deviceId = "dev-102",
             deviceName = "Home PC",
-            sharedSecret = "secret-102",
+            sharedSecret = "v2:secret-102",
             ipAddress = "192.168.1.102"
         )
         repository.savePairedDevice(device1)
@@ -320,37 +283,24 @@ class LanDiscoveryAndStorageTest {
         assertNull(notFound)
     }
 
-    @Test
-    fun reverseSyncSignal_serializationRoundTrip_matchesSpecification() {
-        val signal = ReverseSyncSignal(
-            type = "REVERSE_SYNC_REQUEST",
-            deviceId = "desktop-abc",
-            deviceName = "My Desktop",
-            mobileIp = "192.168.1.75",
-            mobilePort = 53853
-        )
-        val jsonStr = json.encodeToString(signal)
-        assertTrue(jsonStr.contains("REVERSE_SYNC_REQUEST"))
-        assertTrue(jsonStr.contains("192.168.1.75"))
-        assertTrue(jsonStr.contains("mobilePort"))
-
-        val decoded = json.decodeFromString<ReverseSyncSignal>(jsonStr)
-        assertEquals(signal, decoded)
-    }
-
-    @Test
-    fun lanDiscoveryManager_sendReverseSyncSignal_doesNotThrow() = runTest {
+    /** A discovery manager on a phone paired with "remote-uuid"; returns it with the pair key. */
+    private suspend fun pairedManager(): Pair<LanDiscoveryManager, ByteArray> {
+        val app = ApplicationProvider.getApplicationContext<Context>() as VaultPassApplication
+        val crypto = CryptoManager(app.container.settingsRepository).apply { injectSoftwareDek(SyncCrypto.randomBytes(32)) }
+        val protector = AndroidPairKeyProtector(crypto)
+        val key = pairTestDesktop(repository, protector, "remote-uuid", "Desktop PC")
         val manager = LanDiscoveryManager(
             context = context,
             deviceId = "local-uuid",
             deviceName = "Local Device",
-            scope = this
+            scope = TestScope(),
+            pairedDeviceRepository = repository,
+            pairKeyProtector = protector
         )
-
-        manager.sendReverseSyncSignal(
-            desktopIp = "127.0.0.1",
-            mobileIp = "127.0.0.1",
-            mobilePort = 53853
-        )
+        manager.refreshPairedKeysForTesting()
+        return manager to key
     }
+
+    private fun beacon(pairKey: ByteArray, ts: Long): String =
+        Beacons.encode(Beacons.create(listOf(pairKey), 53853, ts))
 }

@@ -53,14 +53,14 @@ fun LockScreen(
         }
     }
 
-    val lockoutEndTime by viewModel.lockoutEndTime.collectAsStateWithLifecycle()
+    val lockoutState by viewModel.lockoutState.collectAsStateWithLifecycle()
     var lockoutSeconds by remember { mutableStateOf(0) }
 
-    LaunchedEffect(lockoutEndTime) {
+    LaunchedEffect(lockoutState) {
         while (true) {
-            val remainingMs = lockoutEndTime - android.os.SystemClock.elapsedRealtime()
+            val remainingMs = viewModel.lockoutRemainingMs(lockoutState)
             if (remainingMs > 0) {
-                lockoutSeconds = (remainingMs / 1000).toInt() + 1
+                lockoutSeconds = ((remainingMs + 999) / 1000).toInt()
                 kotlinx.coroutines.delay(500)
             } else {
                 lockoutSeconds = 0
@@ -147,6 +147,8 @@ fun LockScreen(
                     val coroutineScope = rememberCoroutineScope()
                     val isButtonDisabled = isUnlocking || isLockedOut
                     val incorrectPasswordError = stringResource(R.string.lock_incorrect_password)
+                    val migrationFailedError = stringResource(R.string.lock_migration_failed)
+                    val interruptedError = stringResource(R.string.lock_interrupted)
 
                     val performUnlock = {
                         if (!isButtonDisabled) {
@@ -154,6 +156,10 @@ fun LockScreen(
                                 val result = viewModel.unlockWithPassword(password)
                                 if (result == com.example.ui.AuthResult.INVALID_PASSWORD) {
                                     errorMessage = incorrectPasswordError
+                                } else if (result == com.example.ui.AuthResult.MIGRATION_FAILED) {
+                                    errorMessage = migrationFailedError
+                                } else if (result == com.example.ui.AuthResult.INTERRUPTED) {
+                                    errorMessage = interruptedError
                                 }
                             }
                         }

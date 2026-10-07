@@ -35,6 +35,7 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
 
     val securityStats by viewModel.securityStats.collectAsStateWithLifecycle()
+    val updateController = rememberUpdateController()
 
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
 
@@ -125,6 +126,13 @@ fun DashboardScreen(viewModel: VaultViewModel, navController: NavController) {
                 modifier = Modifier.padding(paddingValues).fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 88.dp)
             ) {
+                // In-app update offer (only in builds with an update feed)
+                if (updateController != null) {
+                    item {
+                        UpdateBanner(updateController, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp))
+                    }
+                }
+
                 // Welcome & Security Score
                 item {
                     Column(modifier = Modifier.padding(16.dp)) {

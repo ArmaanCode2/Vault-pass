@@ -1,9 +1,13 @@
 package com.example.data.models
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "vault_entries")
+@Entity(
+    tableName = "vault_entries",
+    indices = [Index(value = ["syncId"], unique = true)]
+)
 data class VaultEntryEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val titleEnc: String,
@@ -17,5 +21,6 @@ data class VaultEntryEntity(
     val isFavorite: Boolean,
     val timestamp: Long,
     val isDeleted: Boolean = false,
-    val deletedAt: Long? = null
+    val deletedAt: Long? = null,
+    val syncId: String = "" // Same on every synced device
 )

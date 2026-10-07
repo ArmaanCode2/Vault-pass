@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Download for Android — VaultPass</title>
+  <title>Download for Android | VaultPass</title>
   <meta name="description" content="Download VaultPass APK. Complete with SHA-256 checksum verification, VirusTotal scan report, and step-by-step Android installation guide.">
   <meta name="theme-color" content="#05070d">
 
@@ -15,20 +15,24 @@
   <!-- OpenGraph / Social Media -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://vaultpass.org/download.html">
-  <meta property="og:title" content="Download for Android — VaultPass">
+  <meta property="og:title" content="Download for Android | VaultPass">
   <meta property="og:description" content="Download VaultPass APK. Complete with SHA-256 checksum verification, VirusTotal scan report, and step-by-step Android installation guide.">
   <meta property="og:image" content="https://vaultpass.org/assets/icon.png">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="Download for Android — VaultPass">
+  <meta name="twitter:title" content="Download for Android | VaultPass">
   <meta name="twitter:description" content="Download VaultPass APK. Complete with SHA-256 checksum verification, VirusTotal scan report, and step-by-step Android installation guide.">
   <meta name="twitter:image" content="https://vaultpass.org/assets/icon.png">
 
-  <!-- Fonts -->
+  <!-- Fonts & DNS Prefetch Hints -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="dns-prefetch" href="https://raw.githubusercontent.com">
+  <link rel="dns-prefetch" href="https://api.github.com">
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" as="style">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"></noscript>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -38,12 +42,13 @@
       theme: {
         extend: {
           colors: {
+            // Channels defined in css/styles.css (:root)
             brand: {
-              dark: '#05070d',
-              surface: '#0b111e',
-              card: '#0e1626',
-              cyan: '#38debb',
-              mint: '#5ffbd6',
+              dark: 'rgb(var(--rgb-bg) / <alpha-value>)',
+              surface: 'rgb(var(--rgb-surface) / <alpha-value>)',
+              card: 'rgb(var(--rgb-card) / <alpha-value>)',
+              cyan: 'rgb(var(--rgb-accent) / <alpha-value>)',
+              mint: 'rgb(var(--rgb-accent-strong) / <alpha-value>)',
             }
           },
           fontFamily: {
@@ -55,19 +60,21 @@
     }
   </script>
 
-  <!-- Custom Stylesheet -->
+  <!-- Site stylesheet (color tokens, components) -->
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="bg-[#05070d] text-slate-100 antialiased selection:bg-[#38debb]/20 selection:text-white">
+<body class="bg-brand-dark text-slate-100 antialiased">
+  <a href="#main" class="skip-link">Skip to content</a>
 
   <!-- Gemini-style Slow-Moving Blurred Gradient Background -->
-  <div class="gradient-bg-container">
+  <div class="gradient-bg-container" aria-hidden="true">
     <div class="gradient-orb gradient-orb-1"></div>
     <div class="gradient-orb gradient-orb-2"></div>
     <div class="gradient-orb gradient-orb-3"></div>
     <div class="gradient-orb gradient-orb-4"></div>
   </div>
 
+  <!-- Page content -->
   <div class="relative z-10">
 
     <!-- Simple, Centered Navbar (Logo only, 3 center links, Download APK) -->
@@ -75,110 +82,135 @@
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between relative">
         
         <!-- Left: Logo ONLY -->
-        <a href="index.html" class="flex items-center group" aria-label="VaultPass Home">
-          <div class="w-9 h-9 rounded-xl bg-[#0b111e] border border-white/10 flex items-center justify-center p-0.5 overflow-hidden transition-transform group-hover:scale-105 group-hover:border-[#38debb]/40">
-            <img src="assets/icon.png" alt="VaultPass Icon" class="w-full h-full object-cover rounded-lg">
+        <a href="index.html" class="tap-target group rounded-xl" aria-label="VaultPass home">
+          <div class="w-9 h-9 rounded-xl bg-brand-surface border border-white/10 flex items-center justify-center p-0.5 overflow-hidden transition-transform group-hover:scale-105 group-hover:border-brand-cyan/40">
+            <picture>
+              <source srcset="assets/icon.webp" type="image/webp">
+              <img src="assets/icon.png" alt="" width="36" height="36" decoding="async" class="w-full h-full object-cover rounded-lg">
+            </picture>
           </div>
         </a>
 
         <!-- Center: 3 Navigation Links (Centered) -->
-        <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300 absolute left-1/2 -translate-x-1/2">
-          <a href="index.html#features" class="hover:text-white transition-colors">Features</a>
-          <a href="security.html" class="hover:text-white transition-colors">Security Model</a>
-          <a href="download.html" class="text-[#5ffbd6] font-semibold">Downloads</a>
+        <nav aria-label="Main" class="hidden md:flex items-center gap-8 text-sm font-medium absolute left-1/2 -translate-x-1/2">
+          <a href="index.html#features" class="nav-link py-2">Features</a>
+          <a href="security.html" class="nav-link py-2">Security Model</a>
+          <a href="download.html" class="nav-link py-2" aria-current="page">Downloads</a>
         </nav>
 
         <!-- Right: Download APK Button -->
         <div class="hidden sm:flex items-center gap-3">
-          <button data-direct-download class="btn-primary text-xs sm:text-sm px-4 py-2 rounded-lg flex items-center gap-2 cursor-pointer">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary text-xs sm:text-sm px-4 min-h-[40px] rounded-lg flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
             </svg>
             <span class="download-status">Download APK</span>
-          </button>
+          </a>
         </div>
 
         <!-- Mobile Menu Button -->
-        <button id="mobile-menu-btn" aria-expanded="false" class="md:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 focus:outline-none">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button type="button" id="mobile-menu-btn" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu" class="md:hidden w-11 h-11 flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-white/5">
+          <svg data-icon="open" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+          <svg data-icon="close" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>
       </div>
 
       <!-- Mobile Dropdown -->
-      <div id="mobile-menu" class="hidden md:hidden px-4 pt-2 pb-6 border-t border-white/5 bg-[#05070d]/95 backdrop-blur-xl">
-        <div class="flex flex-col gap-4 text-sm font-medium text-slate-300 pt-2 text-center">
-          <a href="index.html#features" class="hover:text-white py-1">Features</a>
-          <a href="security.html" class="hover:text-white py-1">Security Model</a>
-          <a href="download.html" class="hover:text-white py-1">Downloads</a>
-          <button data-direct-download class="btn-primary text-center py-2.5 rounded-lg text-sm mt-2 w-full cursor-pointer">
-            Download APK
-          </button>
+      <nav id="mobile-menu" aria-label="Mobile" class="hidden md:hidden px-4 pt-2 pb-6 border-t border-white/5 bg-brand-dark/95 backdrop-blur-xl">
+        <div class="flex flex-col gap-1 text-sm font-medium pt-2 text-center">
+          <a href="index.html#features" class="mobile-nav-link">Features</a>
+          <a href="security.html" class="mobile-nav-link">Security Model</a>
+          <a href="download.html" class="mobile-nav-link" aria-current="page">Downloads</a>
+          <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary flex items-center justify-center gap-2 min-h-[44px] rounded-lg text-sm mt-3 w-full">
+            <span class="download-status">Download APK</span>
+          </a>
         </div>
-      </div>
+      </nav>
     </header>
+
+    <main id="main" tabindex="-1" class="outline-none">
 
     <!-- Download Hero -->
     <section class="pt-16 pb-12 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono text-[#5ffbd6] bg-[#5ffbd6]/10 border border-[#5ffbd6]/20 mb-4">
-        OFFICIAL GITHUB RELEASE • DIRECT DOWNLOAD
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono text-brand-mint bg-brand-mint/10 border border-brand-mint/20 mb-4">
+        OFFICIAL GITHUB RELEASE
       </div>
       <h1 class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
         Download VaultPass for Android
       </h1>
       <p class="mt-4 text-base sm:text-lg text-slate-400 max-w-xl mx-auto leading-relaxed">
-        Free, open, and offline. Direct file download right to your phone without leaving this page.
+        Free and open source. The APK downloads straight from the project's GitHub releases.
       </p>
 
       <!-- Primary Download Card -->
-      <div class="mt-10 glass-card rounded-2xl p-8 sm:p-10 border border-white/10 max-w-2xl mx-auto text-left relative overflow-hidden">
+      <div class="mt-10 glass-card rounded-2xl p-5 sm:p-10 border border-white/10 max-w-2xl mx-auto text-left relative overflow-hidden">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-white/10">
           <div class="flex items-center gap-4">
-            <div class="w-14 h-14 rounded-2xl bg-[#05070d] border border-white/10 p-1 flex items-center justify-center overflow-hidden">
-              <img src="assets/icon.png" alt="VaultPass Icon" class="w-full h-full object-cover rounded-xl">
+            <div class="w-14 h-14 flex-shrink-0 rounded-2xl bg-brand-dark border border-white/10 p-1 flex items-center justify-center overflow-hidden">
+              <picture>
+                <source srcset="assets/icon.webp" type="image/webp">
+                <img src="assets/icon.png" alt="" width="56" height="56" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-xl">
+              </picture>
             </div>
             <div>
               <h2 class="text-lg font-bold text-white">VaultPass Android APK</h2>
-              <p class="text-xs text-slate-400 font-mono"><span data-latest-version>v2.6.3</span> • Production Release</p>
+              <p class="text-xs text-slate-400 font-mono"><span data-latest-version>VaultPass</span> • Latest release</p>
             </div>
           </div>
-          <div class="text-right">
+          <div class="sm:text-right">
             <span class="inline-block px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-400 text-xs font-mono border border-emerald-500/20">
-              Android 8.0+ (Oreo)
+              Android 7.0+ (Nougat)
             </span>
           </div>
         </div>
 
         <!-- Download Action -->
         <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>
-            <div class="text-xs text-slate-400">Release: <span class="font-mono text-slate-200" data-latest-version>v2.6.3</span></div>
-            <div class="text-xs text-slate-400">Package Size: <span class="font-mono text-slate-200" data-latest-size>23.2 MB</span></div>
-          </div>
+          <dl class="w-full sm:w-auto grid grid-cols-[auto_1fr] gap-x-2 text-xs text-slate-400">
+            <dt>Release:</dt><dd class="font-mono text-slate-200" data-latest-version>Latest</dd>
+            <dt>File:</dt><dd class="font-mono text-slate-200 break-all" data-latest-filename>VaultPass.apk</dd>
+            <dt>Size:</dt><dd class="font-mono text-slate-200" data-latest-size>See GitHub</dd>
+          </dl>
 
-          <button data-direct-download class="btn-primary w-full sm:w-auto px-6 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary w-full sm:w-auto px-6 min-h-[48px] rounded-xl text-sm font-semibold flex items-center justify-center gap-2 flex-shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
             </svg>
-            <span class="download-status">Direct Download APK</span>
-          </button>
+            <span class="download-status">Download APK</span>
+          </a>
+        </div>
+
+        <!-- Deployment note: the releases/latest/download/VaultPass.apk links on this site only work once a
+             GitHub release with an asset named exactly VaultPass.apk exists. Publish that release before
+             deploying this page. -->
+        <!-- One-time reinstall from 2.6.x -->
+        <div class="mt-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-slate-300 leading-relaxed">
+          <p><strong class="text-amber-400">Coming from VaultPass 2.6.x?</strong> Version 2.7.0 is the first build signed with the project's release key, so Android won't install it over 2.6.x. This is needed once.</p>
+          <p class="mt-3 p-3 rounded-lg bg-red-500/15 border border-red-500/40 text-red-200 font-semibold"><span class="uppercase tracking-wide text-red-300">Warning:</span> If you can't unlock VaultPass 2.6.x, do NOT uninstall it: uninstalling deletes the vault. Contact us via <a href="https://github.com/ArmaanCode2/Vault-pass/issues" class="link-accent underline" target="_blank" rel="noopener noreferrer">GitHub issues</a> first.</p>
+          <p class="mt-3">If you can unlock it: export a backup in VaultPass 2.6.x (an encrypted .vpex file is safest), uninstall it, install 2.7.0, then import the backup.</p>
+          <p class="mt-3">Later versions install over 2.7.0 as usual, also from inside VaultPass. The first in-app update shows Android's confirmation; later ones may install without it, and VaultPass just closes. Open it again to use the new version.</p>
         </div>
 
         <!-- SHA-256 Hash Verification -->
         <div class="mt-6 pt-6 border-t border-white/5">
-          <div class="flex items-center justify-between text-xs text-slate-400 mb-2">
-            <span class="font-mono">Package Checksum (SHA-256):</span>
-            <button data-copy-target="a794d9e8bbeae8100ba5ae37c10cb3e39c9a2886e332212e11c0485178f5b7b2" class="text-xs text-[#5ffbd6] hover:underline flex items-center gap-1 font-mono cursor-pointer">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-              </svg>
-              Copy Hash
-            </button>
+          <div data-checksum-block hidden>
+            <div class="flex items-center justify-between gap-2 text-xs text-slate-400 mb-2">
+              <span class="font-mono">SHA-256 checksum:</span>
+              <button type="button" data-sha256-copy data-copy-target="" class="btn-ghost px-2 min-h-[36px] text-xs text-brand-mint flex items-center gap-1 font-mono cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                <span data-copy-label>Copy hash</span>
+              </button>
+            </div>
+            <div data-sha256-text class="p-3 bg-brand-dark rounded-lg border border-white/5 font-mono text-[11px] text-slate-300 break-all select-all"></div>
           </div>
-          <div class="p-3 bg-[#05070d] rounded-lg border border-white/5 font-mono text-[11px] text-slate-300 break-all select-all">
-            a794d9e8bbeae8100ba5ae37c10cb3e39c9a2886e332212e11c0485178f5b7b2
-          </div>
+          <p data-checksum-missing class="text-xs text-slate-400">This release has no published SHA-256 yet, or it couldn't be loaded. See the <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest" class="link-accent" target="_blank" rel="noopener noreferrer">release page</a>.</p>
+          <p class="mt-3 text-xs text-slate-400">Other versions and release notes: <a href="https://github.com/ArmaanCode2/Vault-pass/releases" class="link-accent" target="_blank" rel="noopener noreferrer">all releases on GitHub</a>.</p>
         </div>
 
       </div>
@@ -188,38 +220,55 @@
     <section class="py-12 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="glass-card rounded-2xl p-6 sm:p-8">
         <h2 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
-          <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
           </svg>
-          <span>Verify Package Integrity</span>
+          <span>Verify the download</span>
         </h2>
         <p class="text-xs sm:text-sm text-slate-400 mb-6">
-          To verify that your downloaded APK has not been modified, calculate the SHA-256 checksum in your local terminal:
+          Run one of these in the folder where the APK was saved. The output should match the SHA-256 checksum above, character for character.
         </p>
 
         <div class="space-y-4">
           <!-- Windows -->
           <div>
             <div class="text-xs font-mono text-slate-400 mb-1">Windows (PowerShell):</div>
-            <div class="p-3 bg-[#05070d] rounded-lg border border-white/5 font-mono text-xs text-emerald-300 flex items-center justify-between overflow-hidden gap-2">
-              <div class="overflow-x-auto whitespace-nowrap no-scrollbar py-0.5">
-                <code>Get-FileHash .\v2.6.3.apk -Algorithm SHA256</code>
+            <div class="pl-3 pr-1 py-1 bg-brand-dark rounded-lg border border-white/5 font-mono text-xs text-emerald-300 flex items-center justify-between overflow-hidden gap-2">
+              <div class="overflow-x-auto whitespace-nowrap no-scrollbar py-2 min-w-0">
+                <code data-command-text="Get-FileHash .\{file} -Algorithm SHA256">Get-FileHash .\VaultPass.apk -Algorithm SHA256</code>
               </div>
-              <button data-copy-target="Get-FileHash .\v2.6.3.apk -Algorithm SHA256" class="text-slate-400 hover:text-white p-1 cursor-pointer flex-shrink-0">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <button type="button" data-command-template="Get-FileHash .\{file} -Algorithm SHA256" data-copy-target="Get-FileHash .\VaultPass.apk -Algorithm SHA256" aria-label="Copy PowerShell command" class="btn-ghost tap-target cursor-pointer flex-shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
                 </svg>
               </button>
             </div>
           </div>
 
-          <!-- Linux / macOS -->
+          <!-- Linux -->
           <div>
-            <div class="text-xs font-mono text-slate-400 mb-1">Linux / macOS (Bash):</div>
-            <div class="p-3 bg-[#05070d] rounded-lg border border-white/5 font-mono text-xs text-emerald-300 flex items-center justify-between">
-              <code>sha256sum v2.6.3.apk</code>
-              <button data-copy-target="sha256sum v2.6.3.apk" class="text-slate-400 hover:text-white p-1 cursor-pointer">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="text-xs font-mono text-slate-400 mb-1">Linux:</div>
+            <div class="pl-3 pr-1 py-1 bg-brand-dark rounded-lg border border-white/5 font-mono text-xs text-emerald-300 flex items-center justify-between overflow-hidden gap-2">
+              <div class="overflow-x-auto whitespace-nowrap no-scrollbar py-2 min-w-0">
+                <code data-command-text="sha256sum {file}">sha256sum VaultPass.apk</code>
+              </div>
+              <button type="button" data-command-template="sha256sum {file}" data-copy-target="sha256sum VaultPass.apk" aria-label="Copy Linux command" class="btn-ghost tap-target cursor-pointer flex-shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- macOS -->
+          <div>
+            <div class="text-xs font-mono text-slate-400 mb-1">macOS:</div>
+            <div class="pl-3 pr-1 py-1 bg-brand-dark rounded-lg border border-white/5 font-mono text-xs text-emerald-300 flex items-center justify-between overflow-hidden gap-2">
+              <div class="overflow-x-auto whitespace-nowrap no-scrollbar py-2 min-w-0">
+                <code data-command-text="shasum -a 256 {file}">shasum -a 256 VaultPass.apk</code>
+              </div>
+              <button type="button" data-command-template="shasum -a 256 {file}" data-copy-target="shasum -a 256 VaultPass.apk" aria-label="Copy macOS command" class="btn-ghost tap-target cursor-pointer flex-shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
                 </svg>
               </button>
@@ -227,11 +276,11 @@
           </div>
         </div>
 
-        <div class="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
-          <span class="text-xs text-slate-400">Independent Security Verification:</span>
-          <a data-virustotal-link href="https://www.virustotal.com/gui/file/ac993d64518225a9350b73f60edaafe82d7e8642dc864ba7c70c6aeccd4b20c7" target="_blank" rel="noopener noreferrer" class="text-xs text-emerald-400 hover:underline flex items-center gap-1 font-mono">
-            <span>VirusTotal Scan (0/70 Detections)</span>
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div data-checksum-block hidden class="mt-6 pt-4 border-t border-white/5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <span class="text-xs text-slate-400">Look up the hash of this exact file:</span>
+          <a data-virustotal-link hidden target="_blank" rel="noopener noreferrer" class="text-xs text-emerald-400 hover:underline flex items-center gap-1 font-mono min-h-[44px]">
+            <span>Look up on VirusTotal</span><span class="sr-only"> (opens in a new tab)</span>
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
             </svg>
           </a>
@@ -242,40 +291,40 @@
     <!-- Installation & Setup Guide -->
     <section class="py-12 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
       <h2 class="text-2xl font-bold text-white mb-8 text-center">
-        Installation & Setup in 4 Steps
+        Install and set up in 4 steps
       </h2>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <!-- Step 1 -->
         <div class="glass-card rounded-2xl p-6">
-          <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 font-mono font-bold flex items-center justify-center mb-4">
+          <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 font-mono font-bold flex items-center justify-center mb-4" aria-hidden="true">
             01
           </div>
           <h3 class="text-base font-bold text-white mb-2">Download & Permit Install</h3>
           <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">
-            Download the APK on your Android device. When prompted, permit your browser or file manager to install unknown apps (Settings → Apps → Special app access → Install unknown apps).
+            Download the APK on your Android phone. When Android asks, allow your browser or file manager to install unknown apps (Settings → Apps → Special app access → Install unknown apps).
           </p>
         </div>
 
         <!-- Step 2 -->
         <div class="glass-card rounded-2xl p-6">
-          <div class="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 font-mono font-bold flex items-center justify-center mb-4">
+          <div class="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 font-mono font-bold flex items-center justify-center mb-4" aria-hidden="true">
             02
           </div>
-          <h3 class="text-base font-bold text-white mb-2">Initialize Master Password</h3>
+          <h3 class="text-base font-bold text-white mb-2">Create your master password</h3>
           <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">
-            Choose a strong master password or passphrase. This key seeds your PBKDF2 key derivation. Because VaultPass has zero backdoors, write down or memorize this password carefully.
+            Pick a strong password or passphrase. VaultPass derives your encryption key from it with PBKDF2. Nobody can reset it for you, so memorize it or write it down somewhere safe.
           </p>
         </div>
 
         <!-- Step 3 -->
         <div class="glass-card rounded-2xl p-6">
-          <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 font-mono font-bold flex items-center justify-center mb-4">
+          <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 font-mono font-bold flex items-center justify-center mb-4" aria-hidden="true">
             03
           </div>
-          <h3 class="text-base font-bold text-white mb-2">Enable Hardware Biometrics</h3>
+          <h3 class="text-base font-bold text-white mb-2">Turn on biometric unlock</h3>
           <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">
-            Inside Settings, toggle <strong>Biometric Unlock</strong>. Authenticate with your fingerprint or face to wrap the Software DEK within Android Keystore hardware.
+            In Settings, switch on <strong>Biometric Unlock</strong> and confirm with your fingerprint or face. VaultPass then protects a copy of its data key with an Android Keystore key.
           </p>
         </div>
 
@@ -287,33 +336,38 @@
             </div>
             <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Optional</span>
           </div>
-          <h3 class="text-base font-bold text-white mb-2">Activate Native Autofill (Optional)</h3>
+          <h3 class="text-base font-bold text-white mb-2">Turn on Autofill</h3>
           <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">
-            If you want instant login filling across other apps and web browsers, go to your Android <strong>Settings → Passwords & Accounts → Autofill service</strong> and select VaultPass.
+            To fill logins in other apps and browsers, open Android <strong>Settings → Passwords &amp; accounts → Autofill service</strong> (the path varies by phone) and choose VaultPass.
           </p>
         </div>
       </div>
     </section>
 
+    </main>
+
     <!-- Footer -->
     <footer class="mt-20 border-t border-white/5 py-12 text-xs text-slate-400">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
-        <div class="flex items-center gap-3">
-          <img src="assets/icon.png" alt="VaultPass" class="w-6 h-6 rounded-md object-cover">
-          <span class="text-slate-400 font-semibold">VaultPass</span>
-          <span>— Open-Source Offline Android Password Manager</span>
+        <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
+          <picture>
+            <source srcset="assets/icon.webp" type="image/webp">
+            <img src="assets/icon.png" alt="" width="24" height="24" loading="lazy" decoding="async" class="w-6 h-6 rounded-md object-cover">
+          </picture>
+          <span class="text-slate-300 font-semibold">VaultPass</span>
+          <span>Open-source Android password manager</span>
         </div>
 
-        <div class="flex items-center gap-6">
-          <a href="index.html" class="hover:text-slate-300 transition-colors">Overview</a>
-          <a href="security.html" class="hover:text-slate-300 transition-colors">Security Model</a>
-          <a href="privacy.html" class="hover:text-slate-300 transition-colors">Privacy Policy</a>
-          <a data-virustotal-link href="https://www.virustotal.com/gui/file/ac993d64518225a9350b73f60edaafe82d7e8642dc864ba7c70c6aeccd4b20c7" target="_blank" rel="noopener noreferrer" class="hover:text-emerald-400 transition-colors">VirusTotal</a>
-        </div>
+        <nav aria-label="Footer" class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+          <a href="index.html" class="tap-target px-1 hover:text-white transition-colors">Overview</a>
+          <a href="security.html" class="tap-target px-1 hover:text-white transition-colors">Security Model</a>
+          <a href="privacy.html" class="tap-target px-1 hover:text-white transition-colors">Privacy Policy</a>
+          <a data-virustotal-link hidden target="_blank" rel="noopener noreferrer" class="tap-target px-1 hover:text-emerald-300 transition-colors">VirusTotal<span class="sr-only"> (opens in a new tab)</span></a>
+        </nav>
       </div>
     </footer>
   </div>
 
-  <script src="js/app.js"></script>
+  <script src="js/app.js" defer></script>
 </body>
 </html>

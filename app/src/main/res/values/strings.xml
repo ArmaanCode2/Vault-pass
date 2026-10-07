@@ -29,8 +29,16 @@
     <string name="lock_master_password_placeholder">Master Password</string>
     <string name="lock_toggle_password_visibility">Toggle password visibility</string>
     <string name="lock_incorrect_password">Incorrect master password</string>
+    <string name="lock_interrupted">VaultPass was locked while opening. Try again.</string>
     <string name="lock_unlock_button">Unlock</string>
     <string name="lock_lockout_warning">Too many failed attempts. Try again in %s</string>
+    <string name="lock_migration_failed">Your password is right, but your vault couldn\'t be upgraded to the new format. Nothing was changed, and your data is still on this device.\n\n1. Tap Unlock to try again.\n2. Restart your phone and try again.\n3. Don\'t uninstall VaultPass or clear its data: that would delete your vault.\n4. If it keeps failing, ask for help at https://github.com/ArmaanCode2/Vault-pass/issues</string>
+    <string name="migration_partial_title">Vault upgraded</string>
+    <string name="migration_partial_message">Entries that couldn\'t be read: %1$d. They were left unchanged and show as \"Decryption Failed\". Their data is still on this device, and VaultPass tries to read them again every time you unlock.\n\n1. Lock and unlock again later, or restart your phone first.\n2. Don\'t uninstall VaultPass or clear its data: that would delete these entries for good.\n3. If they stay unreadable, ask for help at https://github.com/ArmaanCode2/Vault-pass/issues</string>
+    <string name="migration_partial_ok">OK</string>
+    <string name="vault_unreadable_title">Vault can\'t be opened</string>
+    <string name="vault_unreadable_message">VaultPass found vault data on this device but couldn\'t read its settings. Nothing was changed, and no new vault will be created over it. Your data is still on this device.\n\n1. Tap Try Again.\n2. Restart your phone and open VaultPass again.\n3. Don\'t uninstall VaultPass or clear its data: that would delete your vault.\n4. If it keeps failing, ask for help at https://github.com/ArmaanCode2/Vault-pass/issues</string>
+    <string name="vault_unreadable_retry">Try Again</string>
 
     <!-- Setup Screen -->
     <string name="setup_welcome_title">Welcome to VaultPass</string>
@@ -42,6 +50,8 @@
     <string name="setup_error_weak_reason">Weak master password: %s</string>
     <string name="setup_error_too_weak">Master password is too weak (score %d/100)</string>
     <string name="setup_error_mismatch">Passwords do not match</string>
+    <string name="setup_error_vault_exists">A vault already exists on this device, so no new one was created. Nothing was changed. Close and reopen VaultPass to unlock it. Don\'t uninstall VaultPass or clear its data: that would delete your vault. If it keeps happening, ask for help at https://github.com/ArmaanCode2/Vault-pass/issues</string>
+    <string name="setup_error_failed">Your vault couldn\'t be saved on this device, so nothing was created. Tap Create Vault to try again. If it keeps failing, restart your phone and try again, or ask for help at https://github.com/ArmaanCode2/Vault-pass/issues</string>
 
     <!-- Dashboard Screen -->
     <string name="dashboard_welcome_back">Welcome back</string>
@@ -154,4 +164,76 @@
     <string name="settings_unlock_backup_hint">This backup is encrypted. Enter the password used during export.</string>
     <string name="settings_unlock_import">Unlock &amp; Import</string>
     <string name="settings_importing">Importing Vault</string>
+    <!-- Autofill: "Search VaultPass…" pick screen -->
+    <string name="autofill_search_vault">Search VaultPass…</string>
+    <string name="autofill_pick_title">Choose an entry to fill</string>
+    <string name="autofill_pick_remember_note">VaultPass will offer the entry you pick to this app directly next time.</string>
+    <string name="autofill_pick_no_results">No matching entries</string>
+    <string name="autofill_pick_nothing_to_fill">This entry has no username or password to fill.</string>
+    <string name="autofill_pick_target_site">Filling on the website %1$s</string>
+    <string name="autofill_pick_target_app">Filling in the app %1$s</string>
+    <string name="autofill_pick_mismatch_title">Different website</string>
+    <string name="autofill_pick_mismatch_message">This entry is for %1$s, the page is %2$s. Fill anyway?</string>
+    <string name="autofill_pick_mismatch_no_site">This entry has no website, the page is %1$s. Fill anyway?</string>
+    <string name="autofill_pick_fill_anyway">Fill anyway</string>
+    <!-- In-app updates -->
+    <string name="settings_updates">UPDATES</string>
+    <string name="settings_update_check_on_open">Check for updates when the app opens</string>
+    <string name="settings_update_check_on_open_subtitle">Asks GitHub for the latest version. Nothing from your vault is sent.</string>
+    <string name="settings_update_check_now">Check now</string>
+    <string name="settings_update_installed_version">Installed version: %1$s</string>
+    <string name="settings_update_checking">Checking…</string>
+    <string name="settings_update_up_to_date">VaultPass %1$s is up to date</string>
+    <string name="settings_update_available">Version %1$s is available. Tap to update.</string>
+    <string name="update_banner_download">Update to latest version %1$s</string>
+    <string name="update_banner_download_subtitle">Tap to download and install</string>
+    <string name="update_banner_install">Install update %1$s</string>
+    <string name="update_banner_install_subtitle">Already downloaded and verified. Tap to install.</string>
+    <string name="update_dialog_downloading_title">Downloading update %1$s</string>
+    <string name="update_dialog_progress">%1$s of %2$s</string>
+    <string name="update_dialog_verifying_title">Verifying update %1$s</string>
+    <string name="update_dialog_verifying">Verifying…</string>
+    <string name="update_dialog_ready_title">Update %1$s is ready</string>
+    <string name="update_dialog_ready_message">The download was verified. VaultPass closes while Android installs the update; your vault stays on this phone. Android may ask you to confirm.</string>
+    <string name="update_dialog_permission_title">Allow VaultPass to install updates</string>
+    <string name="update_dialog_permission_message">Android asks for your permission before an app can install updates. On the next screen turn on \"Allow from this source\", then come back to VaultPass.</string>
+    <string name="update_dialog_installing_title">Installing update %1$s</string>
+    <string name="update_dialog_installing_message">Android is installing the update and closes VaultPass when it is done. If Android asks, confirm the update.</string>
+    <string name="update_dialog_failed_title">Update not installed</string>
+    <string name="update_restart_now">Restart now</string>
+    <string name="update_later">Later</string>
+    <string name="update_open_settings">Open settings</string>
+    <string name="update_retry">Retry</string>
+    <string name="update_close">Close</string>
+    <string name="update_error_network">Couldn\'t reach the update server. Check your internet connection and try again.</string>
+    <string name="update_error_http">The update server answered with an error. Try again later.</string>
+    <string name="update_error_no_checksum">This release has no checksum, so it can\'t be verified. VaultPass didn\'t download it.</string>
+    <string name="update_error_bad_response">The update server sent something VaultPass couldn\'t read.</string>
+    <string name="update_error_bad_version">The latest release has a version number VaultPass can\'t compare.</string>
+    <string name="update_error_no_apk">The latest release has no Android app file.</string>
+    <string name="update_error_bad_size">The update file has an unexpected size, so it wasn\'t downloaded.</string>
+    <string name="update_error_insecure">The update link isn\'t secure, so VaultPass refused it.</string>
+    <string name="update_error_redirects">The download was redirected too many times.</string>
+    <string name="update_error_size_mismatch">The download stopped early or has the wrong size. It was deleted.</string>
+    <string name="update_error_digest">The downloaded file doesn\'t match the release checksum. It was deleted.</string>
+    <string name="update_error_storage">The update couldn\'t be saved. Check that the phone has free storage.</string>
+    <string name="update_error_missing_file">The downloaded file is missing.</string>
+    <string name="update_error_unreadable">The downloaded file isn\'t a valid Android app. It was deleted.</string>
+    <string name="update_error_installed_info">VaultPass couldn\'t read its own app details to check the update.</string>
+    <string name="update_error_wrong_package">The downloaded file is a different app. It was deleted.</string>
+    <string name="update_error_not_newer">The downloaded file isn\'t newer than the installed version. It was deleted.</string>
+    <string name="update_error_foreign_signer">The downloaded file isn\'t signed with the same key as this VaultPass. It was deleted.</string>
+    <string name="update_error_signer_unreadable">VaultPass couldn\'t read who signed the downloaded file, so it can\'t be verified. It was deleted.</string>
+    <string name="update_error_pending_gone">The downloaded update is no longer valid and was removed. Download it again.</string>
+    <string name="update_error_permission_missing">\"Install unknown apps\" is still off for VaultPass, so the update can\'t be installed.</string>
+    <string name="update_error_permission_settings">Android\'s \"Install unknown apps\" settings couldn\'t be opened.</string>
+    <string name="update_error_install_start">Android couldn\'t start the installation. Try again.</string>
+    <string name="update_error_signed_different_key">Android refused the update: the file is signed with a different key than the installed VaultPass.</string>
+    <string name="update_error_incompatible">This phone can\'t install this build of VaultPass. Your current version keeps working.</string>
+    <string name="update_error_install_cancelled">The installation was cancelled.</string>
+    <string name="update_error_install_blocked">Android blocked the installation (for example a device policy).</string>
+    <string name="update_error_install_storage">There isn\'t enough free storage to install the update.</string>
+    <string name="update_error_confirmation">Android\'s install confirmation couldn\'t be shown.</string>
+    <string name="update_error_install_failed">Android couldn\'t install the update.</string>
+    <string name="update_error_install_failed_detail">Android couldn\'t install the update: %1$s</string>
 </resources>

@@ -2,13 +2,13 @@
 
 > Note: This project is under active development. Maintain independent backups of your vault data.
 
-VaultPass is an offline Android password manager built with Kotlin and Jetpack Compose. It stores credentials locally and does not use cloud services or third-party synchronization. It can sync directly with VaultPass Desktop over your local network. Cryptographic operations and data persistence occur on the device.
+VaultPass is an offline Android password manager built with Kotlin and Jetpack Compose. It stores credentials locally and does not use cloud services or third-party synchronization. It can sync directly with VaultPass Desktop over your local network, and it can check GitHub for new versions if you turn that on. Cryptographic operations and data persistence occur on the device.
 
 ## Security Verification
 
-The latest release APK has been scanned with VirusTotal.
+Each release is published on [GitHub Releases](https://github.com/ArmaanCode2/Vault-pass/releases) as `VaultPass.apk`. The download page of the project website shows the SHA-256 that GitHub publishes for the latest APK, with a VirusTotal lookup for that hash.
 
-[VirusTotal Report](https://www.virustotal.com/gui/file/36cade08a69950b7f5b13f0144476f1c73e1b12dbd28bf0de7346acacf8372d9?nocache=1)
+The v2.6.3 APK was scanned with VirusTotal: [VirusTotal Report](https://www.virustotal.com/gui/file/36cade08a69950b7f5b13f0144476f1c73e1b12dbd28bf0de7346acacf8372d9?nocache=1)
 
 Users are encouraged to independently verify any release APK before installation.
 
@@ -38,8 +38,16 @@ Users are encouraged to independently verify any release APK before installation
 ### Autofill
 * Android Autofill Service integration
 * DOM traversal via BFS
-* Matching heuristics (domain, app label, package name)
+* Website matching by registrable domain (bundled Public Suffix List), with page domains trusted only from known browsers
+* App matching only through explicit links: pick an entry once with "Search VaultPass…", or set the entry's website to `androidapp://<package>`
+* "Tap to unlock VaultPass" on the login fields when the vault is locked
 * Gatekeeper logic to ignore non-input layout containers
+
+### Updates
+* Optional update check against GitHub releases, off by default (Settings: "Check for updates when the app opens", "Check now")
+* The download is checked before install: size, GitHub's SHA-256 digest (a release without one is refused), same package, newer version, same signing key
+* The first in-app update shows Android's confirmation; later ones may install without it, and VaultPass just closes (open it again)
+* Installed through Android's installer ("Restart now"), or later from the downloaded copy ("Later")
 
 ### Import / Export
 * Import formats: JSON, TXT, encrypted VPEX
@@ -77,7 +85,7 @@ Local brute-force protection:
 
 * **Constant-time password verification**: Mitigates timing attacks.
 * **Failed-attempt tracking**: Failed attempts tracked in DataStore.
-* **Cooldown enforcement**: Incremental lockout timers (5 failures = 30s, 20+ failures = 15m).
+* **Cooldown enforcement**: Incremental lockout timers (5 failures = 30s, 20+ failures = 15m). A reboot can't skip or extend a cooldown.
 * **Biometric unlock**: Secondary DEK unwrap method.
 * **Counter reset**: Counters reset upon successful password or biometric authentication.
 
@@ -104,6 +112,7 @@ Local brute-force protection:
 * Security Center hygiene tracking
 * Dynamic Material 3 theming
 * Encrypted local-network sync with VaultPass Desktop (QR pairing, reviewed merges)
+* Optional in-app updates from GitHub releases
 
 ### Planned
 * Cross-device synchronization via encrypted cloud providers
@@ -112,7 +121,13 @@ Local brute-force protection:
 
 ## Notes
 
-VaultPass works offline and does not require an account. Its only network use is the optional sync with VaultPass Desktop, which connects the two devices directly over your local network, never over the internet. See [PRIVACY.md](PRIVACY.md) and [docs/SYNC_PROTOCOL.md](docs/SYNC_PROTOCOL.md).
+VaultPass works offline and does not require an account. It uses the network in two optional ways: LAN sync with VaultPass Desktop, which connects the two devices directly over your local network and never over the internet, and the update check, which is off by default and asks GitHub (`api.github.com`) for the latest release, sending nothing from your vault. See [PRIVACY.md](PRIVACY.md) and [docs/SYNC_PROTOCOL.md](docs/SYNC_PROTOCOL.md).
+
+Upgrading from 2.6.x: 2.7.0 is the first build signed with the release key, so it can't install over 2.6.x.
+
+> **If you can't unlock VaultPass 2.6.x, do NOT uninstall it: uninstalling deletes the vault. Contact us via [GitHub issues](https://github.com/ArmaanCode2/Vault-pass/issues) first.**
+
+Then export a backup, uninstall, install 2.7.0, and restore. Autofill links to apps have to be made once with "Search VaultPass…". Later updates can come from inside VaultPass: the first in-app update shows Android's confirmation, and later ones may install without it, so VaultPass just closes; open it again.
 
 ## Installation and Development
 

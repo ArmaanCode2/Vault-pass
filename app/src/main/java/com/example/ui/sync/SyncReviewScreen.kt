@@ -5,7 +5,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -34,13 +33,12 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,8 +46,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -60,7 +56,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,7 +70,16 @@ import com.example.domain.models.VaultEntry
 import com.example.domain.sync.diff.EntryDiffItem
 import com.example.domain.sync.diff.EntrySyncCategory
 import com.example.domain.sync.diff.FieldChangeType
-import kotlinx.coroutines.launch
+import com.vaultpass.synccore.EntryLimits
+import com.vaultpass.synccore.ItemOutcome
+
+/** What each outcome does, in the words the user reads. */
+fun outcomeLabel(outcome: ItemOutcome, peerName: String): String = when (outcome) {
+    ItemOutcome.USE_REMOTE -> "Use $peerName's version"
+    ItemOutcome.USE_LOCAL -> "Keep this device's version"
+    ItemOutcome.DELETE_BOTH -> "Delete on both"
+    ItemOutcome.SKIP -> "Leave unchanged"
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,17 +89,15 @@ fun SyncReviewScreen(
     onSyncCompleted: () -> Unit
 ) {
     val diffResult by viewModel.diffResult.collectAsState()
-    val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val activeSyncDevice by viewModel.activeSyncDevice.collectAsState()
+    val peerName = activeSyncDevice?.deviceName ?: "the other device"
 
     var showCancelDialog by remember { mutableStateOf(false) }
     var entryBeingEdited by remember { mutableStateOf<EntryDiffItem?>(null) }
-    var isMerging by remember { mutableStateOf(false) }
 
     val diff = diffResult
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Review Synchronization") },
@@ -119,49 +121,53 @@ fun SyncReviewScreen(
                     shadowElevation = 8.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedButton(onClick = { showCancelDialog = true }) {
-                            Text("Cancel")
+                    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                        if (diff.hasUnansweredConflicts) {
+                            Text(
+                                text = "Choose what to keep for every conflict before applying.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
                         }
-
-                        val selectedCount = diff.diffItems.count { it.isSelectedForSync }
-
-                        Button(
-                            onClick = {
-                                isMerging = true
-                                viewModel.executeMerge(
-                                    onSuccess = { count ->
-                                        isMerging = false
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar("Successfully merged $count entries into vault")
-                                            onSyncCompleted()
-                                        }
-                                    },
-                                    onError = { err ->
-                                        isMerging = false
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar("Error: $err")
-                                        }
-                                    }
-                                )
-                            },
-                            enabled = selectedCount > 0 && !isMerging
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            if (isMerging) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
+                            OutlinedButton(onClick = { showCancelDialog = true }) {
+                                Text("Cancel")
                             }
-                            Text("Merge Selected ($selectedCount)")
+
+                            val changes = diff.plannedChanges
+                            // An empty plan runs the same flow: it ends the session properly.
+                            Button(
+                                onClick = {
+                                    viewModel.applyReviewedPlan()
+                                    onSyncCompleted()
+                                },
+                                enabled = !diff.hasUnansweredConflicts,
+                                colors = if (changes == 0) {
+                                    ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF2E7D32),
+                                        contentColor = Color.White
+                                    )
+                                } else {
+                                    ButtonDefaults.buttonColors()
+                                }
+                            ) {
+                                if (changes == 0) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Devices are up to date (Finish)")
+                                } else {
+                                    Text("Apply to both devices ($changes)")
+                                }
+                            }
                         }
                     }
                 }
@@ -175,7 +181,13 @@ fun SyncReviewScreen(
                     .padding(paddingValues),
                 contentAlignment = Alignment.Center
             ) {
-                Text("No differences to display")
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("No differences to display", style = MaterialTheme.typography.bodyLarge)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = onNavigateBack) {
+                        Text("Return to Sync")
+                    }
+                }
             }
         } else {
             Column(
@@ -210,6 +222,20 @@ fun SyncReviewScreen(
                             label = "Modified",
                             color = Color(0xFFE65100)
                         )
+                        if (diff.conflictCount > 0) {
+                            SummaryBadge(
+                                count = diff.conflictCount,
+                                label = "Conflicts",
+                                color = Color(0xFF6A1B9A)
+                            )
+                        }
+                        if (diff.deletedRemoteCount + diff.deletedLocalCount > 0) {
+                            SummaryBadge(
+                                count = diff.deletedRemoteCount + diff.deletedLocalCount,
+                                label = "Deleted",
+                                color = Color(0xFFC62828)
+                            )
+                        }
                         SummaryBadge(
                             count = diff.unchangedCount,
                             label = "Unchanged",
@@ -218,27 +244,12 @@ fun SyncReviewScreen(
                     }
                 }
 
-                // Select All Row
-                val allSelected = diff.diffItems.all { it.isSelectedForSync }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = allSelected,
-                        onCheckedChange = { checked ->
-                            viewModel.toggleSelectAll(checked)
-                        }
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (allSelected) "Deselect All" else "Select All",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
+                Text(
+                    text = "Both devices end up the same: pick what to keep for each entry.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                )
 
                 // Diff Items List
                 LazyColumn(
@@ -251,14 +262,9 @@ fun SyncReviewScreen(
                     items(diff.diffItems, key = { it.syncKey }) { item ->
                         DiffItemCard(
                             item = item,
-                            onToggleSelection = { isSelected ->
-                                viewModel.toggleItemSelection(item.syncKey, isSelected)
-                            },
-                            onQuickUseDesktop = {
-                                viewModel.quickUseDesktop(item.syncKey)
-                            },
-                            onQuickKeepPhone = {
-                                viewModel.quickKeepPhone(item.syncKey)
+                            peerName = peerName,
+                            onOutcomeSelected = { outcome ->
+                                viewModel.updateItemOutcome(item.syncKey, outcome)
                             },
                             onEdit = {
                                 entryBeingEdited = item
@@ -275,7 +281,7 @@ fun SyncReviewScreen(
                 onDismissRequest = { showCancelDialog = false },
                 title = { Text("Cancel Synchronization") },
                 text = {
-                    Text("Cancel synchronization? Any unmerged changes will be discarded.")
+                    Text("Cancel synchronization? Neither device will be changed.")
                 },
                 confirmButton = {
                     Button(
@@ -339,20 +345,26 @@ fun SummaryBadge(count: Int, label: String, color: Color) {
 @Composable
 fun DiffItemCard(
     item: EntryDiffItem,
-    onToggleSelection: (Boolean) -> Unit,
-    onQuickUseDesktop: () -> Unit,
-    onQuickKeepPhone: () -> Unit,
+    peerName: String,
+    onOutcomeSelected: (ItemOutcome) -> Unit,
     onEdit: () -> Unit
 ) {
-    var expanded by remember { mutableStateOf(item.category == EntrySyncCategory.MODIFIED) }
+    val comparesVersions = item.category == EntrySyncCategory.MODIFIED || item.category == EntrySyncCategory.CONFLICT
+    var expanded by remember { mutableStateOf(comparesVersions) }
 
     val activeEntry = item.editedEntry ?: item.remoteEntry ?: item.localEntry ?: VaultEntry()
+    val unanswered = item.needsChoice && !item.answered
 
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
         ),
+        border = if (unanswered) {
+            androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+        } else {
+            null
+        },
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -361,11 +373,6 @@ fun DiffItemCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Checkbox(
-                    checked = item.isSelectedForSync,
-                    onCheckedChange = onToggleSelection
-                )
-                Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = activeEntry.title.ifBlank { "Untitled" },
@@ -377,6 +384,13 @@ fun DiffItemCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    categoryHint(item.category, peerName)?.let { hint ->
+                        Text(
+                            text = hint,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
                 // Category Badge
@@ -407,6 +421,38 @@ fun DiffItemCard(
                 }
             }
 
+            if (unanswered) {
+                Text(
+                    text = "Changed on both devices: choose one.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // The outcome this entry gets on BOTH devices.
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                item.choices.forEach { choice ->
+                    FilterChip(
+                        selected = !unanswered && item.outcome == choice,
+                        onClick = { onOutcomeSelected(choice) },
+                        label = {
+                            Text(
+                                text = outcomeLabel(choice, peerName),
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    )
+                }
+            }
+
             // Expandable Field Comparison
             AnimatedVisibility(
                 visible = expanded,
@@ -430,39 +476,25 @@ fun DiffItemCard(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Action Chips & Inline Edit Button
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (item.category == EntrySyncCategory.MODIFIED) {
+                        // Deleting on both devices has nothing to edit.
+                        if (item.outcome != ItemOutcome.DELETE_BOTH) {
                             AssistChip(
-                                onClick = onQuickUseDesktop,
-                                label = { Text("Use Desktop") },
-                                colors = AssistChipDefaults.assistChipColors(
-                                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                                )
+                                onClick = onEdit,
+                                label = { Text("Edit Entry") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            AssistChip(
-                                onClick = onQuickKeepPhone,
-                                label = { Text("Keep Phone") }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
                         }
-
-                        AssistChip(
-                            onClick = onEdit,
-                            label = { Text("Edit Entry") },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        )
                     }
                 }
             }
@@ -470,14 +502,24 @@ fun DiffItemCard(
     }
 }
 
+/** What the item means, when the badge alone doesn't say. */
+private fun categoryHint(category: EntrySyncCategory, peerName: String): String? = when (category) {
+    EntrySyncCategory.CONFLICT -> "Changed on both devices since the last sync"
+    EntrySyncCategory.DELETED_REMOTE -> "Deleted on $peerName"
+    EntrySyncCategory.DELETED_LOCAL -> "Deleted on this device"
+    else -> null
+}
+
 @Composable
 fun CategoryBadge(category: EntrySyncCategory) {
     val (bgColor, textColor, text) = when (category) {
         EntrySyncCategory.NEW_REMOTE -> Triple(Color(0xFF2E7D32), Color.White, "NEW")
         EntrySyncCategory.MODIFIED -> Triple(Color(0xFFE65100), Color.White, "MODIFIED")
+        EntrySyncCategory.CONFLICT -> Triple(Color(0xFF6A1B9A), Color.White, "CONFLICT")
         EntrySyncCategory.NEW_LOCAL -> Triple(Color(0xFF1565C0), Color.White, "LOCAL ONLY")
         EntrySyncCategory.UNCHANGED -> Triple(Color(0xFF757575), Color.White, "UNCHANGED")
-        EntrySyncCategory.DELETED_LOCAL -> Triple(Color(0xFFC62828), Color.White, "DELETED")
+        EntrySyncCategory.DELETED_REMOTE -> Triple(Color(0xFFC62828), Color.White, "DELETED THERE")
+        EntrySyncCategory.DELETED_LOCAL -> Triple(Color(0xFFC62828), Color.White, "DELETED HERE")
     }
 
     Box(
@@ -537,13 +579,20 @@ fun FieldDiffRow(diff: com.example.domain.sync.diff.FieldDiff) {
     }
 }
 
+/** The "Max N characters" line under a field that is too long; null while it fits. */
+private fun limitMessage(value: String, limit: Int): (@Composable () -> Unit)? =
+    if (value.length > limit) ({ Text(EntryLimits.tooLong(limit)) }) else null
+
 @Composable
 fun InlineEditEntryDialog(
     item: EntryDiffItem,
     onDismiss: () -> Unit,
     onSave: (VaultEntry) -> Unit
 ) {
-    val initial = item.editedEntry ?: item.remoteEntry ?: item.localEntry ?: VaultEntry()
+    // copy() below keeps everything the dialog doesn't show: syncId, custom fields, tags, favorite.
+    val initial = item.editedEntry
+        ?: (if (item.outcome == ItemOutcome.USE_LOCAL) item.localEntry else item.remoteEntry)
+        ?: item.remoteEntry ?: item.localEntry ?: VaultEntry()
 
     var title by remember { mutableStateOf(initial.title) }
     var username by remember { mutableStateOf(initial.username) }
@@ -552,6 +601,10 @@ fun InlineEditEntryDialog(
     var notes by remember { mutableStateOf(initial.notes) }
     var category by remember { mutableStateOf(initial.category) }
     var isPasswordVisible by remember { mutableStateOf(false) }
+    // The same limits as the entry editor, so a merged entry can be opened and saved anywhere.
+    val withinLimits = title.length <= EntryLimits.TITLE && username.length <= EntryLimits.USERNAME &&
+        password.length <= EntryLimits.PASSWORD && website.length <= EntryLimits.WEBSITE &&
+        notes.length <= EntryLimits.NOTES
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -568,6 +621,8 @@ fun InlineEditEntryDialog(
                     onValueChange = { title = it },
                     label = { Text("Title") },
                     singleLine = true,
+                    isError = title.length > EntryLimits.TITLE,
+                    supportingText = limitMessage(title, EntryLimits.TITLE),
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
@@ -575,6 +630,8 @@ fun InlineEditEntryDialog(
                     onValueChange = { username = it },
                     label = { Text("Username") },
                     singleLine = true,
+                    isError = username.length > EntryLimits.USERNAME,
+                    supportingText = limitMessage(username, EntryLimits.USERNAME),
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
@@ -582,6 +639,8 @@ fun InlineEditEntryDialog(
                     onValueChange = { password = it },
                     label = { Text("Password") },
                     singleLine = true,
+                    isError = password.length > EntryLimits.PASSWORD,
+                    supportingText = limitMessage(password, EntryLimits.PASSWORD),
                     visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
@@ -598,6 +657,8 @@ fun InlineEditEntryDialog(
                     onValueChange = { website = it },
                     label = { Text("Website") },
                     singleLine = true,
+                    isError = website.length > EntryLimits.WEBSITE,
+                    supportingText = limitMessage(website, EntryLimits.WEBSITE),
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
@@ -605,6 +666,8 @@ fun InlineEditEntryDialog(
                     onValueChange = { notes = it },
                     label = { Text("Notes") },
                     maxLines = 3,
+                    isError = notes.length > EntryLimits.NOTES,
+                    supportingText = limitMessage(notes, EntryLimits.NOTES),
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
@@ -620,6 +683,7 @@ fun InlineEditEntryDialog(
             Button(
                 onClick = {
                     val updated = initial.copy(
+                        syncId = item.syncKey,
                         title = title,
                         username = username,
                         password = password,
@@ -628,7 +692,8 @@ fun InlineEditEntryDialog(
                         category = category
                     )
                     onSave(updated)
-                }
+                },
+                enabled = withinLimits
             ) {
                 Text("Save Changes")
             }
