@@ -76,4 +76,13 @@ class PasswordGeneratorTest {
         }.toSet()
         assertEquals("50 generation cycles should produce 50 unique passwords", 50, passwords.size)
     }
+
+    @Test
+    fun poolSize_countsTheRealCharacterSets() {
+        assertEquals(26, PasswordGenerator.SYMBOL_CHARS.length)
+        assertEquals(88, PasswordGenerator.poolSize(upper = true, lower = true, nums = true, syms = true))
+        assertEquals(62, PasswordGenerator.poolSize(upper = true, lower = true, nums = true, syms = false))
+        assertEquals(26, PasswordGenerator.poolSize(upper = false, lower = false, nums = false, syms = true))
+        assertEquals(0, PasswordGenerator.poolSize(upper = false, lower = false, nums = false, syms = false))
+    }
 }

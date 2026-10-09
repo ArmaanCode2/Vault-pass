@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.R
+import com.example.domain.security.PasswordGenerator
 import kotlin.math.log2
 
 @Composable
@@ -44,30 +45,16 @@ fun PasswordGeneratorScreen(
     
     val context = LocalContext.current
 
-    fun getPoolSize(): Int {
-        var size = 0
-        if (useUppercase) size += 26
-        if (useLowercase) size += 26
-        if (useNumbers) size += 10
-        if (useSymbols) size += 32
-        return if (size == 0) 1 else size
-    }
-
     fun generate() {
         if (!useUppercase && !useLowercase && !useNumbers && !useSymbols) {
             generatedPassword = ""
             return
         }
-        val upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        val lower = "abcdefghijklmnopqrstuvwxyz"
-        val numbers = "0123456789"
-        val symbols = "!@#\$%^&*()_+-=[]{}|;:,.<>?"
-        
         var charPool = ""
-        if (useUppercase) charPool += upper
-        if (useLowercase) charPool += lower
-        if (useNumbers) charPool += numbers
-        if (useSymbols) charPool += symbols
+        if (useUppercase) charPool += PasswordGenerator.UPPER_CHARS
+        if (useLowercase) charPool += PasswordGenerator.LOWER_CHARS
+        if (useNumbers) charPool += PasswordGenerator.NUMBER_CHARS
+        if (useSymbols) charPool += PasswordGenerator.SYMBOL_CHARS
         
         val random = java.security.SecureRandom()
         val pwd = StringBuilder()
@@ -82,7 +69,8 @@ fun PasswordGeneratorScreen(
         generate()
     }
 
-    val poolSize = getPoolSize()
+    // Same sets generate() draws from, so entropy and crack time aren't overstated.
+    val poolSize = PasswordGenerator.poolSize(useUppercase, useLowercase, useNumbers, useSymbols)
     val entropyBits = if (poolSize > 1) (length * log2(poolSize.toDouble())).toInt() else 0
     val strengthLabel = when {
         entropyBits < 50 -> "Weak"
@@ -248,7 +236,7 @@ fun PasswordGeneratorScreen(
                             AnalysisStat("Entropy", "$entropyBits bits", MaterialTheme.colorScheme.primary)
                             AnalysisStat("Crack Time", crackTime, MaterialTheme.colorScheme.primary)
                             AnalysisStat("Pattern", "Random", MaterialTheme.colorScheme.primary)
-                            AnalysisStat("Pwned Check", "Clear", MaterialTheme.colorScheme.primaryContainer)
+                            AnalysisStat("Pool", "$poolSize chars", MaterialTheme.colorScheme.primary)
                         }
                     }
                 }

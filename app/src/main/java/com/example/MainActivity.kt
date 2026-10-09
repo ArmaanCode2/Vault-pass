@@ -59,6 +59,8 @@ class MainActivity : FragmentActivity() {
         // Background check (only if turned on) or an already downloaded update; never blocks unlock.
         updateController.onAppOpen()
 
+        // Secure from the first frame; cleared below only once the setting loads as off.
+        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         lifecycleScope.launch {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.settingsRepository.disableScreenshots.collect { disable ->

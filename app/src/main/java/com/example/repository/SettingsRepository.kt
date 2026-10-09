@@ -195,7 +195,8 @@ class SettingsRepository(
         context.dataStore.edit { it[HIDE_PASSWORDS] = hide }
     }
 
-    val disableScreenshots: Flow<Boolean> = data.map { it[DISABLE_SCREENSHOTS] ?: false }
+    // On unless the user turned it off: an install that never touched the switch is protected.
+    val disableScreenshots: Flow<Boolean> = data.map { it[DISABLE_SCREENSHOTS] ?: true }
     suspend fun setDisableScreenshots(disable: Boolean) {
         context.dataStore.edit { it[DISABLE_SCREENSHOTS] = disable }
     }

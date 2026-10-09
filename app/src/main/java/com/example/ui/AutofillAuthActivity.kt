@@ -73,6 +73,8 @@ class AutofillAuthActivity : FragmentActivity() {
                 .logError("Autofill authentication started without EXTRA_ASSIST_STRUCTURE; nothing can be filled.")
         }
 
+        // Secure from the first frame; cleared below only once the setting loads as off.
+        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         lifecycleScope.launch {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.settingsRepository.disableScreenshots.collect { disable ->

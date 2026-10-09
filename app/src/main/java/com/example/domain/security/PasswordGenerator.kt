@@ -8,6 +8,13 @@ object PasswordGenerator {
     const val NUMBER_CHARS = "0123456789"
     const val SYMBOL_CHARS = "!@#$%^&*()_+-=[]{}|;:,.<>?"
 
+    /** Number of distinct characters a password can draw from; 0 when no set is selected. */
+    fun poolSize(upper: Boolean, lower: Boolean, nums: Boolean, syms: Boolean): Int =
+        (if (upper) UPPER_CHARS.length else 0) +
+            (if (lower) LOWER_CHARS.length else 0) +
+            (if (nums) NUMBER_CHARS.length else 0) +
+            (if (syms) SYMBOL_CHARS.length else 0)
+
     fun generatePassword(
         length: Int,
         upper: Boolean,

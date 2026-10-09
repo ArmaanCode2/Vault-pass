@@ -190,7 +190,7 @@
         // Settings switches (SettingsScreen.kt)
         hidePasswordsByDefault: true,
         biometricEnabled: true,
-        disableScreenshots: false, // off by default in the app (SettingsRepository.kt)
+        disableScreenshots: true, // on by default in the app (SettingsRepository.kt)
         autoLockTimer: 60000, // 1 min
         showAutoLockDialog: false,
         showExportDialog: false,

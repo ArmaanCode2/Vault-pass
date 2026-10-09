@@ -10,7 +10,7 @@
  * Bump CACHE_VERSION on every deploy that changes a precached file.
  */
 
-const CACHE_VERSION = 'v4-2026-10-02';
+const CACHE_VERSION = 'v5-2026-10-09';
 const CACHE_NAME = 'vaultpass-' + CACHE_VERSION;
 
 const PRECACHE = [
