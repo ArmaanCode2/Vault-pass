@@ -57,6 +57,10 @@
         <receiver
             android:name=".update.UpdateInstallReceiver"
             android:exported="false" />
+        <!-- Clipboard clear alarm; reached only through ClipboardClearScheduler's PendingIntent -->
+        <receiver
+            android:name=".security.ClipboardClearReceiver"
+            android:exported="false" />
         <service
             android:name=".service.VaultAutofillService"
             android:label="${appLabel}"

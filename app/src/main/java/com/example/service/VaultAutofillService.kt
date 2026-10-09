@@ -64,6 +64,8 @@ class VaultAutofillService : AutofillService() {
         }
         
         try {
+            // F12: an auto-lock deadline that passed while the device slept locks before filling.
+            app.container.vaultSessionManager.lockIfExpired()
             val dek = app.container.cryptoManager.getSoftwareDek()
             val isUnlocked = dek != null
             dek?.let { java.util.Arrays.fill(it, 0.toByte()) }

@@ -1,9 +1,5 @@
 package com.example.ui.screens
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -170,30 +166,7 @@ fun PasswordGeneratorScreen(
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Button(
-                                onClick = {
-                                    val vm = viewModel ?: run {
-                                        (context as? androidx.activity.ComponentActivity)?.let { activity ->
-                                            try {
-                                                androidx.lifecycle.ViewModelProvider(activity)[com.example.ui.VaultViewModel::class.java]
-                                            } catch (e: Exception) {
-                                                null
-                                            }
-                                        }
-                                    }
-                                    if (vm != null) {
-                                        vm.copyToClipboard(context, "Password", generatedPassword)
-                                    } else {
-                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        val clip = ClipData.newPlainText("Password", generatedPassword)
-                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                            clip.description.extras = android.os.PersistableBundle().apply {
-                                                putBoolean(android.content.ClipDescription.EXTRA_IS_SENSITIVE, true)
-                                            }
-                                        }
-                                        clipboard.setPrimaryClip(clip)
-                                        Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
+                                onClick = { viewModel?.copyToClipboard(context, "Password", generatedPassword) },
                                 modifier = Modifier.weight(1f).height(48.dp),
                                 shape = RoundedCornerShape(8.dp)
                             ) {

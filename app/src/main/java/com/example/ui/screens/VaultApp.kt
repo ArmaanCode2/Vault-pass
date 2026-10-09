@@ -129,7 +129,7 @@ fun VaultApp(
                         MissingPasswordsScreen(viewModel, navController)
                     }
                     composable("generator") {
-                        PasswordGeneratorScreen(navController)
+                        PasswordGeneratorScreen(navController, viewModel)
                     }
                     composable("lan_sync") {
                         val context = androidx.compose.ui.platform.LocalContext.current

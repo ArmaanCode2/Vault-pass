@@ -850,38 +850,10 @@ class VaultViewModel(
         }
     }
 
-    private var clipboardJob: kotlinx.coroutines.Job? = null
-
     fun copyToClipboard(context: android.content.Context, label: String, text: String) {
-        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-        val clip = android.content.ClipData.newPlainText(label, text)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            clip.description.extras = android.os.PersistableBundle().apply {
-                putBoolean(android.content.ClipDescription.EXTRA_IS_SENSITIVE, true)
-            }
-        }
-        clipboard.setPrimaryClip(clip)
+        // The clear is scheduled process-wide, so leaving this screen or locking doesn't cancel it.
+        com.example.security.ClipboardClearScheduler.get(context).copy(label, text)
         android.widget.Toast.makeText(context, "$label copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
-
-        clipboardJob?.cancel()
-        val appContext = context.applicationContext
-        clipboardJob = viewModelScope.launch {
-            val delayMs = settingsRepository.clipboardClearTimer.first()
-            if (delayMs > 0) {
-                kotlinx.coroutines.delay(delayMs)
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                    clipboard.clearPrimaryClip()
-                } else {
-                    val currentClip = clipboard.primaryClip
-                    if (currentClip != null && currentClip.itemCount > 0) {
-                        val currentText = currentClip.getItemAt(0).text?.toString()
-                        if (currentText == text) {
-                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("", ""))
-                        }
-                    }
-                }
-            }
-        }
     }
 
     fun lock() {
@@ -889,7 +861,9 @@ class VaultViewModel(
         // second clear here could undo an unlock that ran in between.
         sessionManager.lock()
         clearExportPassword()
-        clipboardJob?.cancel()
+        // Manual lock only: a copied secret goes now. Auto-locks leave the clear timer alone, or
+        // "Immediately" would empty the clipboard as the user switches to the app they paste into.
+        com.example.security.ClipboardClearScheduler.instance?.clearNow()
     }
 
     private val setupInProgress = java.util.concurrent.atomic.AtomicBoolean(false)

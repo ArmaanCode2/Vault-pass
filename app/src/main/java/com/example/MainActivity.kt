@@ -42,6 +42,12 @@ class MainActivity : FragmentActivity() {
         viewModel.handleActivityStopped()
     }
 
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        // With focus the clipboard is readable: a clear that couldn't tell whose clip it was runs now.
+        if (hasFocus) com.example.security.ClipboardClearScheduler.get(this).clearIfDue(inForeground = true)
+    }
+
     override fun onResume() {
         super.onResume()
         // Foreground tracking for the update installer (commit, confirmation, "Install unknown apps" return).

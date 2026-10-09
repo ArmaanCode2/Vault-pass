@@ -40,6 +40,16 @@ class AppContainer(private val context: Context) {
     /** Process-wide scope for work that outlives screens (update check, download, install). */
     val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
+    /** Copies secrets and clears them after the user's delay, even if the process dies first. */
+    val clipboardClearScheduler: com.example.security.ClipboardClearScheduler by lazy {
+        com.example.security.ClipboardClearScheduler(
+            context = context,
+            scope = applicationScope,
+            clearDelayMs = { settingsRepository.clipboardClearTimer.first() },
+            clock = settingsRepository.deviceClock
+        )
+    }
+
     val updateEngine: com.example.update.UpdateEngine by lazy {
         com.example.update.UpdateEngine(context)
     }
