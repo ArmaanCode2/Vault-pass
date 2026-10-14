@@ -1,317 +1,303 @@
-<!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<!doctype html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Security Architecture | VaultPass</title>
-  <meta name="description" content="How VaultPass encrypts your vault: PBKDF2-HMAC-SHA256, AES-256-GCM, Android Keystore biometrics, lockouts and local-network sync.">
-  <meta name="theme-color" content="#05070d">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.github.com https://raw.githubusercontent.com; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Security model | VaultPass</title>
+  <meta name="description" content="How VaultPass for Android and Windows encrypts your vault: PBKDF2-HMAC-SHA256 with 300,000 rounds, AES-256-GCM, locking, local-network sync and update checks, including what each app does not protect against.">
+  <meta name="theme-color" content="#f3f4f7">
+  <link rel="canonical" href="https://armaancode2.github.io/Vault-pass/website/security.html">
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/icon-64.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 
-  <link rel="icon" type="image/png" href="assets/icon.png">
-
-  <!-- Canonical URL -->
-  <link rel="canonical" href="https://vaultpass.org/security.html">
-
-  <!-- OpenGraph / Social Media -->
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://vaultpass.org/security.html">
-  <meta property="og:title" content="Security Architecture | VaultPass">
-  <meta property="og:description" content="How VaultPass encrypts your vault: PBKDF2-HMAC-SHA256, AES-256-GCM, Android Keystore biometrics, lockouts and local-network sync.">
-  <meta property="og:image" content="https://vaultpass.org/assets/icon.png">
-
-  <!-- Twitter Card -->
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="VaultPass">
+  <meta property="og:url" content="https://armaancode2.github.io/Vault-pass/website/security.html">
+  <meta property="og:title" content="Security model | VaultPass">
+  <meta property="og:description" content="How both VaultPass apps encrypt, lock and sync your vault, and what they don't protect against.">
+  <meta property="og:image" content="https://armaancode2.github.io/Vault-pass/website/assets/icon-512.png">
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="Security Architecture | VaultPass">
-  <meta name="twitter:description" content="How VaultPass encrypts your vault: PBKDF2-HMAC-SHA256, AES-256-GCM, Android Keystore biometrics, lockouts and local-network sync.">
-  <meta name="twitter:image" content="https://vaultpass.org/assets/icon.png">
 
-  <!-- Fonts & DNS Prefetch Hints -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="dns-prefetch" href="https://raw.githubusercontent.com">
-  <link rel="dns-prefetch" href="https://api.github.com">
-  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" as="style">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"></noscript>
-
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            // Channels defined in css/styles.css (:root)
-            brand: {
-              dark: 'rgb(var(--rgb-bg) / <alpha-value>)',
-              surface: 'rgb(var(--rgb-surface) / <alpha-value>)',
-              card: 'rgb(var(--rgb-card) / <alpha-value>)',
-              cyan: 'rgb(var(--rgb-accent) / <alpha-value>)',
-              mint: 'rgb(var(--rgb-accent-strong) / <alpha-value>)',
-            }
-          },
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
-          }
-        }
-      }
-    }
-  </script>
-
-  <!-- Site stylesheet (color tokens, components) -->
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="preconnect" href="https://api.github.com" crossorigin>
+  <link rel="preload" href="assets/fonts/BigShoulders-Bold.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/WorkSans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/site.css">
+  <script src="js/boot.js"></script>
 </head>
-<body class="bg-brand-dark text-slate-100 antialiased">
-  <a href="#main" class="skip-link">Skip to content</a>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
 
-  <!-- Gemini-style Slow-Moving Blurred Gradient Background -->
-  <div class="gradient-bg-container" aria-hidden="true">
-    <div class="gradient-orb gradient-orb-1"></div>
-    <div class="gradient-orb gradient-orb-2"></div>
-    <div class="gradient-orb gradient-orb-3"></div>
-    <div class="gradient-orb gradient-orb-4"></div>
-  </div>
-
-  <!-- Page content -->
-  <div class="relative z-10">
-
-    <!-- Simple, Centered Navbar (Logo only, 3 center links, Download APK) -->
-    <header class="sticky top-0 z-50 glass-nav">
-      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between relative">
-        
-        <!-- Left: Logo ONLY -->
-        <a href="index.html" class="tap-target group rounded-xl" aria-label="VaultPass home">
-          <div class="w-9 h-9 rounded-xl bg-brand-surface border border-white/10 flex items-center justify-center p-0.5 overflow-hidden transition-transform group-hover:scale-105 group-hover:border-brand-cyan/40">
-            <picture>
-              <source srcset="assets/icon.webp" type="image/webp">
-              <img src="assets/icon.png" alt="" width="36" height="36" decoding="async" class="w-full h-full object-cover rounded-lg">
-            </picture>
-          </div>
+  <header class="site-head">
+    <div class="wrap site-head__row">
+      <a class="brand" href="./" aria-label="VaultPass home">
+        <img src="assets/icon-128.webp" alt="" width="34" height="34">
+        <span>VaultPass</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="./#demo">Try it</a>
+        <a href="./#sync">Sync</a>
+        <a href="security.html" aria-current="page">Security</a>
+        <a href="privacy.html">Privacy</a>
+      </nav>
+      <div class="site-head__end">
+        <a class="btn btn--gold btn--sm" href="download.html">
+          <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#download-simple"></use></svg>
+          <span>Download</span>
         </a>
-
-        <!-- Center: 3 Navigation Links (Centered) -->
-        <nav aria-label="Main" class="hidden md:flex items-center gap-8 text-sm font-medium absolute left-1/2 -translate-x-1/2">
-          <a href="index.html#features" class="nav-link py-2">Features</a>
-          <a href="security.html" class="nav-link py-2" aria-current="page">Security Model</a>
-          <a href="download.html" class="nav-link py-2">Downloads</a>
-        </nav>
-
-        <!-- Right: Download APK Button -->
-        <div class="hidden sm:flex items-center gap-3">
-          <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary text-xs sm:text-sm px-4 min-h-[40px] rounded-lg flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-            </svg>
-            <span class="download-status">Download APK</span>
-          </a>
-        </div>
-
-        <!-- Mobile Menu Button -->
-        <button type="button" id="mobile-menu-btn" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu" class="md:hidden w-11 h-11 flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-white/5">
-          <svg data-icon="open" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-          </svg>
-          <svg data-icon="close" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
+        <button class="icon-btn nav-toggle" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="Open menu">
+          <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#list"></use></svg>
         </button>
       </div>
-
-      <!-- Mobile Dropdown -->
-      <nav id="mobile-menu" aria-label="Mobile" class="hidden md:hidden px-4 pt-2 pb-6 border-t border-white/5 bg-brand-dark/95 backdrop-blur-xl">
-        <div class="flex flex-col gap-1 text-sm font-medium pt-2 text-center">
-          <a href="index.html#features" class="mobile-nav-link">Features</a>
-          <a href="security.html" class="mobile-nav-link" aria-current="page">Security Model</a>
-          <a href="download.html" class="mobile-nav-link">Downloads</a>
-          <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary flex items-center justify-center gap-2 min-h-[44px] rounded-lg text-sm mt-3 w-full">
-            <span class="download-status">Download APK</span>
-          </a>
-        </div>
-      </nav>
-    </header>
-
-    <main id="main" tabindex="-1" class="outline-none">
-
-    <!-- Header Section -->
-    <section class="pt-16 pb-12 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono text-brand-mint bg-brand-mint/10 border border-brand-mint/20 mb-4">
-        CRYPTOGRAPHIC SPECIFICATION
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-label="Main" hidden>
+      <div class="wrap">
+        <a href="./#demo">Try it</a>
+        <a href="./#sync">Sync</a>
+        <a href="security.html" aria-current="page">Security</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="download.html">Download</a>
       </div>
-      <h1 class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
-        How VaultPass protects your vault
-      </h1>
-      <p class="mt-4 text-base sm:text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed">
-        Encryption and decryption happen on your own devices. There is no VaultPass server, and your master password is never transmitted.
-      </p>
+    </nav>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <section class="page-head" aria-labelledby="page-title">
+      <div class="wrap">
+        <h1 id="page-title">How VaultPass protects your vault</h1>
+        <p class="lead">Encryption and decryption happen on your own devices. There is no VaultPass server, and your master password never leaves the device you type it on. This page covers both apps, including what they don't do.</p>
+        <div id="versions" class="versions">
+          <div class="notice" data-until-released="android:2.7.0">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#info"></use></svg>
+            <div>
+              <p><strong>This page describes Android 2.7.0, which isn't out yet.</strong> The current release, <span data-rel="android:tag">2.6.x</span>, is different:</p>
+              <ul>
+                <li>It has no network access, so no sync and no update check.</li>
+                <li>Screenshot blocking is off until you turn on Disable Screenshots in Settings.</li>
+                <li>Autofill also suggests entries whose title resembles the app's name, so check a suggestion before you tap it.</li>
+                <li>The clipboard is cleared after 30 seconds only while the app is still running.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="notice" data-until-released="windows:1.1.0">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#info"></use></svg>
+            <div>
+              <p><strong>This page describes Windows 1.1.0, which isn't out yet.</strong> The current release, <span data-rel="windows:tag">1.0.1</span>, is different:</p>
+              <ul>
+                <li>It checks GitHub for a new version each time it opens (turn this off in Settings, under About) and installs updates without checking a signature.</li>
+                <li>If you turn off Require Master Password on Startup, the saved key stays on disk even after the vault locks, until you turn the setting back on.</li>
+                <li>It can't sync with the current Android release.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
-    <!-- Key Cryptographic Principles -->
-    <section class="py-12 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-      
-      <!-- Flow Diagram -->
-      <div class="glass-card rounded-2xl p-6 sm:p-8 mb-12">
-        <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-3">
-          <span class="w-7 h-7 flex-shrink-0 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-sm font-mono" aria-hidden="true">1</span>
-          <span>Key hierarchy</span>
-        </h2>
+    <div class="wrap doc">
+      <nav class="toc" aria-label="On this page">
+        <p class="small muted">On this page</p>
+        <ol>
+          <li><a href="#keys">Keys and encryption</a></li>
+          <li><a href="#unlock">Unlocking and locking</a></li>
+          <li><a href="#leaks">Screen and clipboard</a></li>
+          <li><a href="#sync">Sync between devices</a></li>
+          <li><a href="#backups">Backups</a></li>
+          <li><a href="#updates">Downloads and updates</a></li>
+          <li><a href="#limits">What it can't protect against</a></li>
+          <li><a href="#sources">Read the code</a></li>
+        </ol>
+      </nav>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono text-xs text-slate-300">
-          <div class="p-4 rounded-xl bg-brand-dark border border-white/5 space-y-2">
-            <div class="text-emerald-400 font-semibold uppercase tracking-wider">Step 1: Master Key (KDF)</div>
-            <p class="text-slate-400 leading-relaxed font-sans text-xs">
-              Your master password runs through <strong>PBKDF2-HMAC-SHA256</strong> for 300,000 iterations with a random 16-byte salt, producing a 256-bit Key Encryption Key (KEK).
-            </p>
-            <div class="pt-2 text-[10px] text-slate-400">
-              Makes each password guess expensive
+      <div>
+        <section aria-labelledby="keys" style="margin-bottom: clamp(56px, 5vw + 24px, 104px)">
+          <h2 id="keys" style="margin-bottom: 28px">Keys and encryption</h2>
+          <div class="spec">
+            <div>
+              <h3>Your master password becomes a key</h3>
+              <p>Both apps run it through PBKDF2-HMAC-SHA256 with 300,000 rounds and a random salt (16 bytes on Android, 32 on Windows), which gives a 256-bit key. The password itself is never stored, and both apps check it in constant time.</p>
+              <p>Android vaults created with the older 100,000-round setting are moved to 300,000 rounds the next time you unlock with your master password.</p>
+            </div>
+            <div>
+              <h3>That key unwraps the data key</h3>
+              <p>Your entries are encrypted with a separate random 256-bit data key. The vault stores that data key wrapped, encrypted with AES-256-GCM under the key from your password. Fingerprint unlock on Android and starting without the password on Windows add a second copy; both are described below.</p>
+            </div>
+            <div>
+              <h3>The data key encrypts the entries</h3>
+              <p>AES-256-GCM with a fresh 12-byte IV and a 128-bit authentication tag, so a changed byte makes decryption fail instead of returning altered data.</p>
+              <p><span class="platform-pill"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#android-logo"></use></svg>Android</span>Each field (title, username, password, website, notes, category, tags, custom fields) is encrypted separately.</p>
+              <p><span class="platform-pill"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#windows-logo"></use></svg>Windows</span>Each entry is one encrypted record.</p>
+            </div>
+            <div>
+              <h3>What is not encrypted</h3>
+              <p>To list, sort and sync entries, both apps keep a few fields in plain form next to the encrypted data: an internal ID, the favourite and deleted flags, timestamps and, on Windows, the entry type. They never include a title, username, password or website. The names and local IP addresses of paired devices, and on Android the package names of apps you linked for autofill, are stored unencrypted too.</p>
             </div>
           </div>
+        </section>
 
-          <div class="p-4 rounded-xl bg-brand-dark border border-white/5 space-y-2">
-            <div class="text-cyan-400 font-semibold uppercase tracking-wider">Step 2: Dual DEK Wrapping</div>
-            <p class="text-slate-400 leading-relaxed font-sans text-xs">
-              A random Data Encryption Key (DEK) encrypts your entries. The DEK is stored twice: wrapped with the KEK, and, if you turn on biometric unlock, wrapped with an <strong>Android Keystore</strong> key.
-            </p>
-            <div class="pt-2 text-[10px] text-slate-400">
-              Keystore is hardware-backed (TEE or StrongBox) on phones that have it
+        <section aria-labelledby="unlock" style="margin-bottom: clamp(56px, 5vw + 24px, 104px)">
+          <h2 id="unlock" style="margin-bottom: 28px">Unlocking and locking</h2>
+          <div class="spec">
+            <div>
+              <h3>Fingerprint and face (Android)</h3>
+              <p>Off until you turn it on, and only with strong (Class 3) biometrics. Turning it on stores a second wrapped copy of the data key, encrypted by an Android Keystore key that only works after your fingerprint or face is confirmed.</p>
+              <p>Adding a new fingerprint or face, or removing the screen lock, makes that key unusable; unlock with your master password and turn fingerprint unlock on again. Whether the Keystore key lives in secure hardware depends on your phone.</p>
+            </div>
+            <div>
+              <h3>Starting without the password (Windows)</h3>
+              <p>"Require Master Password on Startup" is on by default. If you turn it off, the data key is kept in a file protected by Windows DPAPI for your Windows account, so any program running as you could read it. From version 1.1.0, every lock deletes that file.</p>
+              <p>The Windows app has no Windows Hello unlock.</p>
+            </div>
+            <div>
+              <h3>Locking wipes the key</h3>
+              <p>When the vault locks, the data key in memory is overwritten with zeros.</p>
+              <ul>
+                <li><strong>Android:</strong> locks 1 minute after you leave the app by default. You can pick immediately, 30 seconds, 1, 5 or 15 minutes, or never. While the import or export file picker is open, the vault locks after the auto-lock time or 5 minutes, whichever is longer, so with "Immediately" it can stay open for up to 5 minutes while you choose a file. A file picked after the vault locked is not read or written.</li>
+                <li><strong>Windows:</strong> locks after 15 idle minutes by default, and when you lock Windows. Locking on minimise is available but off by default.</li>
+              </ul>
+            </div>
+            <div>
+              <h3>Wrong passwords</h3>
+              <p><strong>Android</strong> makes you wait 30 seconds after 5 wrong passwords, 60 seconds after 10, 5 minutes after 15 and 15 minutes after 20 or more. The count is kept on disk, so restarting the app or the phone doesn't reset it.</p>
+              <p><strong>Windows</strong> doesn't limit attempts yet. Every guess still costs 300,000 rounds of PBKDF2.</p>
             </div>
           </div>
+        </section>
 
-          <div class="p-4 rounded-xl bg-brand-dark border border-white/5 space-y-2">
-            <div class="text-indigo-400 font-semibold uppercase tracking-wider">Step 3: AES-256-GCM Payloads</div>
-            <p class="text-slate-400 leading-relaxed font-sans text-xs">
-              Credential records, notes and custom fields in the local Room (SQLite) database are encrypted with <strong>AES-GCM</strong> and carry a 128-bit authentication tag.
-            </p>
-            <div class="pt-2 text-[10px] text-slate-400">
-              A modified record fails the tag check instead of decrypting
+        <section aria-labelledby="leaks" style="margin-bottom: clamp(56px, 5vw + 24px, 104px)">
+          <h2 id="leaks" style="margin-bottom: 28px">Screen and clipboard</h2>
+          <div class="spec">
+            <div>
+              <h3>Screenshots</h3>
+              <p><strong>Android</strong> blocks screenshots and screen recording of its screens, and shows a blank card in the recent-apps list. From 2.7.0 this is on by default; you can allow screenshots in Settings.</p>
+              <p><strong>Windows</strong> doesn't block screen capture.</p>
+            </div>
+            <div>
+              <h3>Copied passwords</h3>
+              <p><strong>Android</strong> marks copies as sensitive, so Android 13 and later hide them in the clipboard preview, and clears the clipboard after 30 seconds. From 2.7.0 this also happens if the app was closed in between.</p>
+              <p><strong>Windows</strong> clears it after 30 seconds by default (10 seconds to never), and keeps copied passwords out of clipboard history and cloud clipboard. Other apps can still read the clipboard while the text is on it.</p>
             </div>
           </div>
-        </div>
+        </section>
+
+        <section aria-labelledby="sync" style="margin-bottom: clamp(56px, 5vw + 24px, 104px)">
+          <h2 id="sync" style="margin-bottom: 28px">Sync between devices</h2>
+          <div class="spec">
+            <div>
+              <h3>Pairing</h3>
+              <p>The Windows app shows a QR code with a one-time 32-byte secret, and the phone scans it. The secret never travels over the network. You approve the phone on the PC, and both keep a pair key that is encrypted with the vault's own key.</p>
+            </div>
+            <div>
+              <h3>Connection</h3>
+              <p>Directly over your local network: TCP port 53853 for the connection, UDP port 53852 for finding each other. Nothing listens unless the Sync screen is open, and it stops when the vault locks. The Windows app can add firewall rules for private networks only, with your administrator approval.</p>
+            </div>
+            <div>
+              <h3>Encryption</h3>
+              <p>Each connection starts with a fresh P-256 key exchange, authenticated with the pair key. After that, every message is encrypted with AES-256-GCM, with separate keys for each direction. A replayed, reordered or altered message ends the connection.</p>
+            </div>
+            <div>
+              <h3>Review before anything changes</h3>
+              <p>The device that starts a sync shows every difference, and you settle each conflict. The other device sees a summary and applies or declines it. Both apply the same plan and compare the result; settings and autofill links never sync.</p>
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="backups" style="margin-bottom: clamp(56px, 5vw + 24px, 104px)">
+          <h2 id="backups" style="margin-bottom: 28px">Backups</h2>
+          <div class="spec">
+            <div>
+              <h3>Encrypted .vpex files</h3>
+              <p>Both apps write the same format, so a file from one opens in the other. It is encrypted with AES-256-GCM under a key derived from a password you choose (at least 8 characters in both apps; PBKDF2-HMAC-SHA256, 300,000 rounds, random salt; the round count is saved in the file). Backups from older versions, made with 100,000 rounds, still open, but older versions can't open new backups. Imports accept a password of any length, so an older Windows backup made with a 6- or 7-character password still opens. Use a long password for it.</p>
+            </div>
+            <div>
+              <h3>Plain exports</h3>
+              <p>TXT, JSON and (on Windows) CSV exports are not encrypted. Anyone who gets the file can read every password in it. The Windows app also saves <code>.vpb</code> backups, encrypted with the vault's own key.</p>
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="updates" style="margin-bottom: clamp(56px, 5vw + 24px, 104px)">
+          <h2 id="updates" style="margin-bottom: 28px">Downloads and updates</h2>
+          <div class="spec">
+            <div>
+              <h3>Update checks are off until you turn them on</h3>
+              <p>From Android 2.7.0 and Windows 1.1.0. When you turn them on, each app asks GitHub for its latest release. Nothing from your vault is sent; GitHub sees your IP address, as with any request.</p>
+            </div>
+            <div>
+              <h3>What an update must pass</h3>
+              <p><strong>Android</strong> only installs a download that matches GitHub's size and SHA-256 for the file, and refuses a release without a checksum. It must be VaultPass, newer than what you have, and signed with the same key.</p>
+              <p><strong>Windows</strong> 1.1.0 and later also require a VaultPass signature (ECDSA P-256) over the installer, checked against a key built into the app. That is the project's own key, not a Microsoft certificate, so SmartScreen still warns about the installer.</p>
+            </div>
+          </div>
+          <p style="margin-top: 24px">Downloading by hand? <a href="download.html#verify">Check the file's SHA-256</a> before you install it.</p>
+        </section>
+
+        <section aria-labelledby="limits" style="margin-bottom: clamp(56px, 5vw + 24px, 104px)">
+          <h2 id="limits" style="margin-bottom: 28px">What it can't protect against</h2>
+          <ul class="prose" style="padding-left: 1.2em">
+            <li>Malware or a keylogger on your phone or PC can read what you type and what is on screen while the vault is open.</li>
+            <li>Someone who knows your master password, or who has your unlocked device, can read the vault.</li>
+            <li>A forgotten master password can't be recovered by anyone. Keep an encrypted backup.</li>
+            <li>Plain-text exports and anything left on the clipboard are readable by other apps and people.</li>
+            <li>VaultPass is under active development. Keep your own backups.</li>
+          </ul>
+        </section>
+
+        <section aria-labelledby="sources">
+          <h2 id="sources" style="margin-bottom: 28px">Read the code</h2>
+          <div class="prose">
+            <p>Most of the above can be checked in the source. The sync protocol is documented in <a href="https://github.com/ArmaanCode2/vault-pass-desktop/blob/HEAD/SYNC_PROTOCOL.md" target="_blank" rel="noopener noreferrer">SYNC_PROTOCOL.md<span class="sr-only"> (opens in a new tab)</span></a>, and the Windows app's design in <a href="https://github.com/ArmaanCode2/vault-pass-desktop/blob/HEAD/SECURITY_ARCHITECTURE.md" target="_blank" rel="noopener noreferrer">SECURITY_ARCHITECTURE.md<span class="sr-only"> (opens in a new tab)</span></a>.</p>
+            <p>Found a security problem? Email <a href="mailto:armaanweb100@gmail.com">armaanweb100@gmail.com</a> before opening a public issue.</p>
+          </div>
+          <div class="release__actions" style="margin-top: 28px">
+            <a class="btn btn--ink" href="https://github.com/ArmaanCode2/Vault-pass" target="_blank" rel="noopener noreferrer">
+              <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#github-logo"></use></svg>
+              Android source<span class="sr-only"> (opens in a new tab)</span>
+            </a>
+            <a class="btn btn--line" href="https://github.com/ArmaanCode2/vault-pass-desktop" target="_blank" rel="noopener noreferrer">
+              <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#github-logo"></use></svg>
+              Windows source<span class="sr-only"> (opens in a new tab)</span>
+            </a>
+          </div>
+        </section>
       </div>
+    </div>
+  </main>
 
-      <!-- Deep Dive Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-        
-        <!-- Constant Time Verification -->
-        <div class="glass-card rounded-2xl p-6 sm:p-8">
-          <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-4" aria-hidden="true">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-          </div>
-          <h3 class="text-lg font-bold text-white mb-2">Constant-Time Verification</h3>
-          <p class="text-sm text-slate-400 leading-relaxed">
-            An ordinary comparison stops at the first wrong byte, so its timing can leak how close a guess was. VaultPass checks the password hash with <code class="text-emerald-400 font-mono text-xs">MessageDigest.isEqual()</code>, which takes the same time whether the bytes match or not.
-          </p>
+  <footer class="site-foot">
+    <div class="wrap">
+      <div class="site-foot__grid">
+        <div class="site-foot__about">
+          <a class="brand" href="./" aria-label="VaultPass home">
+            <img src="assets/icon-128.webp" alt="" width="34" height="34" loading="lazy">
+            <span>VaultPass</span>
+          </a>
+          <p class="small">A free password manager for Android and Windows, with its source code on GitHub. Release details on this site come from GitHub and refresh when you open a page.</p>
         </div>
-
-        <!-- In-Memory DEK Zeroization -->
-        <div class="glass-card rounded-2xl p-6 sm:p-8">
-          <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center mb-4" aria-hidden="true">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-            </svg>
-          </div>
-          <h3 class="text-lg font-bold text-white mb-2">Key Wiped on Lock</h3>
-          <p class="text-sm text-slate-400 leading-relaxed">
-            When you lock the vault, or the auto-lock timer fires (tracked with <code class="text-rose-400 font-mono text-xs">ProcessLifecycleOwner</code>), VaultPass overwrites its copy of the data key with zeros. That wipes the key itself; decrypted entries held as Java strings can't be overwritten this way and are freed by Android later.
-          </p>
-        </div>
-
-        <!-- Incremental Lockout Protection -->
-        <div class="glass-card rounded-2xl p-6 sm:p-8">
-          <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center mb-4" aria-hidden="true">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-            </svg>
-          </div>
-          <h3 class="text-lg font-bold text-white mb-2">Incremental Lockout Protection</h3>
-          <p class="text-sm text-slate-400 leading-relaxed">
-            Failed attempts are counted in DataStore on disk, so restarting the app doesn't reset them:
-          </p>
-          <ul class="mt-3 space-y-1.5 text-xs text-slate-300 font-mono">
-            <li>• 5 failed attempts: 30-second cooldown</li>
-            <li>• 10 failed attempts: 60-second cooldown</li>
-            <li>• 15 failed attempts: 5-minute lockout</li>
-            <li>• 20+ failed attempts: 15-minute lockout</li>
+        <div>
+          <p class="site-foot__title">Source code</p>
+          <ul>
+            <li><a href="https://github.com/ArmaanCode2/Vault-pass" target="_blank" rel="noopener noreferrer">Android app<span class="sr-only"> (opens in a new tab)</span></a></li>
+            <li><a href="https://github.com/ArmaanCode2/vault-pass-desktop" target="_blank" rel="noopener noreferrer">Windows app<span class="sr-only"> (opens in a new tab)</span></a></li>
           </ul>
         </div>
-
-        <!-- Android FLAG_SECURE & OS Privacy -->
-        <div class="glass-card rounded-2xl p-6 sm:p-8">
-          <div class="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-400 flex items-center justify-center mb-4" aria-hidden="true">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-            </svg>
-          </div>
-          <h3 class="text-lg font-bold text-white mb-2">Screenshot Blocking &amp; Clipboard Clearing</h3>
-          <p class="text-sm text-slate-400 leading-relaxed">
-            VaultPass sets <code class="text-sky-400 font-mono text-xs">FLAG_SECURE</code> on its own screens, which blocks screenshots and blanks the app in the Recent Apps switcher. From version 2.7.0 this is on by default. To allow screenshots, turn off <strong>Disable Screenshots</strong> in Settings. Copied passwords are cleared from the clipboard after a timer you choose (30 seconds by default).
-          </p>
-        </div>
-
-        <!-- Local-network sync -->
-        <div class="glass-card rounded-2xl p-6 sm:p-8 md:col-span-2">
-          <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-4" aria-hidden="true">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-            </svg>
-          </div>
-          <h3 class="text-lg font-bold text-white mb-2">Sync with the Desktop App (Optional)</h3>
-          <p class="text-sm text-slate-400 leading-relaxed">
-            VaultPass can sync with the VaultPass desktop app for Windows. You pair the two by scanning a QR code, and they exchange changes directly over your local network. Nothing passes through the internet or a server.
-          </p>
-        </div>
-
-      </div>
-
-      <!-- Backup Cryptography -->
-      <div class="glass-card rounded-2xl p-6 sm:p-8 border border-white/10">
-        <h2 class="text-xl font-bold text-white mb-3">The .vpex encrypted backup</h2>
-        <p class="text-sm text-slate-400 leading-relaxed mb-6">
-          An encrypted export produces a <code class="text-emerald-400 font-mono text-xs">.vpex</code> file. Each file has its own random 16-byte salt and IV; the key is derived from a password with PBKDF2, and the contents are encrypted with AES-GCM and Base64-encoded. The GCM authentication tag makes a modified file fail to decrypt. You can keep a .vpex on a USB drive or your computer without exposing plaintext. JSON and TXT exports are not encrypted.
-        </p>
-        
-        <div class="flex flex-wrap gap-3">
-          <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary text-sm px-5 min-h-[44px] rounded-lg flex items-center">
-            <span class="download-status">Download APK</span>
-          </a>
-          <a data-virustotal-link hidden target="_blank" rel="noopener noreferrer" class="btn-secondary text-sm px-5 min-h-[44px] rounded-lg flex items-center gap-2">
-            <span>Look up on VirusTotal</span><span class="sr-only"> (opens in a new tab)</span>
-            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-            </svg>
-          </a>
+        <div>
+          <p class="site-foot__title">This site</p>
+          <ul>
+            <li><a href="./">Overview and demos</a></li>
+            <li><a href="download.html">Download and install</a></li>
+            <li><a href="privacy.html">Privacy policy</a></li>
+          </ul>
         </div>
       </div>
-
-    </section>
-
-    </main>
-
-    <!-- Footer -->
-    <footer class="mt-20 border-t border-white/5 py-12 text-xs text-slate-400">
-      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
-        <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
-          <picture>
-            <source srcset="assets/icon.webp" type="image/webp">
-            <img src="assets/icon.png" alt="" width="24" height="24" loading="lazy" decoding="async" class="w-6 h-6 rounded-md object-cover">
-          </picture>
-          <span class="text-slate-300 font-semibold">VaultPass</span>
-          <span>Open-source Android password manager</span>
-        </div>
-
-        <nav aria-label="Footer" class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-          <a href="index.html" class="tap-target px-1 hover:text-white transition-colors">Overview</a>
-          <a href="download.html" class="tap-target px-1 hover:text-white transition-colors">Downloads</a>
-          <a href="privacy.html" class="tap-target px-1 hover:text-white transition-colors">Privacy Policy</a>
-          <a data-virustotal-link hidden target="_blank" rel="noopener noreferrer" class="tap-target px-1 hover:text-emerald-300 transition-colors">VirusTotal<span class="sr-only"> (opens in a new tab)</span></a>
-        </nav>
+      <div class="site-foot__base">
+        <p>Security reports: <a href="mailto:armaanweb100@gmail.com">armaanweb100@gmail.com</a></p>
       </div>
-    </footer>
-  </div>
+    </div>
+  </footer>
 
-  <script src="js/app.js" defer></script>
+  <script src="js/github.js" defer></script>
+  <script src="js/site.js" defer></script>
 </body>
 </html>

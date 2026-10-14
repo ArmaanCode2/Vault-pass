@@ -1,701 +1,608 @@
-<!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<!doctype html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VaultPass: Offline-First Android Password Manager</title>
-  <meta name="description" content="Android password manager with no cloud and no account. Your vault stays encrypted on your phone; the optional desktop sync runs over your local network only.">
-  <meta name="theme-color" content="#05070d">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.github.com https://raw.githubusercontent.com; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>VaultPass: offline password manager for Android and Windows</title>
+  <meta name="description" content="A free password manager for Android and Windows, with its source code on GitHub. Your vault is encrypted on your own devices and there is no account.">
+  <meta name="theme-color" content="#f3f4f7">
+  <link rel="canonical" href="https://armaancode2.github.io/Vault-pass/website/">
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/icon-64.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 
-  <!-- Favicon using app icon -->
-  <link rel="icon" type="image/png" href="assets/icon.png">
-
-  <!-- Canonical URL -->
-  <link rel="canonical" href="https://vaultpass.org/">
-
-  <!-- OpenGraph / Social Media -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://vaultpass.org/">
-  <meta property="og:title" content="VaultPass: Offline-First Android Password Manager">
-  <meta property="og:description" content="Android password manager with no cloud and no account. Your vault stays encrypted on your phone; the optional desktop sync runs over your local network only.">
-  <meta property="og:image" content="https://vaultpass.org/assets/icon.png">
-
-  <!-- Twitter Card -->
+  <meta property="og:site_name" content="VaultPass">
+  <meta property="og:url" content="https://armaancode2.github.io/Vault-pass/website/">
+  <meta property="og:title" content="VaultPass: offline password manager for Android and Windows">
+  <meta property="og:description" content="A free password manager for Android and Windows. Your vault is encrypted on your own devices and there is no account.">
+  <meta property="og:image" content="https://armaancode2.github.io/Vault-pass/website/assets/icon-512.png">
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="VaultPass: Offline-First Android Password Manager">
-  <meta name="twitter:description" content="Android password manager with no cloud and no account. Your vault stays encrypted on your phone; the optional desktop sync runs over your local network only.">
-  <meta name="twitter:image" content="https://vaultpass.org/assets/icon.png">
 
-  <!-- Fonts & DNS Prefetch Hints -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="dns-prefetch" href="https://raw.githubusercontent.com">
-  <link rel="dns-prefetch" href="https://api.github.com">
-  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" as="style">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"></noscript>
+  <link rel="preconnect" href="https://api.github.com" crossorigin>
+  <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
+  <link rel="preload" href="assets/fonts/BigShoulders-Bold.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/WorkSans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/site.css">
+  <script src="js/boot.js"></script>
 
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            // Channels defined in css/styles.css (:root)
-            brand: {
-              dark: 'rgb(var(--rgb-bg) / <alpha-value>)',
-              surface: 'rgb(var(--rgb-surface) / <alpha-value>)',
-              card: 'rgb(var(--rgb-card) / <alpha-value>)',
-              cyan: 'rgb(var(--rgb-accent) / <alpha-value>)',
-              mint: 'rgb(var(--rgb-accent-strong) / <alpha-value>)',
-            }
-          },
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
-          }
-        }
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "VaultPass for Android",
+        "operatingSystem": "Android 7.0 or newer",
+        "applicationCategory": "SecurityApplication",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "downloadUrl": "https://github.com/ArmaanCode2/Vault-pass/releases/latest",
+        "url": "https://armaancode2.github.io/Vault-pass/website/"
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "VaultPass for Windows",
+        "operatingSystem": "Windows",
+        "applicationCategory": "SecurityApplication",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "downloadUrl": "https://github.com/ArmaanCode2/vault-pass-desktop/releases/latest",
+        "url": "https://armaancode2.github.io/Vault-pass/website/"
       }
-    }
+    ]
+  }
   </script>
-
-  <!-- Site stylesheet (color tokens, components) -->
-  <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="bg-brand-dark text-slate-100 antialiased">
-  <a href="#main" class="skip-link">Skip to content</a>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
 
-  <!-- Gemini-style Slow-Moving Blurred Gradient Background -->
-  <div class="gradient-bg-container" aria-hidden="true">
-    <div class="gradient-orb gradient-orb-1"></div>
-    <div class="gradient-orb gradient-orb-2"></div>
-    <div class="gradient-orb gradient-orb-3"></div>
-    <div class="gradient-orb gradient-orb-4"></div>
-  </div>
-
-  <!-- Page content -->
-  <div class="relative z-10">
-
-    <!-- Simple, Centered Navbar (Logo only, 3 center links, Download APK) -->
-    <header class="sticky top-0 z-50 glass-nav">
-      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between relative">
-        
-        <!-- Left: Logo ONLY (No text, No version) -->
-        <a href="index.html" class="tap-target group rounded-xl" aria-label="VaultPass home">
-          <div class="w-9 h-9 rounded-xl bg-brand-surface border border-white/10 flex items-center justify-center p-0.5 overflow-hidden transition-transform group-hover:scale-105 group-hover:border-brand-cyan/40">
-            <picture>
-              <source srcset="assets/icon.webp" type="image/webp">
-              <img src="assets/icon.png" alt="" width="36" height="36" decoding="async" class="w-full h-full object-cover rounded-lg">
-            </picture>
-          </div>
+  <header class="site-head">
+    <div class="wrap site-head__row">
+      <a class="brand" href="./" aria-label="VaultPass home">
+        <img src="assets/icon-128.webp" alt="" width="34" height="34">
+        <span>VaultPass</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="#demo">Try it</a>
+        <a href="#sync">Sync</a>
+        <a href="security.html">Security</a>
+        <a href="privacy.html">Privacy</a>
+      </nav>
+      <div class="site-head__end">
+        <a class="btn btn--gold btn--sm" href="download.html">
+          <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#download-simple"></use></svg>
+          <span>Download</span>
         </a>
-
-        <!-- Center: 3 Navigation Links (Centered) -->
-        <nav aria-label="Main" class="hidden md:flex items-center gap-8 text-sm font-medium absolute left-1/2 -translate-x-1/2">
-          <a href="#features" class="nav-link py-2">Features</a>
-          <a href="security.html" class="nav-link py-2">Security Model</a>
-          <a href="download.html" class="nav-link py-2">Downloads</a>
-        </nav>
-
-        <!-- Right: Download APK Button -->
-        <div class="hidden sm:flex items-center gap-3">
-          <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary text-xs sm:text-sm px-4 min-h-[40px] rounded-lg flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-            </svg>
-            <span class="download-status">Download APK</span>
-          </a>
-        </div>
-
-        <!-- Mobile Menu Button -->
-        <button type="button" id="mobile-menu-btn" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu" class="md:hidden w-11 h-11 flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-white/5">
-          <svg data-icon="open" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-          </svg>
-          <svg data-icon="close" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
+        <button class="icon-btn nav-toggle" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="Open menu">
+          <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#list"></use></svg>
         </button>
       </div>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-label="Main" hidden>
+      <div class="wrap">
+        <a href="#demo">Try it</a>
+        <a href="#sync">Sync</a>
+        <a href="security.html">Security</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="download.html">Download</a>
+      </div>
+    </nav>
+  </header>
 
-      <!-- Mobile Dropdown -->
-      <nav id="mobile-menu" aria-label="Mobile" class="hidden md:hidden px-4 pt-2 pb-6 border-t border-white/5 bg-brand-dark/95 backdrop-blur-xl">
-        <div class="flex flex-col gap-1 text-sm font-medium pt-2 text-center">
-          <a href="#features" class="mobile-nav-link">Features</a>
-          <a href="security.html" class="mobile-nav-link">Security Model</a>
-          <a href="download.html" class="mobile-nav-link">Downloads</a>
-          <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary flex items-center justify-center gap-2 min-h-[44px] rounded-lg text-sm mt-3 w-full">
-            <span class="download-status">Download APK</span>
+  <main id="main" tabindex="-1">
+
+    <!-- Hero: the claim, the download, and both apps running live -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="wrap hero__copy">
+        <h1 id="hero-title">Your passwords stay on your phone and your PC.</h1>
+        <div class="lead-swap">
+          <p class="lead" data-until-released="android:2.7.0 windows:1.1.0">A password manager for Android and Windows that works offline and needs no account. Wi-Fi sync between the two comes with Android 2.7.0 and Windows 1.1.0.</p>
+          <p class="lead" data-when-released="android:2.7.0 windows:1.1.0" hidden>A password manager for Android and Windows that works offline, needs no account, and syncs over your own Wi-Fi.</p>
+        </div>
+        <div class="hero__actions" data-platform-actions>
+          <a class="btn btn--gold btn--lg" data-dl="windows" href="https://github.com/ArmaanCode2/vault-pass-desktop/releases/latest">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#windows-logo"></use></svg>
+            <span>Download for Windows</span>
+            <span class="btn__meta" data-rel="windows:meta">Latest on GitHub</span>
+          </a>
+          <a class="btn btn--line btn--lg" data-dl="android" href="https://github.com/ArmaanCode2/Vault-pass/releases/latest">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#android-logo"></use></svg>
+            <span>Download for Android</span>
+            <span class="btn__meta" data-rel="android:meta">Latest on GitHub</span>
           </a>
         </div>
-      </nav>
-    </header>
+        <p class="hero__note" data-platform-note="ios mac linux">There is no iPhone, Mac or Linux version. VaultPass runs on Android and Windows.</p>
+      </div>
 
-    <main id="main" tabindex="-1" class="outline-none">
-
-    <!-- Hero Section with Side-by-Side Live Working Demo App -->
-    <section class="pt-12 pb-16 sm:pt-16 sm:pb-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
-        
-        <!-- Left: Headline, Subtitle, Actions, Trust Badges -->
-        <div class="lg:col-span-5 text-left space-y-6">
-          <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-[1.15]">
-            Passwords stay on your device.
-            <span class="block bg-gradient-to-r from-brand-mint via-brand-cyan to-sky-400 bg-clip-text text-transparent">
-              Never in the cloud.
-            </span>
-          </h1>
-
-          <p class="text-sm sm:text-base text-slate-300 leading-relaxed font-normal">
-            An Android password manager with no cloud and no account. Your vault is encrypted on your phone, and the optional sync with the VaultPass desktop app stays on your own Wi-Fi network.
-          </p>
-
-          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
-            <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary px-5 py-3 min-h-[48px] rounded-xl text-sm font-semibold flex items-center justify-center gap-2 shadow-lg shadow-brand-cyan/10">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-              </svg>
-              <span class="download-status">Download APK</span>
-              <span class="text-xs opacity-75 font-mono" data-latest-size></span>
-            </a>
-
-            <a href="security.html" class="btn-secondary px-4 py-3 min-h-[48px] rounded-xl text-sm font-medium flex items-center justify-center gap-2">
-              <span>Security Model</span>
-              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-              </svg>
-            </a>
-          </div>
-
-          <ul class="pt-2 flex flex-col gap-2.5 text-xs text-slate-400">
-            <li class="flex items-center gap-2">
-              <svg class="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-              </svg>
-              <span>SHA-256 published for the APK. <a href="#download" class="link-accent">Check it yourself</a></span>
-            </li>
-            <li class="flex items-center gap-2">
-              <svg class="w-4 h-4 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
-              </svg>
-              <span>No telemetry, no tracking SDKs, no account</span>
-            </li>
-          </ul>
+      <div class="desk" id="demo" data-desk>
+        <h2 class="sr-only">Try both apps</h2>
+        <div class="desk__switch" role="group" aria-label="Choose an app to try">
+          <button type="button" data-device-tab="desktop" aria-pressed="true">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#windows-logo"></use></svg>
+            Windows app
+          </button>
+          <button type="button" data-device-tab="android" aria-pressed="false">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#android-logo"></use></svg>
+            Android app
+          </button>
         </div>
 
-        <!-- Right: Real Working Functional Mobile Demo App Component -->
-        <div class="lg:col-span-7 flex justify-center">
-          <div id="vaultpass-demo-app" role="region" aria-label="Interactive demo of the VaultPass app (sample data)" class="relative w-[320px] sm:w-[340px] max-w-full">
-            <!-- Loading Phone Skeleton Placeholder while JS initializes -->
-            <div aria-hidden="true" class="w-[320px] sm:w-[340px] max-w-full h-[640px] rounded-[46px] border-[10px] border-[#131c2e] bg-[#10131B] p-4 flex flex-col justify-between shadow-2xl overflow-hidden select-none">
-              <!-- Top bar & camera notch -->
-              <div>
-                <div class="flex justify-between items-center px-2 pt-1 pb-3 text-[11px] text-slate-500 font-mono">
-                  <span>9:41</span>
-                  <div class="w-16 h-3.5 bg-black/60 rounded-full flex items-center justify-center">
-                    <span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
-                  </div>
-                  <div class="flex items-center gap-1.5">
-                    <div class="w-2.5 h-2.5 rounded-full border border-slate-600"></div>
-                    <div class="w-3.5 h-2 rounded-sm border border-slate-600"></div>
-                  </div>
-                </div>
-
-                <!-- Greeting / Search Bar Skeleton -->
-                <div class="flex items-center justify-between mt-2 mb-4 px-1">
-                  <div class="space-y-1.5">
-                    <div class="w-20 h-2.5 skeleton-shimmer skeleton-box"></div>
-                    <div class="w-28 h-4 skeleton-shimmer skeleton-box"></div>
-                  </div>
-                  <div class="w-8 h-8 skeleton-shimmer skeleton-circle"></div>
-                </div>
-
-                <!-- Circular Score Ring Card Skeleton -->
-                <div class="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-4 mb-3">
-                  <div class="w-14 h-14 skeleton-shimmer skeleton-circle flex-shrink-0"></div>
-                  <div class="flex-1 space-y-2">
-                    <div class="w-24 h-3.5 skeleton-shimmer skeleton-box"></div>
-                    <div class="w-full h-2 skeleton-shimmer skeleton-box"></div>
-                  </div>
-                </div>
-
-                <!-- Stat Cards Row -->
-                <div class="grid grid-cols-3 gap-2 mb-4">
-                  <div class="h-14 rounded-xl bg-white/[0.03] border border-white/5 p-2 skeleton-shimmer skeleton-box"></div>
-                  <div class="h-14 rounded-xl bg-white/[0.03] border border-white/5 p-2 skeleton-shimmer skeleton-box"></div>
-                  <div class="h-14 rounded-xl bg-white/[0.03] border border-white/5 p-2 skeleton-shimmer skeleton-box"></div>
-                </div>
-
-                <!-- Entry Rows -->
-                <div class="space-y-2">
-                  <div class="h-12 rounded-xl bg-white/[0.03] border border-white/5 p-2.5 flex items-center gap-3">
-                    <div class="w-7 h-7 skeleton-shimmer skeleton-circle"></div>
-                    <div class="flex-1 space-y-1.5">
-                      <div class="w-20 h-3 skeleton-shimmer skeleton-box"></div>
-                      <div class="w-28 h-2 skeleton-shimmer skeleton-box"></div>
-                    </div>
-                  </div>
-                  <div class="h-12 rounded-xl bg-white/[0.03] border border-white/5 p-2.5 flex items-center gap-3">
-                    <div class="w-7 h-7 skeleton-shimmer skeleton-circle"></div>
-                    <div class="flex-1 space-y-1.5">
-                      <div class="w-24 h-3 skeleton-shimmer skeleton-box"></div>
-                      <div class="w-32 h-2 skeleton-shimmer skeleton-box"></div>
-                    </div>
-                  </div>
-                  <div class="h-12 rounded-xl bg-white/[0.03] border border-white/5 p-2.5 flex items-center gap-3">
-                    <div class="w-7 h-7 skeleton-shimmer skeleton-circle"></div>
-                    <div class="flex-1 space-y-1.5">
-                      <div class="w-16 h-3 skeleton-shimmer skeleton-box"></div>
-                      <div class="w-20 h-2 skeleton-shimmer skeleton-box"></div>
-                    </div>
-                  </div>
+        <div class="desk__viewport">
+          <div class="desk__floor">
+            <figure class="device device--desktop" data-device="desktop">
+              <div class="device__host" data-demo-host="desktop">
+                <div class="demo-skeleton">
+                  <p>Loading the Windows app demo.</p>
                 </div>
               </div>
+              <figcaption class="device__label">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#windows-logo"></use></svg>
+                VaultPass for Windows
+              </figcaption>
+            </figure>
 
-              <!-- Bottom Nav Bar Skeleton -->
-              <div class="pt-3 border-t border-white/5 flex justify-around items-center">
-                <div class="w-8 h-8 skeleton-shimmer skeleton-circle"></div>
-                <div class="w-8 h-8 skeleton-shimmer skeleton-circle"></div>
-                <div class="w-8 h-8 skeleton-shimmer skeleton-circle"></div>
-                <div class="w-8 h-8 skeleton-shimmer skeleton-circle"></div>
+            <div class="link">
+              <div class="link__node">
+                <div class="link__wire" aria-hidden="true"></div>
+                <button class="link__button" type="button" data-sync aria-describedby="sync-status">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#arrows-clockwise"></use></svg>
+                  <span class="sr-only" data-sync-label>Sync now</span>
+                </button>
+              </div>
+              <div class="link__text">
+                <p class="link__title">Sync over Wi-Fi</p>
+                <p class="link__status" id="sync-status" data-sync-status aria-live="polite">Steam is only on the PC. Dropbox is only on the phone.</p>
               </div>
             </div>
+
+            <figure class="device device--phone" data-device="android">
+              <div class="device__host" data-demo-host="android">
+                <div class="demo-skeleton demo-skeleton--phone">
+                  <p>Loading the Android app demo.</p>
+                </div>
+              </div>
+              <figcaption class="device__label">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#android-logo"></use></svg>
+                VaultPass for Android
+              </figcaption>
+            </figure>
           </div>
+          <p class="desk__stalled">The demos didn't load. Check your connection and reload the page.</p>
+        </div>
+        <noscript><p class="desk__nojs">The demos need JavaScript. <a href="download.html">Go to the downloads</a>.</p></noscript>
+
+        <p class="demo-inert-note">This is a preview. Open the page on a computer to click through the Windows app.</p>
+
+        <div class="desk__single-sync">
+          <button class="btn btn--gold btn--sm" type="button" data-sync>
+            <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#arrows-clockwise"></use></svg>
+            <span data-sync-label>Sync now</span>
+          </button>
+          <p class="link__status" data-sync-status aria-live="polite">Steam is only on the PC. Dropbox is only on the phone.</p>
         </div>
 
+        <p class="desk__note">Both demos run in your browser with sample data, and nothing you type leaves this page. The demo sync merges right away; the real apps show you every change first.<span data-until-released="android:2.7.0 windows:1.1.0"> The demos show Android 2.7.0 and Windows 1.1.0, which aren't out yet.</span></p>
       </div>
+      <script src="js/stage.js"></script>
     </section>
 
-    <!-- Interactive Password Generator Section -->
-    <section id="demo" class="py-16 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="text-center mb-8">
-        <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-          Password Generator
-        </h2>
-        <p class="mt-2 text-sm sm:text-base text-slate-400">
-          VaultPass has a generator built in. Try this one: it runs in your browser with <code class="font-mono text-emerald-300 text-xs sm:text-sm">crypto.getRandomValues</code>, and nothing you generate leaves the page.
+    <!-- How sync works -->
+    <section class="section" id="sync" aria-labelledby="sync-title">
+      <div class="wrap">
+        <div class="section__head">
+          <h2 id="sync-title">Sync without a server</h2>
+          <p class="lead">The phone and the PC talk to each other directly over the Wi-Fi network they share. There is no VaultPass account and no relay in between.</p>
+          <p class="version-note">Sync works between VaultPass for Android 2.7.0 and VaultPass for Windows 1.1.0 or newer, so update both apps together.<span data-until-released="android:2.7.0 windows:1.1.0"> It isn't in the current releases yet.</span></p>
+        </div>
+        <ol class="steps">
+          <li>
+            <h3>Pair once</h3>
+            <p>Open Sync in the Windows app and scan its QR code with the Android app. You approve the phone on the PC before the pairing is saved.</p>
+          </li>
+          <li>
+            <h3>Find each other</h3>
+            <p>With Sync open on both, they find each other on your local network and connect directly. Nothing goes through the internet.</p>
+          </li>
+          <li>
+            <h3>Review the changes</h3>
+            <p>The device that starts the sync shows every change side by side. The other one approves a summary.</p>
+          </li>
+          <li>
+            <h3>Same vault on both</h3>
+            <p>Both devices end up with the same entries, deleted ones included. Nothing was stored anywhere else.</p>
+          </li>
+        </ol>
+        <p class="sync-facts">
+          <span><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#wifi-high"></use></svg>Local network only, never the internet</span>
+          <span><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#lock-simple"></use></svg>Every message encrypted with AES-256-GCM</span>
+          <span><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#qr-code"></use></svg>The pairing secret never crosses the network</span>
         </p>
       </div>
+    </section>
 
-      <!-- Generator Card -->
-      <div class="glass-card rounded-2xl p-6 sm:p-8">
-        <div class="flex flex-col gap-6">
-          <!-- Password Output Field -->
-          <div class="relative flex items-center">
-            <input id="pw-output" type="text" readonly aria-label="Generated password" spellcheck="false" autocomplete="off" class="w-full min-w-0 bg-brand-dark border border-white/10 rounded-xl pl-4 sm:pl-5 py-3.5 font-mono text-sm sm:text-lg text-emerald-300 tracking-wider focus:border-brand-cyan pr-32 select-all" value="Generating...">
-            <div class="absolute right-2 flex items-center gap-1">
-              <button type="button" id="pw-regenerate-btn" aria-label="Generate a new password" title="Generate a new password" class="tap-target rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                </svg>
-              </button>
-              <button type="button" id="pw-copy-btn" aria-label="Copy generated password" title="Copy to clipboard" class="btn-primary px-3 min-h-[40px] rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                </svg>
-                <span data-copy-label>Copy</span>
-              </button>
-            </div>
+    <!-- Android vs Windows -->
+    <section class="section section--tight-top" id="apps" aria-labelledby="apps-title">
+      <div class="wrap">
+        <div class="section__head">
+          <h2 id="apps-title">Which one do you need?</h2>
+          <p class="lead">Each app works on its own. Install both if you want the same vault on your phone and your PC.</p>
+        </div>
+        <div class="compare-wrap">
+          <table class="compare">
+            <thead>
+              <tr>
+                <th scope="col"><span class="sr-only">Feature</span></th>
+                <th scope="col">
+                  <span class="compare__platform"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#android-logo"></use></svg>Android</span>
+                  <span class="compare__ver" data-rel="android:tag">Latest release</span>
+                </th>
+                <th scope="col">
+                  <span class="compare__platform"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#windows-logo"></use></svg>Windows</span>
+                  <span class="compare__ver" data-rel="windows:tag">Latest release</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody data-compare>
+              <tr>
+                <th scope="row">Where the vault lives</th>
+                <td data-label="Android">On the phone, encrypted</td>
+                <td data-label="Windows">On the PC, encrypted</td>
+              </tr>
+              <tr>
+                <th scope="row">Account</th>
+                <td data-label="Android">None</td>
+                <td data-label="Windows">None</td>
+              </tr>
+              <tr>
+                <th scope="row">Unlock with</th>
+                <td data-label="Android">Master password, or fingerprint or face once you turn it on</td>
+                <td data-label="Windows">Master password</td>
+              </tr>
+              <tr>
+                <th scope="row">Wi-Fi sync with the other app</th>
+                <td data-label="Android">From version 2.7.0</td>
+                <td data-label="Windows">From version 1.1.0</td>
+              </tr>
+              <tr>
+                <th scope="row">Fill logins in other apps</th>
+                <td data-label="Android"><span class="yes"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#check"></use></svg>Android Autofill, in apps and browsers (Android 8.0 or newer)</span></td>
+                <td data-label="Windows"><span class="no">Copy and paste</span></td>
+              </tr>
+              <tr>
+                <th scope="row">Copied passwords</th>
+                <td data-label="Android">Cleared from the clipboard after 30 seconds</td>
+                <td data-label="Windows">Cleared after 30 seconds by default, and kept out of Windows clipboard history</td>
+              </tr>
+              <tr>
+                <th scope="row">Auto-lock</th>
+                <td data-label="Android">1 minute after you leave the app, by default</td>
+                <td data-label="Windows">After 15 idle minutes or when Windows locks, by default</td>
+              </tr>
+              <tr>
+                <th scope="row">Password generator</th>
+                <td data-label="Android">Passwords of 8 to 64 characters</td>
+                <td data-label="Windows">Passwords of 8 to 64 characters, or passphrases</td>
+              </tr>
+              <tr>
+                <th scope="row">Security Center</th>
+                <td data-label="Android">Weak, reused and missing passwords</td>
+                <td data-label="Windows">Weak and reused passwords</td>
+              </tr>
+              <tr>
+                <th scope="row">Import</th>
+                <td data-label="Android">VaultPass files (.vpex, JSON, TXT)</td>
+                <td data-label="Windows">VaultPass files, CSV, Bitwarden, KeePass</td>
+              </tr>
+              <tr>
+                <th scope="row">Export</th>
+                <td data-label="Android">Encrypted .vpex, or plain JSON and TXT</td>
+                <td data-label="Windows">Encrypted .vpex or .vpb backup, or plain JSON, CSV and TXT</td>
+              </tr>
+              <tr>
+                <th scope="row">Recycle bin</th>
+                <td data-label="Android">Deleted entries kept 7 days</td>
+                <td data-label="Windows">Deleted entries kept 30 days by default; adjustable</td>
+              </tr>
+              <tr>
+                <th scope="row">Runs on</th>
+                <td data-label="Android">Android 7.0 or newer</td>
+                <td data-label="Windows">64-bit Windows</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note" data-until-released="android:2.7.0 windows:1.1.0">The table describes Android 2.7.0 and Windows 1.1.0. The current releases differ in a few places; <a href="security.html#versions">the security page lists them</a>.</p>
+      </div>
+    </section>
+
+    <!-- Security, the one navy block -->
+    <section class="section vault" id="security" aria-labelledby="security-title">
+      <div class="wrap">
+        <div class="section__head">
+          <h2 id="security-title">What happens to your master password</h2>
+          <p class="lead">Both apps turn it into a key on your own device. The password itself is never stored and never sent anywhere.</p>
+        </div>
+        <ol class="keyflow">
+          <li>
+            <span class="keyflow__what">You type your master password</span>
+            <span class="keyflow__how">on the phone or the PC</span>
+            <span class="keyflow__why">Neither app writes it down or sends it anywhere.</span>
+          </li>
+          <li>
+            <span class="keyflow__what">PBKDF2 stretches it</span>
+            <span class="keyflow__how">HMAC-SHA256, 300,000 rounds, random salt</span>
+            <span class="keyflow__why">Every guess costs an attacker 300,000 rounds.</span>
+          </li>
+          <li>
+            <span class="keyflow__what">It unwraps the data key</span>
+            <span class="keyflow__how">random 256-bit key</span>
+            <span class="keyflow__why">Locking the vault overwrites it in memory with zeros.</span>
+          </li>
+          <li>
+            <span class="keyflow__what">The data key opens each entry</span>
+            <span class="keyflow__how">AES-256-GCM</span>
+            <span class="keyflow__why">A changed byte fails the authentication tag instead of decrypting.</span>
+          </li>
+        </ol>
+
+        <div class="vault__grid">
+          <div>
+            <h3>If someone keeps guessing</h3>
+            <p class="small">The Android app makes you wait longer after each run of wrong passwords. It counts them on disk, so restarting the app doesn't reset the count.</p>
+            <ul class="lockout">
+              <li><span class="lockout__after">5 tries</span><span class="lockout__bar" style="transform: scaleX(0.04)" aria-hidden="true"></span><span class="lockout__wait">30 s</span></li>
+              <li><span class="lockout__after">10 tries</span><span class="lockout__bar" style="transform: scaleX(0.07)" aria-hidden="true"></span><span class="lockout__wait">60 s</span></li>
+              <li><span class="lockout__after">15 tries</span><span class="lockout__bar" style="transform: scaleX(0.33)" aria-hidden="true"></span><span class="lockout__wait">5 min</span></li>
+              <li><span class="lockout__after">20+ tries</span><span class="lockout__bar" style="transform: scaleX(1)" aria-hidden="true"></span><span class="lockout__wait">15 min</span></li>
+            </ul>
           </div>
-
-          <!-- Entropy & Strength Meter -->
-          <div class="space-y-2">
-            <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs font-mono">
-              <span class="text-slate-400">Entropy: <span id="pw-entropy" class="text-emerald-400 font-semibold">114 bits</span></span>
-              <span class="text-slate-400">Strength: <span id="pw-strength-label" class="text-emerald-400 font-semibold">Very strong</span></span>
-            </div>
-            <div id="pw-strength-meter" role="meter" aria-label="Password strength" aria-valuemin="0" aria-valuemax="128" aria-valuenow="114" aria-valuetext="Very strong, 114 bits" class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-              <div id="pw-strength-bar" class="h-full bg-emerald-400 w-full transition-all duration-300"></div>
-            </div>
+          <div>
+            <h3>What nobody can do</h3>
+            <ul class="cannot">
+              <li>
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#key"></use></svg>
+                <p><strong>Reset your master password.</strong> There is no recovery key and no server. Keep an encrypted backup somewhere safe.</p>
+              </li>
+              <li>
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#cloud-slash"></use></svg>
+                <p><strong>Read your vault.</strong> The developer runs no servers, and neither app sends analytics or crash reports.</p>
+              </li>
+              <li>
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#user-circle-minus"></use></svg>
+                <p><strong>Know who you are.</strong> There is no account, email address or phone number.</p>
+              </li>
+            </ul>
+            <p class="small" style="margin-top: 24px"><a href="security.html">Read the full security model</a></p>
           </div>
+        </div>
+      </div>
+    </section>
 
-          <!-- Controls Grid -->
-          <div class="pt-4 border-t border-white/5 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-            <!-- Length Slider -->
-            <div class="space-y-3">
-              <div class="flex justify-between items-center text-xs">
-                <label for="pw-length" class="text-slate-300 font-medium">Password Length</label>
-                <span class="font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 text-xs" id="pw-length-val">18</span>
+    <!-- Downloads, live from GitHub -->
+    <section class="section" id="download" aria-labelledby="download-title">
+      <div class="wrap">
+        <div class="section__head">
+          <h2 id="download-title">Download</h2>
+          <p class="lead">Both files come straight from GitHub Releases. The version, size and checksum below come from GitHub and refresh when you open this page.</p>
+        </div>
+
+        <div class="releases">
+          <article class="release" aria-labelledby="rel-android">
+            <div class="release__head">
+              <h3 class="release__name" id="rel-android">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#android-logo"></use></svg>
+                Android
+              </h3>
+              <span class="release__tag" data-rel="android:tag">Latest</span>
+            </div>
+            <dl class="release__facts">
+              <dt>Released</dt><dd><time data-rel="android:date">Latest release</time></dd>
+              <dt>File</dt><dd>APK <span data-rel="android:size"></span></dd>
+              <dt>Requires</dt><dd>Android 7.0 or newer</dd>
+            </dl>
+            <div class="release__actions">
+              <a class="btn btn--gold" data-dl="android" href="https://github.com/ArmaanCode2/Vault-pass/releases/latest">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#download-simple"></use></svg>
+                Download APK
+              </a>
+              <a class="btn btn--quiet" href="download.html#android">How to install</a>
+            </div>
+            <div class="release__verify">
+              <div class="release__label">
+                <span>SHA-256</span>
+                <button class="btn btn--quiet btn--sm copy-btn" type="button" data-copy-hash="android" data-copy="" hidden>
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#copy"></use></svg>
+                  <span data-copy-label>Copy</span>
+                </button>
               </div>
-              <input id="pw-length" type="range" min="8" max="48" value="18" class="w-full">
+              <div data-hash="android"><p class="hash hash--pending" aria-hidden="true"><span>········</span><span>········</span><span>········</span><span>········</span><span>········</span><span>········</span><span>········</span><span>········</span></p><p class="sr-only">Loading the checksum from GitHub.</p></div>
+              <div class="vt" data-vt="android" data-state="none">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#info"></use></svg>
+                <p>Checking the README for a VirusTotal report.</p>
+                <p class="vt__links" aria-hidden="true">&nbsp;</p>
+              </div>
+              <p class="status-line" data-rel-state="android" hidden></p>
+              <details class="notes" data-notes="android">
+                <summary>What's new in this release <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#caret-down"></use></svg></summary>
+                <div class="notes__body md"><p>Loading from GitHub.</p></div>
+              </details>
             </div>
+          </article>
 
-            <!-- Character Set Toggles -->
-            <fieldset class="grid grid-cols-4 gap-2 text-xs font-medium">
-              <legend class="sr-only">Character sets</legend>
-              <label class="toggle-chip flex flex-col items-center justify-center py-2.5 px-1 text-center">
-                <input type="checkbox" id="chk-upper" checked class="sr-only" aria-label="Uppercase letters">
-                <span class="chip-code font-mono text-sm font-bold text-slate-200" aria-hidden="true">A-Z</span>
-                <span class="chip-label text-[10px] text-slate-400 mt-0.5 tracking-tight">Upper</span>
-              </label>
-              <label class="toggle-chip flex flex-col items-center justify-center py-2.5 px-1 text-center">
-                <input type="checkbox" id="chk-lower" checked class="sr-only" aria-label="Lowercase letters">
-                <span class="chip-code font-mono text-sm font-bold text-slate-200" aria-hidden="true">a-z</span>
-                <span class="chip-label text-[10px] text-slate-400 mt-0.5 tracking-tight">Lower</span>
-              </label>
-              <label class="toggle-chip flex flex-col items-center justify-center py-2.5 px-1 text-center">
-                <input type="checkbox" id="chk-numbers" checked class="sr-only" aria-label="Digits">
-                <span class="chip-code font-mono text-sm font-bold text-slate-200" aria-hidden="true">0-9</span>
-                <span class="chip-label text-[10px] text-slate-400 mt-0.5 tracking-tight">Digits</span>
-              </label>
-              <label class="toggle-chip flex flex-col items-center justify-center py-2.5 px-1 text-center">
-                <input type="checkbox" id="chk-symbols" checked class="sr-only" aria-label="Symbols">
-                <span class="chip-code font-mono text-sm font-bold text-slate-200" aria-hidden="true">!@#</span>
-                <span class="chip-label text-[10px] text-slate-400 mt-0.5 tracking-tight">Symbols</span>
-              </label>
-            </fieldset>
+          <article class="release" aria-labelledby="rel-windows">
+            <div class="release__head">
+              <h3 class="release__name" id="rel-windows">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#windows-logo"></use></svg>
+                Windows
+              </h3>
+              <span class="release__tag" data-rel="windows:tag">Latest</span>
+            </div>
+            <dl class="release__facts">
+              <dt>Released</dt><dd><time data-rel="windows:date">Latest release</time></dd>
+              <dt>File</dt><dd>Installer <span data-rel="windows:size"></span></dd>
+              <dt>Requires</dt><dd>64-bit Windows</dd>
+            </dl>
+            <div class="release__actions">
+              <a class="btn btn--gold" data-dl="windows" href="https://github.com/ArmaanCode2/vault-pass-desktop/releases/latest">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#download-simple"></use></svg>
+                Download installer
+              </a>
+              <a class="btn btn--quiet" href="download.html#windows">How to install</a>
+            </div>
+            <div class="release__verify">
+              <div class="release__label">
+                <span>SHA-256</span>
+                <button class="btn btn--quiet btn--sm copy-btn" type="button" data-copy-hash="windows" data-copy="" hidden>
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#copy"></use></svg>
+                  <span data-copy-label>Copy</span>
+                </button>
+              </div>
+              <div data-hash="windows"><p class="hash hash--pending" aria-hidden="true"><span>········</span><span>········</span><span>········</span><span>········</span><span>········</span><span>········</span><span>········</span><span>········</span></p><p class="sr-only">Loading the checksum from GitHub.</p></div>
+              <div class="vt" data-vt="windows" data-state="none">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#info"></use></svg>
+                <p>Checking the README for a VirusTotal report.</p>
+                <p class="vt__links" aria-hidden="true">&nbsp;</p>
+              </div>
+              <p class="status-line" data-rel-state="windows" hidden></p>
+              <details class="notes" data-notes="windows">
+                <summary>What's new in this release <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#caret-down"></use></svg></summary>
+                <div class="notes__body md"><p>Loading from GitHub.</p></div>
+              </details>
+            </div>
+          </article>
+        </div>
+
+        <div class="checker">
+          <div class="checker__intro">
+            <h3 id="checker-title">Check the file before you install it</h3>
+            <p>Drop the APK or the Windows installer here after it downloads. Your browser computes its SHA-256 and compares it with the checksum GitHub publishes.</p>
+            <p class="small muted">The file is read on your device and never uploaded.</p>
+          </div>
+          <div class="drop" data-checker>
+            <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#upload-simple"></use></svg>
+            <p class="drop__title">Drop the downloaded file here</p>
+            <input id="checker-file" type="file" accept=".apk,.exe,.msi,application/vnd.android.package-archive" aria-describedby="checker-title">
+            <label class="btn btn--line btn--sm" for="checker-file">Choose a file</label>
+            <div class="drop__result" data-checker-result role="status" aria-live="polite"></div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- The Cloud Dilemma vs VaultPass -->
-    <section class="py-16 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
-        <!-- Cloud Managers -->
-        <div class="glass-card rounded-2xl p-6 sm:p-8 border-rose-500/20 bg-rose-950/5">
-          <div class="flex items-center gap-3 mb-4">
-            <div class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
+    <!-- Questions -->
+    <section class="section section--tight-top" id="faq" aria-labelledby="faq-title">
+      <div class="wrap faq">
+        <div class="faq__aside">
+          <h2 id="faq-title">Questions</h2>
+          <p>Something else? Open an issue on GitHub for the <a href="https://github.com/ArmaanCode2/Vault-pass/issues" target="_blank" rel="noopener noreferrer">Android app<span class="sr-only"> (opens in a new tab)</span></a> or the <a href="https://github.com/ArmaanCode2/vault-pass-desktop/issues" target="_blank" rel="noopener noreferrer">Windows app<span class="sr-only"> (opens in a new tab)</span></a>.</p>
+        </div>
+        <div class="faq__list">
+          <details class="qa">
+            <summary>Can you recover my master password if I forget it? <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#caret-down"></use></svg></summary>
+            <div class="qa__a">
+              <p>No. There is no server and no recovery key. Your vault is encrypted with a key derived from your master password, so nobody, including the developer, can reset a forgotten one. Keep an encrypted backup and a written copy of the password somewhere safe.</p>
             </div>
-            <h3 class="text-xl font-bold text-white">Cloud Password Managers</h3>
-          </div>
-          <ul class="space-y-3.5 text-sm text-slate-300">
-            <li class="flex items-start gap-3">
-              <span class="text-rose-400 font-bold" aria-hidden="true">✕</span>
-              <span><strong>Centralized target:</strong> Your encrypted vault sits on the provider's servers next to everyone else's.</span>
-            </li>
-            <li class="flex items-start gap-3">
-              <span class="text-rose-400 font-bold" aria-hidden="true">✕</span>
-              <span><strong>Account required:</strong> You sign up with an email, and the provider knows who you are.</span>
-            </li>
-            <li class="flex items-start gap-3">
-              <span class="text-rose-400 font-bold" aria-hidden="true">✕</span>
-              <span><strong>Subscriptions:</strong> Many charge monthly for features such as sync across devices.</span>
-            </li>
-            <li class="flex items-start gap-3">
-              <span class="text-rose-400 font-bold" aria-hidden="true">✕</span>
-              <span><strong>Depends on their servers:</strong> Sync and sign-in need the provider to be up and reachable.</span>
-            </li>
+          </details>
+          <details class="qa">
+            <summary>Does VaultPass use the internet? <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#caret-down"></use></svg></summary>
+            <div class="qa__a">
+              <p>Your vault is never sent to the internet or to a cloud service.</p>
+              <p>From Android 2.7.0 and Windows 1.1.0, each app has two optional network features: sync between the phone and the PC, directly over your local network after you pair them with a QR code, and an update check that asks GitHub for the latest version. The update check is off until you turn it on and sends nothing from your vault.</p>
+              <p>Earlier versions differ. Android 2.6.x has no network access at all. Windows 1.0.1 checks GitHub for a new version each time it opens; you can turn that off in Settings, under About.</p>
+            </div>
+          </details>
+          <details class="qa">
+            <summary>Do I need both apps? <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#caret-down"></use></svg></summary>
+            <div class="qa__a">
+              <p>No. Each app is a complete password manager on its own. Install both if you want the same vault on your phone and your PC; from Android 2.7.0 and Windows 1.1.0 they keep each other up to date when you sync.</p>
+            </div>
+          </details>
+          <details class="qa">
+            <summary>How do I back up my passwords without a cloud? <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#caret-down"></use></svg></summary>
+            <div class="qa__a">
+              <p>Export an encrypted backup and keep it on a USB drive or another computer. Both apps write <code>.vpex</code> files, encrypted with AES-256-GCM under a password you choose, and a <code>.vpex</code> from one app opens in the other when both are up to date. The Windows app can also save a <code>.vpb</code> backup of the whole vault.</p>
+              <p>Plain JSON, TXT and CSV exports exist too, but anyone who gets the file can read them.</p>
+            </div>
+          </details>
+          <details class="qa">
+            <summary>What if someone keeps guessing my master password? <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#caret-down"></use></svg></summary>
+            <div class="qa__a">
+              <p>On Android, input locks for 30 seconds after 5 wrong passwords, 60 seconds after 10, 5 minutes after 15, and 15 minutes after 20 or more. The count is kept on disk, so restarting the app doesn't reset it.</p>
+              <p>The Windows app doesn't limit attempts yet. There, what slows a guesser down is the 300,000 rounds of PBKDF2 behind every attempt, so pick a long master password.</p>
+            </div>
+          </details>
+          <details class="qa">
+            <summary>Does uninstalling delete my vault? <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#caret-down"></use></svg></summary>
+            <div class="qa__a">
+              <p>On Android, yes: uninstalling removes the app's data, vault included. Export an encrypted backup first.</p>
+              <p>On Windows, from version 1.1.0, no: the uninstaller leaves the <code>data</code> folder in place so a reinstall finds your vault again. Delete that folder yourself to remove everything.</p>
+            </div>
+          </details>
+          <details class="qa">
+            <summary>How does autofill work on Android? <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#caret-down"></use></svg></summary>
+            <div class="qa__a">
+              <p>VaultPass registers as an Android Autofill service (Android 8.0 or newer). When an app or website shows a login form, it finds the username and password fields and suggests matching entries.</p>
+              <p>From version 2.7.0, an entry matches a website only when the page comes from a browser VaultPass recognises and is on the entry's domain, and apps only get entries you linked to them once with "Search VaultPass". Version 2.6.x also suggests entries whose title resembles the app's name, so check a suggestion before you tap it.</p>
+            </div>
+          </details>
+          <details class="qa">
+            <summary>Windows says "Windows protected your PC". Is that normal? <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#caret-down"></use></svg></summary>
+            <div class="qa__a">
+              <p>Yes. The installer isn't signed with a Microsoft code-signing certificate, so SmartScreen warns the first time you run it. Check the file's SHA-256 first (the file checker above does it for you), then choose More info and Run anyway.</p>
+            </div>
+          </details>
+          <details class="qa">
+            <summary>Why do the download links go to GitHub? <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#caret-down"></use></svg></summary>
+            <div class="qa__a">
+              <p>Every release is published on GitHub, and GitHub publishes a SHA-256 checksum for each file. That checksum is what this page shows and what the file checker above compares against.</p>
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <div class="site-foot__grid">
+        <div class="site-foot__about">
+          <a class="brand" href="./" aria-label="VaultPass home">
+            <img src="assets/icon-128.webp" alt="" width="34" height="34" loading="lazy">
+            <span>VaultPass</span>
+          </a>
+          <p class="small">A free password manager for Android and Windows, with its source code on GitHub. Release details on this site come from GitHub and refresh when you open a page.</p>
+        </div>
+        <div>
+          <p class="site-foot__title">Source code</p>
+          <ul>
+            <li><a href="https://github.com/ArmaanCode2/Vault-pass" target="_blank" rel="noopener noreferrer">Android app<span class="sr-only"> (opens in a new tab)</span></a></li>
+            <li><a href="https://github.com/ArmaanCode2/vault-pass-desktop" target="_blank" rel="noopener noreferrer">Windows app<span class="sr-only"> (opens in a new tab)</span></a></li>
+            <li><a href="https://github.com/ArmaanCode2/Vault-pass/releases" target="_blank" rel="noopener noreferrer">Android releases<span class="sr-only"> (opens in a new tab)</span></a></li>
+            <li><a href="https://github.com/ArmaanCode2/vault-pass-desktop/releases" target="_blank" rel="noopener noreferrer">Windows releases<span class="sr-only"> (opens in a new tab)</span></a></li>
           </ul>
         </div>
-
-        <!-- VaultPass -->
-        <div class="glass-card rounded-2xl p-6 sm:p-8 border-emerald-500/30 bg-emerald-950/10">
-          <div class="flex items-center gap-3 mb-4">
-            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-              </svg>
-            </div>
-            <h3 class="text-xl font-bold text-white">VaultPass Architecture</h3>
-          </div>
-          <ul class="space-y-3.5 text-sm text-slate-300">
-            <li class="flex items-start gap-3">
-              <span class="text-emerald-400 font-bold" aria-hidden="true">✓</span>
-              <span><strong>No cloud:</strong> Your vault lives on your phone. The only sync is the optional one with the VaultPass desktop app, over your local network.</span>
-            </li>
-            <li class="flex items-start gap-3">
-              <span class="text-emerald-400 font-bold" aria-hidden="true">✓</span>
-              <span><strong>No tracking:</strong> No analytics SDKs, no ad trackers, no account registration.</span>
-            </li>
-            <li class="flex items-start gap-3">
-              <span class="text-emerald-400 font-bold" aria-hidden="true">✓</span>
-              <span><strong>Keystore-backed biometrics:</strong> The biometric unlock key is kept in the Android Keystore, which is hardware-backed on phones that support it.</span>
-            </li>
-            <li class="flex items-start gap-3">
-              <span class="text-emerald-400 font-bold" aria-hidden="true">✓</span>
-              <span><strong>Checkable download:</strong> The APK's SHA-256 is listed on this site, with a VirusTotal lookup for that exact file.</span>
-            </li>
+        <div>
+          <p class="site-foot__title">This site</p>
+          <ul>
+            <li><a href="download.html">Download and install</a></li>
+            <li><a href="security.html">Security model</a></li>
+            <li><a href="privacy.html">Privacy policy</a></li>
+            <li><a data-vt-link="android" href="#download" hidden target="_blank" rel="noopener noreferrer">VirusTotal report (Android)<span class="sr-only"> (opens in a new tab)</span></a></li>
           </ul>
         </div>
       </div>
-    </section>
-
-    <!-- Bento Grid Features Section -->
-    <section id="features" class="py-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="text-center mb-12">
-        <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-          What protects your vault
-        </h2>
+      <div class="site-foot__base">
+        <p>Questions or security reports: <a href="mailto:armaanweb100@gmail.com">armaanweb100@gmail.com</a></p>
+        <p>Sample data in the demos is made up.</p>
       </div>
+    </div>
+  </footer>
 
-      <!-- Bento Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- Item 1: Large Bento Card -->
-        <div class="glass-card rounded-2xl p-8 md:col-span-2 flex flex-col justify-between">
-          <div>
-            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-6" aria-hidden="true">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-              </svg>
-            </div>
-            <h3 class="text-xl font-bold text-white mb-2">PBKDF2-HMAC-SHA256 &amp; AES-256-GCM</h3>
-            <p class="text-slate-400 text-sm leading-relaxed mb-6">
-              Your master password goes through 300,000 rounds of PBKDF2 before it can unlock the key that encrypts your entries with AES-256-GCM.
-            </p>
-          </div>
-          <div class="p-4 rounded-xl bg-brand-dark border border-white/5 font-mono text-xs text-slate-400 space-y-1 overflow-x-auto">
-            <div class="text-emerald-400 font-semibold">// Cryptographic Parameters</div>
-            <div>Algorithm: <span class="text-white">PBKDF2WithHmacSHA256</span></div>
-            <div>Work Factor: <span class="text-white">300,000 rounds</span></div>
-            <div>Cipher: <span class="text-white">AES/GCM/NoPadding (256-bit)</span></div>
-          </div>
-        </div>
-
-        <!-- Item 2: Biometric Keystore -->
-        <div class="glass-card rounded-2xl p-8 flex flex-col justify-between">
-          <div>
-            <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mb-6" aria-hidden="true">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a7.978 7.978 0 001.572 4.793"/>
-              </svg>
-            </div>
-            <h3 class="text-xl font-bold text-white mb-2">Biometric Unlock</h3>
-            <p class="text-slate-400 text-sm leading-relaxed">
-              Unlock with your fingerprint or face. The unlock key stays in the Android Keystore.
-            </p>
-          </div>
-        </div>
-
-        <!-- Item 3: Android Autofill Framework -->
-        <div class="glass-card rounded-2xl p-8 flex flex-col justify-between">
-          <div>
-            <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mb-6" aria-hidden="true">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-              </svg>
-            </div>
-            <h3 class="text-xl font-bold text-white mb-2">Native Android Autofill</h3>
-            <p class="text-slate-400 text-sm leading-relaxed">
-              Fills logins in apps and browsers through Android's Autofill framework, so passwords don't pass through the clipboard.
-            </p>
-          </div>
-        </div>
-
-        <!-- Item 4: Security Center Hygiene -->
-        <div class="glass-card rounded-2xl p-8 flex flex-col justify-between">
-          <div>
-            <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-6" aria-hidden="true">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-              </svg>
-            </div>
-            <h3 class="text-xl font-bold text-white mb-2">Security Center</h3>
-            <p class="text-slate-400 text-sm leading-relaxed">
-              Flags weak and reused passwords, and entries with no password, with a health score for the whole vault.
-            </p>
-          </div>
-        </div>
-
-        <!-- Item 5: Anti-Snoop & Memory Zeroization -->
-        <div class="glass-card rounded-2xl p-8 flex flex-col justify-between">
-          <div>
-            <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mb-6" aria-hidden="true">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
-              </svg>
-            </div>
-            <h3 class="text-xl font-bold text-white mb-2">Anti-Snoop Shield</h3>
-            <p class="text-slate-400 text-sm leading-relaxed">
-              Screenshot blocking (on by default from 2.7.0), a clipboard that clears itself on a timer, and auto-lock that drops the vault key from memory.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- VirusTotal & Verifiable Trust Section -->
-    <section class="py-16 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="glass-card rounded-2xl p-6 sm:p-8 border border-emerald-500/25 relative overflow-hidden">
-        <div class="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div class="space-y-2 text-center md:text-left">
-            <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-400 font-mono text-xs border border-emerald-500/20">
-              <span class="w-2 h-2 rounded-full bg-emerald-400" aria-hidden="true"></span>
-              Open source on GitHub
-            </div>
-            <h2 class="text-2xl font-bold text-white">Check the download yourself</h2>
-            <p class="text-sm text-slate-400 max-w-md">Compare the APK's SHA-256 with the one below, look the same hash up on VirusTotal, or read the code.</p>
-          </div>
-
-          <div class="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3">
-            <a data-virustotal-link hidden target="_blank" rel="noopener noreferrer" class="btn-secondary px-5 min-h-[44px] rounded-xl text-sm font-semibold flex items-center gap-2">
-              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-              </svg>
-              <span>Look up on VirusTotal</span><span class="sr-only"> (opens in a new tab)</span>
-            </a>
-            <a href="https://github.com/ArmaanCode2/Vault-pass" target="_blank" rel="noopener noreferrer" class="btn-secondary px-5 min-h-[44px] rounded-xl text-sm font-semibold flex items-center">
-              Source code<span class="sr-only"> (opens in a new tab)</span>
-            </a>
-            <a href="security.html" class="btn-primary px-5 min-h-[44px] rounded-xl text-sm font-semibold flex items-center">
-              Read the security model
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Download CTA Section -->
-    <section id="download" class="py-20 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-      <div class="glass-card rounded-3xl p-8 sm:p-12 border border-white/10 relative overflow-hidden">
-        
-        <div class="w-16 h-16 rounded-2xl bg-brand-dark border border-white/10 mx-auto flex items-center justify-center p-1 mb-6 overflow-hidden">
-          <picture>
-            <source srcset="assets/icon.webp" type="image/webp">
-            <img src="assets/icon.png" alt="" width="56" height="56" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-xl">
-          </picture>
-        </div>
-
-        <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-          Get VaultPass for Android
-        </h2>
-        <p class="mt-3 text-sm sm:text-base text-slate-400 max-w-xl mx-auto">
-          No account and no subscription. The APK comes straight from the project's GitHub releases and runs on Android 7.0 or newer.
-        </p>
-
-        <!-- Download Action -->
-        <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-          <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary w-full sm:w-auto px-6 sm:px-8 py-4 rounded-xl text-sm font-semibold flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-            </svg>
-            <span class="download-status">Download APK (<span data-latest-version>latest</span>)</span>
-            <span class="text-xs opacity-75 font-mono" data-latest-size></span>
-          </a>
-
-          <a href="download.html" class="btn-secondary w-full sm:w-auto px-6 py-4 rounded-xl text-sm font-medium text-center">
-            Install &amp; verify guide
-          </a>
-        </div>
-
-        <!-- Checksum Snippet -->
-        <div class="mt-8 pt-6 border-t border-white/5 max-w-2xl mx-auto text-left">
-          <div data-checksum-block hidden>
-            <div class="flex items-center justify-between gap-2 text-xs text-slate-400 mb-1.5">
-              <span class="font-mono">SHA-256 of <span data-latest-filename>VaultPass.apk</span>:</span>
-              <button type="button" data-sha256-copy data-copy-target="" class="btn-ghost px-2 min-h-[36px] text-xs text-brand-mint flex items-center gap-1 font-mono cursor-pointer">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                </svg>
-                <span data-copy-label>Copy hash</span>
-              </button>
-            </div>
-            <div data-sha256-text class="p-3 bg-brand-dark rounded-lg border border-white/5 font-mono text-[11px] text-slate-300 break-all select-all"></div>
-          </div>
-          <p data-checksum-missing class="text-xs text-slate-400">This release has no published SHA-256 yet, or it couldn't be loaded. See the <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest" class="link-accent" target="_blank" rel="noopener noreferrer">release page</a>.</p>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- Frequently Asked Questions -->
-    <section id="faq" class="py-16 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="text-center mb-12">
-        <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-          Frequently Asked Questions
-        </h2>
-      </div>
-
-      <div class="space-y-4">
-        <!-- FAQ 1 -->
-        <details class="glass-card rounded-xl p-5 group">
-          <summary class="flex justify-between items-center gap-3 font-medium text-white text-sm sm:text-base list-none">
-            <span>Can you recover my master password if I forget it?</span>
-            <svg class="w-5 h-5 flex-shrink-0 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-            </svg>
-          </summary>
-          <p class="mt-3 text-sm text-slate-400 leading-relaxed">
-            <strong>No.</strong> There is no server and no recovery key. Your vault is encrypted with AES-GCM using a key derived from your master password (PBKDF2-HMAC-SHA256), so nobody, including the developer, can reset a forgotten master password.
-          </p>
-        </details>
-
-        <!-- FAQ 2 -->
-        <details class="glass-card rounded-xl p-5 group">
-          <summary class="flex justify-between items-center gap-3 font-medium text-white text-sm sm:text-base list-none">
-            <span>How does the Android Autofill feature work?</span>
-            <svg class="w-5 h-5 flex-shrink-0 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-            </svg>
-          </summary>
-          <p class="mt-3 text-sm text-slate-400 leading-relaxed">
-            VaultPass registers as an Android Autofill service. When an app or website shows a login form, it walks the screen's view structure to find the username and password fields, then suggests matching entries. In a known browser, an entry matches when its website is on the same domain as the page. In other apps, VaultPass offers only entries you linked to that app: pick one once with "Search VaultPass…" and it is offered there from then on.
-          </p>
-        </details>
-
-        <!-- FAQ 3 -->
-        <details class="glass-card rounded-xl p-5 group">
-          <summary class="flex justify-between items-center gap-3 font-medium text-white text-sm sm:text-base list-none">
-            <span>How do I back up my passwords without a cloud?</span>
-            <svg class="w-5 h-5 flex-shrink-0 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-            </svg>
-          </summary>
-          <p class="mt-3 text-sm text-slate-400 leading-relaxed">
-            Export an encrypted <code class="text-emerald-400 font-mono text-xs">.vpex</code> backup. The file is AES-GCM encrypted with a key derived from a password (PBKDF2), so you can keep it on a USB drive or your computer. JSON and TXT exports also exist, but those are unencrypted.
-          </p>
-        </details>
-
-        <!-- FAQ 4 -->
-        <details class="glass-card rounded-xl p-5 group">
-          <summary class="flex justify-between items-center gap-3 font-medium text-white text-sm sm:text-base list-none">
-            <span>What if someone keeps guessing my master password?</span>
-            <svg class="w-5 h-5 flex-shrink-0 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-            </svg>
-          </summary>
-          <p class="mt-3 text-sm text-slate-400 leading-relaxed">
-            VaultPass counts failed attempts on disk, so restarting the app doesn't reset the count. After 5 failures it locks input for 30 seconds, after 10 for 60 seconds, after 15 for 5 minutes, and after 20 or more for 15 minutes.
-          </p>
-        </details>
-
-        <!-- FAQ 5 -->
-        <details class="glass-card rounded-xl p-5 group">
-          <summary class="flex justify-between items-center gap-3 font-medium text-white text-sm sm:text-base list-none">
-            <span>Does VaultPass use the internet?</span>
-            <svg class="w-5 h-5 flex-shrink-0 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-            </svg>
-          </summary>
-          <p class="mt-3 text-sm text-slate-400 leading-relaxed">
-            Your vault is never sent to the internet or to a cloud service. There are two optional network features. Sync with the VaultPass desktop app for Windows: you pair the two by scanning a QR code, and they exchange changes directly over your local network. And an update check, off by default, that asks GitHub for the latest version and sends nothing from your vault.
-          </p>
-        </details>
-      </div>
-    </section>
-
-    </main>
-
-    <!-- Minimalist Footer -->
-    <footer class="mt-20 border-t border-white/5 py-12 text-xs text-slate-400">
-      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
-        <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
-          <picture>
-            <source srcset="assets/icon.webp" type="image/webp">
-            <img src="assets/icon.png" alt="" width="24" height="24" loading="lazy" decoding="async" class="w-6 h-6 rounded-md object-cover">
-          </picture>
-          <span class="text-slate-300 font-semibold">VaultPass</span>
-          <span>Open-source Android password manager</span>
-        </div>
-
-        <nav aria-label="Footer" class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-          <a href="security.html" class="tap-target px-1 hover:text-white transition-colors">Security Model</a>
-          <a href="download.html" class="tap-target px-1 hover:text-white transition-colors">Downloads</a>
-          <a href="privacy.html" class="tap-target px-1 hover:text-white transition-colors">Privacy Policy</a>
-          <a data-virustotal-link hidden target="_blank" rel="noopener noreferrer" class="tap-target px-1 hover:text-emerald-300 transition-colors">VirusTotal<span class="sr-only"> (opens in a new tab)</span></a>
-        </nav>
-      </div>
-    </footer>
-
-  </div>
-
-  <!-- Site scripts -->
-  <script src="js/app.js" defer></script>
-  <script src="js/demo-app.js" defer></script>
+  <script src="js/github.js" defer></script>
+  <script src="js/md.js" defer></script>
+  <script src="js/site.js" defer></script>
+  <script src="js/verify.js" defer></script>
+  <script src="js/demo-data.js" defer></script>
 </body>
 </html>

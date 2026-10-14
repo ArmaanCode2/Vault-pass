@@ -1,373 +1,375 @@
-<!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<!doctype html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Download for Android | VaultPass</title>
-  <meta name="description" content="Download VaultPass APK. Complete with SHA-256 checksum verification, VirusTotal scan report, and step-by-step Android installation guide.">
-  <meta name="theme-color" content="#05070d">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.github.com https://raw.githubusercontent.com; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Download VaultPass for Android and Windows</title>
+  <meta name="description" content="Download the latest VaultPass APK for Android or installer for Windows from GitHub Releases, check its SHA-256 and VirusTotal report, and install it step by step.">
+  <meta name="theme-color" content="#f3f4f7">
+  <link rel="canonical" href="https://armaancode2.github.io/Vault-pass/website/download.html">
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/icon-64.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 
-  <link rel="icon" type="image/png" href="assets/icon.png">
-
-  <!-- Canonical URL -->
-  <link rel="canonical" href="https://vaultpass.org/download.html">
-
-  <!-- OpenGraph / Social Media -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://vaultpass.org/download.html">
-  <meta property="og:title" content="Download for Android | VaultPass">
-  <meta property="og:description" content="Download VaultPass APK. Complete with SHA-256 checksum verification, VirusTotal scan report, and step-by-step Android installation guide.">
-  <meta property="og:image" content="https://vaultpass.org/assets/icon.png">
-
-  <!-- Twitter Card -->
+  <meta property="og:site_name" content="VaultPass">
+  <meta property="og:url" content="https://armaancode2.github.io/Vault-pass/website/download.html">
+  <meta property="og:title" content="Download VaultPass for Android and Windows">
+  <meta property="og:description" content="The latest APK and Windows installer, straight from GitHub Releases, with checksums and install steps.">
+  <meta property="og:image" content="https://armaancode2.github.io/Vault-pass/website/assets/icon-512.png">
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="Download for Android | VaultPass">
-  <meta name="twitter:description" content="Download VaultPass APK. Complete with SHA-256 checksum verification, VirusTotal scan report, and step-by-step Android installation guide.">
-  <meta name="twitter:image" content="https://vaultpass.org/assets/icon.png">
 
-  <!-- Fonts & DNS Prefetch Hints -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="dns-prefetch" href="https://raw.githubusercontent.com">
-  <link rel="dns-prefetch" href="https://api.github.com">
-  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" as="style">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"></noscript>
-
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            // Channels defined in css/styles.css (:root)
-            brand: {
-              dark: 'rgb(var(--rgb-bg) / <alpha-value>)',
-              surface: 'rgb(var(--rgb-surface) / <alpha-value>)',
-              card: 'rgb(var(--rgb-card) / <alpha-value>)',
-              cyan: 'rgb(var(--rgb-accent) / <alpha-value>)',
-              mint: 'rgb(var(--rgb-accent-strong) / <alpha-value>)',
-            }
-          },
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
-          }
-        }
-      }
-    }
-  </script>
-
-  <!-- Site stylesheet (color tokens, components) -->
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="preconnect" href="https://api.github.com" crossorigin>
+  <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
+  <link rel="preload" href="assets/fonts/BigShoulders-Bold.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/WorkSans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/site.css">
+  <script src="js/boot.js"></script>
 </head>
-<body class="bg-brand-dark text-slate-100 antialiased">
-  <a href="#main" class="skip-link">Skip to content</a>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
 
-  <!-- Gemini-style Slow-Moving Blurred Gradient Background -->
-  <div class="gradient-bg-container" aria-hidden="true">
-    <div class="gradient-orb gradient-orb-1"></div>
-    <div class="gradient-orb gradient-orb-2"></div>
-    <div class="gradient-orb gradient-orb-3"></div>
-    <div class="gradient-orb gradient-orb-4"></div>
-  </div>
-
-  <!-- Page content -->
-  <div class="relative z-10">
-
-    <!-- Simple, Centered Navbar (Logo only, 3 center links, Download APK) -->
-    <header class="sticky top-0 z-50 glass-nav">
-      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between relative">
-        
-        <!-- Left: Logo ONLY -->
-        <a href="index.html" class="tap-target group rounded-xl" aria-label="VaultPass home">
-          <div class="w-9 h-9 rounded-xl bg-brand-surface border border-white/10 flex items-center justify-center p-0.5 overflow-hidden transition-transform group-hover:scale-105 group-hover:border-brand-cyan/40">
-            <picture>
-              <source srcset="assets/icon.webp" type="image/webp">
-              <img src="assets/icon.png" alt="" width="36" height="36" decoding="async" class="w-full h-full object-cover rounded-lg">
-            </picture>
-          </div>
+  <header class="site-head">
+    <div class="wrap site-head__row">
+      <a class="brand" href="./" aria-label="VaultPass home">
+        <img src="assets/icon-128.webp" alt="" width="34" height="34">
+        <span>VaultPass</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="./#demo">Try it</a>
+        <a href="./#sync">Sync</a>
+        <a href="security.html">Security</a>
+        <a href="privacy.html">Privacy</a>
+      </nav>
+      <div class="site-head__end">
+        <a class="btn btn--gold btn--sm" href="download.html" aria-current="page">
+          <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#download-simple"></use></svg>
+          <span>Download</span>
         </a>
-
-        <!-- Center: 3 Navigation Links (Centered) -->
-        <nav aria-label="Main" class="hidden md:flex items-center gap-8 text-sm font-medium absolute left-1/2 -translate-x-1/2">
-          <a href="index.html#features" class="nav-link py-2">Features</a>
-          <a href="security.html" class="nav-link py-2">Security Model</a>
-          <a href="download.html" class="nav-link py-2" aria-current="page">Downloads</a>
-        </nav>
-
-        <!-- Right: Download APK Button -->
-        <div class="hidden sm:flex items-center gap-3">
-          <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary text-xs sm:text-sm px-4 min-h-[40px] rounded-lg flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-            </svg>
-            <span class="download-status">Download APK</span>
-          </a>
-        </div>
-
-        <!-- Mobile Menu Button -->
-        <button type="button" id="mobile-menu-btn" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu" class="md:hidden w-11 h-11 flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-white/5">
-          <svg data-icon="open" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-          </svg>
-          <svg data-icon="close" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
+        <button class="icon-btn nav-toggle" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="Open menu">
+          <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#list"></use></svg>
         </button>
       </div>
-
-      <!-- Mobile Dropdown -->
-      <nav id="mobile-menu" aria-label="Mobile" class="hidden md:hidden px-4 pt-2 pb-6 border-t border-white/5 bg-brand-dark/95 backdrop-blur-xl">
-        <div class="flex flex-col gap-1 text-sm font-medium pt-2 text-center">
-          <a href="index.html#features" class="mobile-nav-link">Features</a>
-          <a href="security.html" class="mobile-nav-link">Security Model</a>
-          <a href="download.html" class="mobile-nav-link" aria-current="page">Downloads</a>
-          <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary flex items-center justify-center gap-2 min-h-[44px] rounded-lg text-sm mt-3 w-full">
-            <span class="download-status">Download APK</span>
-          </a>
-        </div>
-      </nav>
-    </header>
-
-    <main id="main" tabindex="-1" class="outline-none">
-
-    <!-- Download Hero -->
-    <section class="pt-16 pb-12 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono text-brand-mint bg-brand-mint/10 border border-brand-mint/20 mb-4">
-        OFFICIAL GITHUB RELEASE
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-label="Main" hidden>
+      <div class="wrap">
+        <a href="./#demo">Try it</a>
+        <a href="./#sync">Sync</a>
+        <a href="security.html">Security</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="download.html" aria-current="page">Download</a>
       </div>
-      <h1 class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
-        Download VaultPass for Android
-      </h1>
-      <p class="mt-4 text-base sm:text-lg text-slate-400 max-w-xl mx-auto leading-relaxed">
-        Free and open source. The APK downloads straight from the project's GitHub releases.
-      </p>
+    </nav>
+  </header>
 
-      <!-- Primary Download Card -->
-      <div class="mt-10 glass-card rounded-2xl p-5 sm:p-10 border border-white/10 max-w-2xl mx-auto text-left relative overflow-hidden">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-white/10">
-          <div class="flex items-center gap-4">
-            <div class="w-14 h-14 flex-shrink-0 rounded-2xl bg-brand-dark border border-white/10 p-1 flex items-center justify-center overflow-hidden">
-              <picture>
-                <source srcset="assets/icon.webp" type="image/webp">
-                <img src="assets/icon.png" alt="" width="56" height="56" loading="lazy" decoding="async" class="w-full h-full object-cover rounded-xl">
-              </picture>
+  <main id="main" tabindex="-1">
+    <section class="page-head" aria-labelledby="page-title">
+      <div class="wrap">
+        <h1 id="page-title">Download VaultPass</h1>
+        <p class="lead">Free, with the source code on GitHub. Both apps are published on GitHub Releases, and this page shows the latest version, size and checksum from there.</p>
+      </div>
+    </section>
+
+    <section aria-label="Latest releases">
+      <div class="wrap">
+        <div class="releases">
+          <article class="release" aria-labelledby="rel-android">
+            <div class="release__head">
+              <h2 class="release__name" id="rel-android">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#android-logo"></use></svg>
+                Android
+              </h2>
+              <span class="release__tag" data-rel="android:tag">Latest</span>
             </div>
-            <div>
-              <h2 class="text-lg font-bold text-white">VaultPass Android APK</h2>
-              <p class="text-xs text-slate-400 font-mono"><span data-latest-version>VaultPass</span> • Latest release</p>
+            <dl class="release__facts">
+              <dt>Released</dt><dd><time data-rel="android:date">Latest release</time></dd>
+              <dt>File</dt><dd><span data-rel="android:file">APK</span> <span data-rel="android:size"></span></dd>
+              <dt>Requires</dt><dd>Android 7.0 or newer</dd>
+            </dl>
+            <div class="release__actions">
+              <a class="btn btn--gold" data-dl="android" href="https://github.com/ArmaanCode2/Vault-pass/releases/latest">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#download-simple"></use></svg>
+                Download APK
+              </a>
+              <a class="btn btn--quiet" href="#android">Install steps</a>
+            </div>
+            <div class="release__verify">
+              <div class="release__label">
+                <span>SHA-256</span>
+                <button class="btn btn--quiet btn--sm copy-btn" type="button" data-copy-hash="android" data-copy="" hidden>
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#copy"></use></svg>
+                  <span data-copy-label>Copy</span>
+                </button>
+              </div>
+              <div data-hash="android"><p class="hash hash--pending" aria-hidden="true"><span>········</span><span>········</span><span>········</span><span>········</span><span>········</span><span>········</span><span>········</span><span>········</span></p><p class="sr-only">Loading the checksum from GitHub.</p></div>
+              <div class="vt" data-vt="android" data-state="none">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#info"></use></svg>
+                <p>Checking the README for a VirusTotal report.</p>
+                <p class="vt__links" aria-hidden="true">&nbsp;</p>
+              </div>
+              <p class="status-line" data-rel-state="android" hidden></p>
+              <details class="notes" data-notes="android">
+                <summary>What's new in this release <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#caret-down"></use></svg></summary>
+                <div class="notes__body md"><p>Loading from GitHub.</p></div>
+              </details>
+              <p class="small"><a href="https://github.com/ArmaanCode2/Vault-pass/releases" target="_blank" rel="noopener noreferrer">Older versions on GitHub<span class="sr-only"> (opens in a new tab)</span></a></p>
+            </div>
+          </article>
+
+          <article class="release" aria-labelledby="rel-windows">
+            <div class="release__head">
+              <h2 class="release__name" id="rel-windows">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#windows-logo"></use></svg>
+                Windows
+              </h2>
+              <span class="release__tag" data-rel="windows:tag">Latest</span>
+            </div>
+            <dl class="release__facts">
+              <dt>Released</dt><dd><time data-rel="windows:date">Latest release</time></dd>
+              <dt>File</dt><dd><span data-rel="windows:file">Installer</span> <span data-rel="windows:size"></span></dd>
+              <dt>Requires</dt><dd>64-bit Windows</dd>
+            </dl>
+            <div class="release__actions">
+              <a class="btn btn--gold" data-dl="windows" href="https://github.com/ArmaanCode2/vault-pass-desktop/releases/latest">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#download-simple"></use></svg>
+                Download installer
+              </a>
+              <a class="btn btn--quiet" href="#windows">Install steps</a>
+            </div>
+            <div class="release__verify">
+              <div class="release__label">
+                <span>SHA-256</span>
+                <button class="btn btn--quiet btn--sm copy-btn" type="button" data-copy-hash="windows" data-copy="" hidden>
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#copy"></use></svg>
+                  <span data-copy-label>Copy</span>
+                </button>
+              </div>
+              <div data-hash="windows"><p class="hash hash--pending" aria-hidden="true"><span>········</span><span>········</span><span>········</span><span>········</span><span>········</span><span>········</span><span>········</span><span>········</span></p><p class="sr-only">Loading the checksum from GitHub.</p></div>
+              <div class="vt" data-vt="windows" data-state="none">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#info"></use></svg>
+                <p>Checking the README for a VirusTotal report.</p>
+                <p class="vt__links" aria-hidden="true">&nbsp;</p>
+              </div>
+              <p class="status-line" data-rel-state="windows" hidden></p>
+              <details class="notes" data-notes="windows">
+                <summary>What's new in this release <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#caret-down"></use></svg></summary>
+                <div class="notes__body md"><p>Loading from GitHub.</p></div>
+              </details>
+              <p class="small"><a href="https://github.com/ArmaanCode2/vault-pass-desktop/releases" target="_blank" rel="noopener noreferrer">Older versions on GitHub<span class="sr-only"> (opens in a new tab)</span></a></p>
+            </div>
+          </article>
+        </div>
+
+        <div class="notice" style="margin-top: 24px">
+          <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#info"></use></svg>
+          <div>
+            <p>VaultPass is under active development. Keep your own encrypted backup of your vault, and update both apps at the same time if you sync them: a new version of one may not sync with an older version of the other.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="install" aria-label="Install steps">
+      <div class="wrap">
+
+        <div class="guide" id="android">
+          <div class="guide__aside">
+            <h2><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#android-logo"></use></svg>Install on Android</h2>
+            <p>The APK comes from GitHub Releases, not the Play Store, so Android asks for permission the first time.</p>
+            <div class="notice notice--danger">
+              <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#warning"></use></svg>
+              <div>
+                <p><strong>Uninstalling deletes the vault.</strong> Export an encrypted <code>.vpex</code> backup before you uninstall or reset the app.</p>
+              </div>
             </div>
           </div>
-          <div class="sm:text-right">
-            <span class="inline-block px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-400 text-xs font-mono border border-emerald-500/20">
-              Android 7.0+ (Nougat)
-            </span>
+          <div>
+            <div class="notice" data-min-version="android:2.7.0" hidden style="margin-bottom: 24px">
+              <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#warning"></use></svg>
+              <div>
+                <p><strong>Coming from VaultPass 2.6.x?</strong> Version 2.7.0 is the first build signed with the project's release key, so Android won't install it over 2.6.x. You only have to reinstall this one time.</p>
+                <p><strong>If you can't unlock VaultPass 2.6.x, do not uninstall it.</strong> Uninstalling deletes the vault. Contact us through <a href="https://github.com/ArmaanCode2/Vault-pass/issues" target="_blank" rel="noopener noreferrer">GitHub issues<span class="sr-only"> (opens in a new tab)</span></a> first.</p>
+                <p>If you can unlock it: export an encrypted .vpex backup in 2.6.x, uninstall it, install the new version, then import the backup.</p>
+              </div>
+            </div>
+            <div class="notice" data-until-released="android:2.7.0" style="margin-bottom: 24px">
+              <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#info"></use></svg>
+              <div><p>The current Android release, <span data-rel="android:tag">2.6.x</span>, doesn't sync with the Windows app and has no update check. Get new versions from this page.</p></div>
+            </div>
+            <ol class="howto">
+              <li>
+                <h3>Download the APK</h3>
+                <p>Open this page on your phone and tap Download APK. The file comes straight from the project's GitHub releases.</p>
+              </li>
+              <li>
+                <h3>Check the file</h3>
+                <p>Compare its SHA-256 with the one above. The <a href="#verify">file checker</a> below does this in your browser, on the phone or on a computer.</p>
+              </li>
+              <li>
+                <h3>Allow the install</h3>
+                <p>Open the APK. Android asks you to let your browser or file manager install unknown apps. Allow it, and turn it off again after the install if you like. Play Protect may also ask you to confirm.</p>
+              </li>
+              <li>
+                <h3>Create your master password</h3>
+                <p>At least 8 characters; a long passphrase is better. Nobody can reset it for you, so write it down somewhere safe.</p>
+              </li>
+              <li>
+                <h3>Turn on what you want</h3>
+                <p>Fingerprint or face unlock is off until you switch it on in Settings. For autofill (Android 8.0 or newer), choose VaultPass as the autofill service in Android's settings, usually under Passwords and accounts; the menu name differs between phones.</p>
+              </li>
+            </ol>
           </div>
         </div>
 
-        <!-- Download Action -->
-        <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <dl class="w-full sm:w-auto grid grid-cols-[auto_1fr] gap-x-2 text-xs text-slate-400">
-            <dt>Release:</dt><dd class="font-mono text-slate-200" data-latest-version>Latest</dd>
-            <dt>File:</dt><dd class="font-mono text-slate-200 break-all" data-latest-filename>VaultPass.apk</dd>
-            <dt>Size:</dt><dd class="font-mono text-slate-200" data-latest-size>See GitHub</dd>
-          </dl>
-
-          <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest/download/VaultPass.apk" data-direct-download class="btn-primary w-full sm:w-auto px-6 min-h-[48px] rounded-xl text-sm font-semibold flex items-center justify-center gap-2 flex-shrink-0">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-            </svg>
-            <span class="download-status">Download APK</span>
-          </a>
-        </div>
-
-        <!-- Deployment note: the releases/latest/download/VaultPass.apk links on this site only work once a
-             GitHub release with an asset named exactly VaultPass.apk exists. Publish that release before
-             deploying this page. -->
-        <!-- One-time reinstall from 2.6.x -->
-        <div class="mt-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-slate-300 leading-relaxed">
-          <p><strong class="text-amber-400">Coming from VaultPass 2.6.x?</strong> Version 2.7.0 is the first build signed with the project's release key, so Android won't install it over 2.6.x. This is needed once.</p>
-          <p class="mt-3 p-3 rounded-lg bg-red-500/15 border border-red-500/40 text-red-200 font-semibold"><span class="uppercase tracking-wide text-red-300">Warning:</span> If you can't unlock VaultPass 2.6.x, do NOT uninstall it: uninstalling deletes the vault. Contact us via <a href="https://github.com/ArmaanCode2/Vault-pass/issues" class="link-accent underline" target="_blank" rel="noopener noreferrer">GitHub issues</a> first.</p>
-          <p class="mt-3">If you can unlock it: export a backup in VaultPass 2.6.x (an encrypted .vpex file is safest), uninstall it, install 2.7.0, then import the backup.</p>
-          <p class="mt-3">Later versions install over 2.7.0 as usual, also from inside VaultPass. The first in-app update shows Android's confirmation; later ones may install without it, and VaultPass just closes. Open it again to use the new version.</p>
-        </div>
-
-        <!-- SHA-256 Hash Verification -->
-        <div class="mt-6 pt-6 border-t border-white/5">
-          <div data-checksum-block hidden>
-            <div class="flex items-center justify-between gap-2 text-xs text-slate-400 mb-2">
-              <span class="font-mono">SHA-256 checksum:</span>
-              <button type="button" data-sha256-copy data-copy-target="" class="btn-ghost px-2 min-h-[36px] text-xs text-brand-mint flex items-center gap-1 font-mono cursor-pointer">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                </svg>
-                <span data-copy-label>Copy hash</span>
-              </button>
+        <div class="guide" id="windows">
+          <div class="guide__aside">
+            <h2><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#windows-logo"></use></svg>Install on Windows</h2>
+            <p>One installer with Java built in, so you don't need to install anything else.</p>
+            <div class="notice">
+              <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#info"></use></svg>
+              <div>
+                <p><strong>From version 1.1.0, uninstalling keeps the vault.</strong> The <code>data</code> folder stays so a reinstall finds it. Delete that folder yourself to remove everything.</p>
+              </div>
             </div>
-            <div data-sha256-text class="p-3 bg-brand-dark rounded-lg border border-white/5 font-mono text-[11px] text-slate-300 break-all select-all"></div>
           </div>
-          <p data-checksum-missing class="text-xs text-slate-400">This release has no published SHA-256 yet, or it couldn't be loaded. See the <a href="https://github.com/ArmaanCode2/Vault-pass/releases/latest" class="link-accent" target="_blank" rel="noopener noreferrer">release page</a>.</p>
-          <p class="mt-3 text-xs text-slate-400">Other versions and release notes: <a href="https://github.com/ArmaanCode2/Vault-pass/releases" class="link-accent" target="_blank" rel="noopener noreferrer">all releases on GitHub</a>.</p>
+          <div>
+            <div class="notice" data-until-released="windows:1.1.0" style="margin-bottom: 24px">
+              <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#info"></use></svg>
+              <div><p>The current Windows release, <span data-rel="windows:tag">1.0.1</span>, checks GitHub for a new version each time it opens and installs updates without checking a signature. You can turn the check off in Settings, under About, and update from this page instead.</p></div>
+            </div>
+            <ol class="howto">
+              <li>
+                <h3>Download the installer</h3>
+                <p>Download installer gets the <span data-rel="windows:file">VaultPass-Setup</span> file from GitHub Releases.</p>
+              </li>
+              <li>
+                <h3>Check the file</h3>
+                <p>Drop it into the <a href="#verify">file checker</a> below, or run the PowerShell command there and compare the result with the SHA-256 above.</p>
+              </li>
+              <li>
+                <h3>Get past SmartScreen</h3>
+                <p>The installer isn't signed with a Microsoft code-signing certificate, so Windows shows "Windows protected your PC". Once the checksum matches, choose More info, then Run anyway.</p>
+              </li>
+              <li>
+                <h3>Install</h3>
+                <p>Pick a folder or keep the one the installer suggests. Your vault is kept in the <code>data</code> folder inside it.</p>
+              </li>
+              <li>
+                <h3>Create your master password</h3>
+                <p>At least 12 characters. Nobody can reset it for you, so write it down somewhere safe.</p>
+              </li>
+              <li>
+                <h3>Pair your phone, if you like</h3>
+                <p>With Windows 1.1.0 and Android 2.7.0 or newer: open Sync, scan the QR code with VaultPass on your phone, then approve the phone on the PC. If Windows asks, let VaultPass add firewall rules for private networks; that one step needs administrator approval.</p>
+              </li>
+            </ol>
+          </div>
         </div>
 
       </div>
     </section>
 
-    <!-- Verification Commands -->
-    <section class="py-12 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="glass-card rounded-2xl p-6 sm:p-8">
-        <h2 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
-          <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-          </svg>
-          <span>Verify the download</span>
-        </h2>
-        <p class="text-xs sm:text-sm text-slate-400 mb-6">
-          Run one of these in the folder where the APK was saved. The output should match the SHA-256 checksum above, character for character.
-        </p>
+    <section class="section section--tight-top" id="verify" aria-labelledby="verify-title">
+      <div class="wrap">
+        <div class="section__head">
+          <h2 id="verify-title">Check the download</h2>
+          <p class="lead">The checksum of the file you downloaded must match the SHA-256 GitHub publishes for it. Upper or lower case doesn't matter, but every character must be the same. If it doesn't match, don't install it.</p>
+        </div>
 
-        <div class="space-y-4">
-          <!-- Windows -->
-          <div>
-            <div class="text-xs font-mono text-slate-400 mb-1">Windows (PowerShell):</div>
-            <div class="pl-3 pr-1 py-1 bg-brand-dark rounded-lg border border-white/5 font-mono text-xs text-emerald-300 flex items-center justify-between overflow-hidden gap-2">
-              <div class="overflow-x-auto whitespace-nowrap no-scrollbar py-2 min-w-0">
-                <code data-command-text="Get-FileHash .\{file} -Algorithm SHA256">Get-FileHash .\VaultPass.apk -Algorithm SHA256</code>
-              </div>
-              <button type="button" data-command-template="Get-FileHash .\{file} -Algorithm SHA256" data-copy-target="Get-FileHash .\VaultPass.apk -Algorithm SHA256" aria-label="Copy PowerShell command" class="btn-ghost tap-target cursor-pointer flex-shrink-0">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                </svg>
+        <div class="checker">
+          <div class="checker__intro">
+            <h3 id="checker-title">In your browser</h3>
+            <p>Drop the APK or the Windows installer here. Your browser computes the SHA-256 and compares it with the latest releases.</p>
+            <p class="small muted">The file is read on your device and never uploaded.</p>
+          </div>
+          <div class="drop" data-checker>
+            <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#upload-simple"></use></svg>
+            <p class="drop__title">Drop the downloaded file here</p>
+            <input id="checker-file" type="file" accept=".apk,.exe,.msi,application/vnd.android.package-archive" aria-describedby="checker-title">
+            <label class="btn btn--line btn--sm" for="checker-file">Choose a file</label>
+            <div class="drop__result" data-checker-result role="status" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <div class="guide" style="margin-top: clamp(48px, 4vw + 24px, 88px)">
+          <div class="guide__aside">
+            <h3>With a command</h3>
+            <p class="small">Run it in the folder the file was saved to.</p>
+          </div>
+          <div class="cmds">
+            <div class="cmd">
+              <span class="cmd__label">Windows installer, in PowerShell</span>
+              <code data-cmd-app="windows" data-cmd-template="Get-FileHash .\{file} -Algorithm SHA256" data-cmd-default="VaultPass-Setup.exe">Get-FileHash .\VaultPass-Setup.exe -Algorithm SHA256</code>
+              <button class="icon-btn copy-btn" type="button" data-cmd-app="windows" data-cmd-template="Get-FileHash .\{file} -Algorithm SHA256" data-cmd-default="VaultPass-Setup.exe" data-copy="Get-FileHash .\VaultPass-Setup.exe -Algorithm SHA256" aria-label="Copy the PowerShell command for the Windows installer">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#copy"></use></svg>
               </button>
             </div>
-          </div>
-
-          <!-- Linux -->
-          <div>
-            <div class="text-xs font-mono text-slate-400 mb-1">Linux:</div>
-            <div class="pl-3 pr-1 py-1 bg-brand-dark rounded-lg border border-white/5 font-mono text-xs text-emerald-300 flex items-center justify-between overflow-hidden gap-2">
-              <div class="overflow-x-auto whitespace-nowrap no-scrollbar py-2 min-w-0">
-                <code data-command-text="sha256sum {file}">sha256sum VaultPass.apk</code>
-              </div>
-              <button type="button" data-command-template="sha256sum {file}" data-copy-target="sha256sum VaultPass.apk" aria-label="Copy Linux command" class="btn-ghost tap-target cursor-pointer flex-shrink-0">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                </svg>
+            <div class="cmd">
+              <span class="cmd__label">Android APK, in PowerShell on Windows</span>
+              <code data-cmd-app="android" data-cmd-template="Get-FileHash .\{file} -Algorithm SHA256" data-cmd-default="VaultPass.apk">Get-FileHash .\VaultPass.apk -Algorithm SHA256</code>
+              <button class="icon-btn copy-btn" type="button" data-cmd-app="android" data-cmd-template="Get-FileHash .\{file} -Algorithm SHA256" data-cmd-default="VaultPass.apk" data-copy="Get-FileHash .\VaultPass.apk -Algorithm SHA256" aria-label="Copy the PowerShell command for the APK">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#copy"></use></svg>
               </button>
             </div>
-          </div>
-
-          <!-- macOS -->
-          <div>
-            <div class="text-xs font-mono text-slate-400 mb-1">macOS:</div>
-            <div class="pl-3 pr-1 py-1 bg-brand-dark rounded-lg border border-white/5 font-mono text-xs text-emerald-300 flex items-center justify-between overflow-hidden gap-2">
-              <div class="overflow-x-auto whitespace-nowrap no-scrollbar py-2 min-w-0">
-                <code data-command-text="shasum -a 256 {file}">shasum -a 256 VaultPass.apk</code>
-              </div>
-              <button type="button" data-command-template="shasum -a 256 {file}" data-copy-target="shasum -a 256 VaultPass.apk" aria-label="Copy macOS command" class="btn-ghost tap-target cursor-pointer flex-shrink-0">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                </svg>
+            <div class="cmd">
+              <span class="cmd__label">Android APK, on macOS</span>
+              <code data-cmd-app="android" data-cmd-template="shasum -a 256 {file}" data-cmd-default="VaultPass.apk">shasum -a 256 VaultPass.apk</code>
+              <button class="icon-btn copy-btn" type="button" data-cmd-app="android" data-cmd-template="shasum -a 256 {file}" data-cmd-default="VaultPass.apk" data-copy="shasum -a 256 VaultPass.apk" aria-label="Copy the macOS command for the APK">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#copy"></use></svg>
+              </button>
+            </div>
+            <div class="cmd">
+              <span class="cmd__label">Android APK, on Linux</span>
+              <code data-cmd-app="android" data-cmd-template="sha256sum {file}" data-cmd-default="VaultPass.apk">sha256sum VaultPass.apk</code>
+              <button class="icon-btn copy-btn" type="button" data-cmd-app="android" data-cmd-template="sha256sum {file}" data-cmd-default="VaultPass.apk" data-copy="sha256sum VaultPass.apk" aria-label="Copy the Linux command for the APK">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#copy"></use></svg>
               </button>
             </div>
           </div>
         </div>
+      </div>
+    </section>
+  </main>
 
-        <div data-checksum-block hidden class="mt-6 pt-4 border-t border-white/5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <span class="text-xs text-slate-400">Look up the hash of this exact file:</span>
-          <a data-virustotal-link hidden target="_blank" rel="noopener noreferrer" class="text-xs text-emerald-400 hover:underline flex items-center gap-1 font-mono min-h-[44px]">
-            <span>Look up on VirusTotal</span><span class="sr-only"> (opens in a new tab)</span>
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-            </svg>
+  <footer class="site-foot">
+    <div class="wrap">
+      <div class="site-foot__grid">
+        <div class="site-foot__about">
+          <a class="brand" href="./" aria-label="VaultPass home">
+            <img src="assets/icon-128.webp" alt="" width="34" height="34" loading="lazy">
+            <span>VaultPass</span>
           </a>
+          <p class="small">A free password manager for Android and Windows, with its source code on GitHub. Release details on this site come from GitHub and refresh when you open a page.</p>
+        </div>
+        <div>
+          <p class="site-foot__title">Source code</p>
+          <ul>
+            <li><a href="https://github.com/ArmaanCode2/Vault-pass" target="_blank" rel="noopener noreferrer">Android app<span class="sr-only"> (opens in a new tab)</span></a></li>
+            <li><a href="https://github.com/ArmaanCode2/vault-pass-desktop" target="_blank" rel="noopener noreferrer">Windows app<span class="sr-only"> (opens in a new tab)</span></a></li>
+            <li><a href="https://github.com/ArmaanCode2/Vault-pass/releases" target="_blank" rel="noopener noreferrer">Android releases<span class="sr-only"> (opens in a new tab)</span></a></li>
+            <li><a href="https://github.com/ArmaanCode2/vault-pass-desktop/releases" target="_blank" rel="noopener noreferrer">Windows releases<span class="sr-only"> (opens in a new tab)</span></a></li>
+          </ul>
+        </div>
+        <div>
+          <p class="site-foot__title">This site</p>
+          <ul>
+            <li><a href="./">Overview and demos</a></li>
+            <li><a href="security.html">Security model</a></li>
+            <li><a href="privacy.html">Privacy policy</a></li>
+            <li><a data-vt-link="android" href="#verify" hidden target="_blank" rel="noopener noreferrer">VirusTotal report (Android)<span class="sr-only"> (opens in a new tab)</span></a></li>
+          </ul>
         </div>
       </div>
-    </section>
-
-    <!-- Installation & Setup Guide -->
-    <section class="py-12 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-      <h2 class="text-2xl font-bold text-white mb-8 text-center">
-        Install and set up in 4 steps
-      </h2>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <!-- Step 1 -->
-        <div class="glass-card rounded-2xl p-6">
-          <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 font-mono font-bold flex items-center justify-center mb-4" aria-hidden="true">
-            01
-          </div>
-          <h3 class="text-base font-bold text-white mb-2">Download & Permit Install</h3>
-          <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">
-            Download the APK on your Android phone. When Android asks, allow your browser or file manager to install unknown apps (Settings → Apps → Special app access → Install unknown apps).
-          </p>
-        </div>
-
-        <!-- Step 2 -->
-        <div class="glass-card rounded-2xl p-6">
-          <div class="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 font-mono font-bold flex items-center justify-center mb-4" aria-hidden="true">
-            02
-          </div>
-          <h3 class="text-base font-bold text-white mb-2">Create your master password</h3>
-          <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">
-            Pick a strong password or passphrase. VaultPass derives your encryption key from it with PBKDF2. Nobody can reset it for you, so memorize it or write it down somewhere safe.
-          </p>
-        </div>
-
-        <!-- Step 3 -->
-        <div class="glass-card rounded-2xl p-6">
-          <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 font-mono font-bold flex items-center justify-center mb-4" aria-hidden="true">
-            03
-          </div>
-          <h3 class="text-base font-bold text-white mb-2">Turn on biometric unlock</h3>
-          <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">
-            In Settings, switch on <strong>Biometric Unlock</strong> and confirm with your fingerprint or face. VaultPass then protects a copy of its data key with an Android Keystore key.
-          </p>
-        </div>
-
-        <!-- Step 4 (Optional) -->
-        <div class="glass-card rounded-2xl p-6">
-          <div class="flex items-center justify-between mb-4">
-            <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 font-mono font-bold flex items-center justify-center">
-              04
-            </div>
-            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Optional</span>
-          </div>
-          <h3 class="text-base font-bold text-white mb-2">Turn on Autofill</h3>
-          <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">
-            To fill logins in other apps and browsers, open Android <strong>Settings → Passwords &amp; accounts → Autofill service</strong> (the path varies by phone) and choose VaultPass.
-          </p>
-        </div>
+      <div class="site-foot__base">
+        <p>Questions or security reports: <a href="mailto:armaanweb100@gmail.com">armaanweb100@gmail.com</a></p>
       </div>
-    </section>
+    </div>
+  </footer>
 
-    </main>
-
-    <!-- Footer -->
-    <footer class="mt-20 border-t border-white/5 py-12 text-xs text-slate-400">
-      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
-        <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
-          <picture>
-            <source srcset="assets/icon.webp" type="image/webp">
-            <img src="assets/icon.png" alt="" width="24" height="24" loading="lazy" decoding="async" class="w-6 h-6 rounded-md object-cover">
-          </picture>
-          <span class="text-slate-300 font-semibold">VaultPass</span>
-          <span>Open-source Android password manager</span>
-        </div>
-
-        <nav aria-label="Footer" class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-          <a href="index.html" class="tap-target px-1 hover:text-white transition-colors">Overview</a>
-          <a href="security.html" class="tap-target px-1 hover:text-white transition-colors">Security Model</a>
-          <a href="privacy.html" class="tap-target px-1 hover:text-white transition-colors">Privacy Policy</a>
-          <a data-virustotal-link hidden target="_blank" rel="noopener noreferrer" class="tap-target px-1 hover:text-emerald-300 transition-colors">VirusTotal<span class="sr-only"> (opens in a new tab)</span></a>
-        </nav>
-      </div>
-    </footer>
-  </div>
-
-  <script src="js/app.js" defer></script>
+  <script src="js/github.js" defer></script>
+  <script src="js/md.js" defer></script>
+  <script src="js/site.js" defer></script>
+  <script src="js/verify.js" defer></script>
 </body>
 </html>
