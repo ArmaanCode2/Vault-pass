@@ -1,0 +1,79 @@
+Title: Empty fields
+
+Username:
+
+
+Password:
+
+
+---
+
+Title: Separator inside
+
+Username:
+user---name
+
+Password:
+a---b
+
+Website:
+https://x.example/---/path
+
+---
+
+Title:   Lead space
+
+Username:
+ spaced 
+
+Password:
+  two  
+
+---
+
+Title: PEM key
+
+Username:
+deploy
+
+Password:
+pw
+
+Notes:
+-----BEGIN KEY-----
+abc
+-----END KEY-----
+
+---
+
+Title: Notes with blanks
+
+Username:
+u
+
+Password:
+p
+
+Favorite:
+Yes
+
+Notes:
+line1
+
+line3
+
+
+Category:
+Work
+
+Tags:
+a, b c
+
+Custom.PIN:
+4321
+
+Custom.Recovery codes:
+x y z
+
+---
+
