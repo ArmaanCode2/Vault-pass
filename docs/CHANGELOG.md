@@ -1,13 +1,13 @@
 # Vault Pass Mobile - Changelog
 
 ## [Unreleased]
-*(Version 2.7.0 / Build 13, not released yet)*
+*(Version 2.7.1 / Build 14, not released yet. 2.7.0 / Build 13 was never published; its changes ship in 2.7.1.)*
 
-LAN sync with VaultPass Desktop, rebuilt for security and reliability. Update both apps together: this version can't sync with older versions, and every phone must be paired again once. This version also adds optional in-app updates and changes how autofill matches websites and apps.
+LAN sync with VaultPass Desktop, rebuilt for security and reliability. Update both apps together: this version can't sync with older versions, and every phone must be paired again once. This version also adds optional in-app updates, an AMOLED theme and a text size setting, and changes how autofill matches websites and apps.
 
 ### Before you update
 - **If you can't unlock VaultPass 2.6.x, do NOT uninstall it: uninstalling deletes the vault. Contact us via GitHub issues first: https://github.com/ArmaanCode2/Vault-pass/issues**
-- 2.7.0 is the first build signed with the release key, so it can't install over 2.6.x: export a backup, uninstall, install 2.7.0, then restore.
+- 2.7.1 is the first build signed with the release key, so it can't install over 2.6.x: export a backup, uninstall, install 2.7.1, then restore.
 - After that, updates can come from inside VaultPass. The first in-app update shows Android's confirmation. Later updates may install without it: VaultPass just closes, and you open it again to use the new version.
 - Apps need to be re-linked once for autofill: use "Search VaultPass…" in each app.
 
@@ -20,6 +20,10 @@ LAN sync with VaultPass Desktop, rebuilt for security and reliability. Update bo
 - **"Search VaultPass…" in the autofill list:** Opens a list of your entries to pick one to fill. In an app (not a browser), VaultPass remembers the pick on this phone and offers that entry to the app directly from then on.
 - **`androidapp://<package>` websites:** An entry whose website is `androidapp://` followed by an app's package name is offered to that app.
 
+- **Appearance card:** Tapping Appearance in Settings opens a card with the theme, accent color and text size. Every choice applies to the whole app as soon as it's tapped; there's no save step, and Close only closes the card. Accent colors are circles; the selected one has a check mark.
+- **AMOLED Dark Mode:** A fourth theme with a pure black background, which uses less battery on AMOLED screens. Cards, dialogs and menus stay a shade above black so their edges show.
+- **Text size:** Small, Default, Large or Largest (85% to 130%), on top of the phone's own font size. The two together stop at twice the normal size. Toasts, the fingerprint prompt and the autofill list are drawn by Android and keep the phone's size.
+
 ### Changed
 - **Database:** Room upgraded to Version 4. Version 3 adds a `syncId` column, filled in automatically for existing entries, and the `sync_tombstones` table. Version 4 (`MIGRATION_3_4`) only adds the `autofill_app_links` table, which stays on this phone and is never synced or exported.
 - **Autofill website matching:** An entry matches a web page on the exact host, or on the same registrable domain using the bundled Public Suffix List: `mail.google.com` matches an entry for `google.com`, but `a.github.io` doesn't match `b.github.io`. Page domains are trusted only from browsers on Google's privileged-apps list whose signing certificate matches that list (Chrome, Firefox, Edge, Samsung Internet, Brave, DuckDuckGo, Opera, Vivaldi and others); a domain reported by any other app is ignored. Kiwi, Cromite, Mull and Tor Browser are not on Google's list and are handled like apps. Only visible fields of the login field's own frame are filled, never fields in another site's iframe. On an `http://` page only entries saved with `http://` are offered. In a browser, "Search VaultPass…" shows the page's domain and asks before filling an entry for another site.
@@ -31,6 +35,7 @@ LAN sync with VaultPass Desktop, rebuilt for security and reliability. Update bo
 - **Larger vaults:** Entries are sent in parts of about 1 MB.
 - **Editor limits raised and shared with the desktop:** Title 200 characters, username 300, password 1,000, website 500, notes 20,000, custom field name 100 and value 2,000, up to 50 custom fields and 25 tags. Reaching the custom field or tag maximum now shows a message.
 - **Privacy Policy** now describes LAN sync, discovery, the camera, the optional update check and autofill app links.
+- **Encrypted backups (.vpex):** New backups use 300,000 key-derivation iterations instead of 100,000, and the count is saved in the file. VaultPass 2.6.x or older and VaultPass Desktop 1.1.0 or older can't open them and report an incorrect password, so update both apps before restoring a new backup on another device. Older .vpex files still import. Unlocking a backup no longer freezes the screen; a progress indicator shows while it is decrypted.
 
 ### Security
 - **Sync protocol v2:** Each connection starts with a P-256 key exchange authenticated by the pairing key, and every message is encrypted with AES-256-GCM using a key and a counter per direction. A replayed, reordered or altered message ends the connection.
@@ -48,6 +53,12 @@ LAN sync with VaultPass Desktop, rebuilt for security and reliability. Update bo
 - **Upgrading very old vaults:** Unlocking a vault from an early version that still used the old key format could report success without unlocking, and entries could fail to migrate. VaultPass now reads every entry with the old keys first and migrates those it can read in one transaction. Entries it can't read are left unchanged and shown as "Decryption Failed". If no entry can be read, nothing is changed and the lock screen says so.
 - **Setup never replaces an existing vault:** If vault data exists but its settings can't be read, VaultPass shows "Vault can't be opened" with a retry instead of offering to create a new vault, and setup refuses to run over an existing vault.
 - **Autofill unlock chip:** "Tap to unlock VaultPass" is attached to the detected username and password fields, so it appears when one of them is focused.
+- **Deleted entries stay deleted:** Deleting an entry from the editor returned to its details page, and saving from there took it out of the Recycle Bin again. Deleting now returns past the details page, entries in the Recycle Bin can't be opened or edited, and an edit never moves an entry into or out of the Recycle Bin. Delete on the details page now asks first, the star there marks the entry as a favorite (and syncs), and "Open" opens the website in the browser (only http and https addresses). An entry deleted while its editor was opening says so instead of showing an empty form.
+- **Rotating keeps your edits:** Rotating the phone (or another configuration change, such as switching to dark mode) while editing an entry reloaded it from the vault and threw away the changes, and with auto-lock set to "Immediately" it locked the vault. Both are fixed, and rotating while an entry is being saved no longer leaves the Save button stuck.
+- **Auto-lock while choosing a file:** Opening the import or export file picker turned auto-lock off until the picker closed, so pressing Home from it left the vault unlocked. The vault now locks after your auto-lock time or 5 minutes, whichever is longer, counted from when the picker opened ("Never" still never locks). With "Immediately", this leaves the vault open for up to 5 minutes while a picker is open, for autofill and LAN sync too; a file picked after the vault locked is not read or written, and VaultPass says so.
+- **Search key:** The keyboard's Search key cleared the search and closed it. It now keeps the results and hides the keyboard.
+- **Backup password typed twice:** A secure export asks for its password twice and only exports when both match and are at least 8 characters. The export and import password fields are hidden until shown and use a password keyboard. Cancelling the import dialog forgets the password and the chosen file, so the next import doesn't show it. After saving an export, VaultPass reads the file back: one that differs from what was written is reported as damaged ("export again"), one that still holds old data after the export says to export to a new file, and one that can't be read back is reported as not checked. Results with a note (entries left out, file not checked) now show in a dialog, since a toast cut them off. Locking VaultPass closes both password dialogs.
+- **Navigation bar icons:** They follow the app's theme instead of the phone's, so they stay readable when the two differ, for example Dark Mode on a phone set to light mode.
 
 ## [2.6.2] - Current Release
 *(Version 2.6.2 / Build 10)*

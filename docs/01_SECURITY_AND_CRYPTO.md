@@ -64,11 +64,13 @@ When Biometric Unlock is enabled, VaultPass utilizes the Android Keystore system
 Encrypted exports (`.vpex`) utilize a standalone encryption loop independent of the primary vault DEK.
 - **Process:** 
   1. A unique 16-byte salt is generated.
-  2. A temporary KEK is derived from the user-provided export password (PBKDF2WithHmacSHA256, 100,000 iterations, then the `vaultpass-kek-v1` HMAC step).
+  2. A temporary KEK is derived from the user-provided export password (PBKDF2WithHmacSHA256 at `SecurityPolicy.CURRENT_KDF_ITERATIONS`, 300,000 iterations, then the `vaultpass-kek-v1` HMAC step).
   3. A new 12-byte IV is generated.
-  4. The JSON payload is encrypted via `AES/GCM/NoPadding`.
-  5. **File Format Structure:** The final byte array is concatenated exactly as: `[16-byte Salt] + [12-byte IV] + [Encrypted JSON Data]`.
-- **Decryption Fallback:** The `decryptBackup` function handles backwards compatibility by attempting a 12-byte IV first, and falling back to a legacy 16-byte IV if the GCM tag fails verification. If neither works, it repeats both attempts with the older KEK (the PBKDF2 output without the HMAC step).
+  4. The JSON payload is encrypted via `AES/GCM/NoPadding`, with the 8-byte header below as associated data.
+  5. **File Format Structure (v2):** The final byte array is concatenated exactly as: `["VPX2"] + [iteration count, 4 bytes big-endian] + [16-byte Salt] + [12-byte IV] + [Encrypted JSON Data]`, then Base64-encoded. Because the header is authenticated, a changed iteration count makes decryption fail.
+- **Reading:** A file that starts with `VPX2` and names 100,000 to 2,000,000 iterations is read as v2. Anything else is read as v1, the headerless format every earlier version wrote: `[16-byte Salt] + [12-byte IV] + [Encrypted JSON Data]` at 100,000 iterations. VaultPass 2.6.x or older and VaultPass Desktop 1.1.0 or older read only v1, and report a v2 file as an incorrect password. A v1 file whose random salt happens to look like a v2 header (about 1 in 10^13) is read as v2 and fails; there is no v1 retry, so a wrong password on a v2 file costs one key derivation. Decryption runs off the main thread.
+- **Decryption Fallback (v1):** The `decryptBackup` function handles backwards compatibility by attempting a 12-byte IV first, and falling back to a legacy 16-byte IV if the GCM tag fails verification. If neither works, it repeats both attempts with the older KEK (the PBKDF2 output without the HMAC step).
+- **Desktop:** VaultPass Desktop's `VpexCryptoManager` writes and reads the same v2 layout.
 
 *Source: `CryptoManager.kt` (`encryptBackup`, `decryptBackup`)*
 
