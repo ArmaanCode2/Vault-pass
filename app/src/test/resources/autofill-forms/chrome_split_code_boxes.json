@@ -1,0 +1,159 @@
+{
+  "description": "Two-factor page with one box per digit (maxlength 1); only the first box has the autocomplete hint. Hand-made from what Chrome sends (Chromium FormData.fillViewStructure): no class name, input type or view id; HTML attributes, placeholder as hint, autocomplete as autofill hints.",
+  "packageName": "com.android.chrome",
+  "windows": [
+    {
+      "id": "root",
+      "className": "com.android.internal.policy.DecorView",
+      "width": 1080,
+      "height": 2400,
+      "children": [
+        {
+          "className": "android.widget.LinearLayout",
+          "width": 1080,
+          "height": 2400,
+          "children": [
+            {
+              "id": "form",
+              "className": "android.widget.FrameLayout",
+              "width": 1080,
+              "height": 2000,
+              "webDomain": "login.example-bank.com",
+              "webScheme": "https",
+              "htmlTag": "form",
+              "htmlAttributes": {
+                "name": ""
+              },
+              "children": [
+                {
+                  "id": "d1",
+                  "autofillType": 1,
+                  "width": 900,
+                  "height": 140,
+                  "htmlTag": "input",
+                  "htmlAttributes": {
+                    "name": "digit1",
+                    "type": "tel",
+                    "label": "",
+                    "ua-autofill-hints": "",
+                    "id": "",
+                    "crowdsourcing-autofill-hints": "",
+                    "computed-autofill-hints": "",
+                    "maxlength": "1"
+                  },
+                  "hints": [
+                    "one-time-code"
+                  ],
+                  "focused": true,
+                  "maxLength": 1
+                },
+                {
+                  "id": "d2",
+                  "autofillType": 1,
+                  "width": 900,
+                  "height": 140,
+                  "htmlTag": "input",
+                  "htmlAttributes": {
+                    "name": "digit2",
+                    "type": "tel",
+                    "label": "",
+                    "ua-autofill-hints": "",
+                    "id": "",
+                    "crowdsourcing-autofill-hints": "",
+                    "computed-autofill-hints": "",
+                    "maxlength": "1"
+                  },
+                  "maxLength": 1
+                },
+                {
+                  "id": "d3",
+                  "autofillType": 1,
+                  "width": 900,
+                  "height": 140,
+                  "htmlTag": "input",
+                  "htmlAttributes": {
+                    "name": "digit3",
+                    "type": "tel",
+                    "label": "",
+                    "ua-autofill-hints": "",
+                    "id": "",
+                    "crowdsourcing-autofill-hints": "",
+                    "computed-autofill-hints": "",
+                    "maxlength": "1"
+                  },
+                  "maxLength": 1
+                },
+                {
+                  "id": "d4",
+                  "autofillType": 1,
+                  "width": 900,
+                  "height": 140,
+                  "htmlTag": "input",
+                  "htmlAttributes": {
+                    "name": "digit4",
+                    "type": "tel",
+                    "label": "",
+                    "ua-autofill-hints": "",
+                    "id": "",
+                    "crowdsourcing-autofill-hints": "",
+                    "computed-autofill-hints": "",
+                    "maxlength": "1"
+                  },
+                  "maxLength": 1
+                },
+                {
+                  "id": "d5",
+                  "autofillType": 1,
+                  "width": 900,
+                  "height": 140,
+                  "htmlTag": "input",
+                  "htmlAttributes": {
+                    "name": "digit5",
+                    "type": "tel",
+                    "label": "",
+                    "ua-autofill-hints": "",
+                    "id": "",
+                    "crowdsourcing-autofill-hints": "",
+                    "computed-autofill-hints": "",
+                    "maxlength": "1"
+                  },
+                  "maxLength": 1
+                },
+                {
+                  "id": "d6",
+                  "autofillType": 1,
+                  "width": 900,
+                  "height": 140,
+                  "htmlTag": "input",
+                  "htmlAttributes": {
+                    "name": "digit6",
+                    "type": "tel",
+                    "label": "",
+                    "ua-autofill-hints": "",
+                    "id": "",
+                    "crowdsourcing-autofill-hints": "",
+                    "computed-autofill-hints": "",
+                    "maxlength": "1"
+                  },
+                  "maxLength": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "webDomain": "login.example-bank.com",
+    "focused": "d1",
+    "otp": [
+      "d1",
+      "d2",
+      "d3",
+      "d4",
+      "d5",
+      "d6"
+    ]
+  }
+}

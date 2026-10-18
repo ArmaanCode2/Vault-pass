@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Autofill suggestions at night -->
+    <color name="autofill_text_primary">#FFE3E3E3</color>
+    <color name="autofill_text_secondary">#FFA8ACB3</color>
+    <color name="autofill_icon">#FF8C9EFF</color>
+</resources>

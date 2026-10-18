@@ -1,0 +1,56 @@
+{
+  "description": "A search box is not a login field; a manual request still gets the focused box. Hand-made from what Chrome sends (Chromium FormData.fillViewStructure): no class name, input type or view id; HTML attributes, placeholder as hint, autocomplete as autofill hints.",
+  "packageName": "com.android.chrome",
+  "windows": [
+    {
+      "id": "root",
+      "className": "com.android.internal.policy.DecorView",
+      "width": 1080,
+      "height": 2400,
+      "children": [
+        {
+          "className": "android.widget.LinearLayout",
+          "width": 1080,
+          "height": 2400,
+          "children": [
+            {
+              "id": "form",
+              "className": "android.widget.FrameLayout",
+              "width": 1080,
+              "height": 2000,
+              "webDomain": "www.example-news.com",
+              "webScheme": "https",
+              "htmlTag": "form",
+              "htmlAttributes": {
+                "name": ""
+              },
+              "children": [
+                {
+                  "id": "q",
+                  "autofillType": 1,
+                  "width": 900,
+                  "height": 140,
+                  "htmlTag": "input",
+                  "htmlAttributes": {
+                    "name": "q",
+                    "type": "search",
+                    "label": "",
+                    "ua-autofill-hints": "",
+                    "id": "",
+                    "crowdsourcing-autofill-hints": "",
+                    "computed-autofill-hints": ""
+                  },
+                  "hint": "Search",
+                  "focused": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "focused": "q"
+  }
+}

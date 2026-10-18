@@ -1,0 +1,48 @@
+{
+  "description": "Native app logging in with a mobile number and a password (no autofill hints).",
+  "packageName": "com.example.shopapp",
+  "windows": [
+    {
+      "id": "root",
+      "className": "com.android.internal.policy.DecorView",
+      "width": 1080,
+      "height": 2400,
+      "children": [
+        {
+          "className": "android.widget.LinearLayout",
+          "width": 1080,
+          "height": 2400,
+          "children": [
+            {
+              "id": "mobile",
+              "className": "android.widget.EditText",
+              "inputType": 3,
+              "autofillType": 1,
+              "width": 900,
+              "height": 140,
+              "idEntry": "et_mobile",
+              "hint": "Mobile number",
+              "focused": true
+            },
+            {
+              "id": "pass",
+              "className": "android.widget.EditText",
+              "inputType": 129,
+              "autofillType": 1,
+              "width": 900,
+              "height": 140,
+              "idEntry": "et_pass",
+              "hint": "Password"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "username": "mobile",
+    "password": "pass",
+    "formKind": "LOGIN",
+    "focused": "mobile"
+  }
+}

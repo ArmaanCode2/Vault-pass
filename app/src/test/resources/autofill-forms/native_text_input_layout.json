@@ -1,0 +1,64 @@
+{
+  "description": "Material TextInputLayout wrappers: the inner edit texts are filled, never the layouts.",
+  "packageName": "com.example.bankapp",
+  "windows": [
+    {
+      "id": "root",
+      "className": "com.android.internal.policy.DecorView",
+      "width": 1080,
+      "height": 2400,
+      "children": [
+        {
+          "className": "android.widget.LinearLayout",
+          "width": 1080,
+          "height": 2400,
+          "children": [
+            {
+              "id": "emailLayout",
+              "className": "com.google.android.material.textfield.TextInputLayout",
+              "hint": "Email",
+              "width": 900,
+              "height": 200,
+              "children": [
+                {
+                  "id": "email",
+                  "className": "com.google.android.material.textfield.TextInputEditText",
+                  "inputType": 33,
+                  "autofillType": 1,
+                  "width": 900,
+                  "height": 140,
+                  "idEntry": "input",
+                  "focused": true
+                }
+              ]
+            },
+            {
+              "id": "passLayout",
+              "className": "com.google.android.material.textfield.TextInputLayout",
+              "hint": "Password",
+              "width": 900,
+              "height": 200,
+              "children": [
+                {
+                  "id": "pass",
+                  "className": "com.google.android.material.textfield.TextInputEditText",
+                  "inputType": 129,
+                  "autofillType": 1,
+                  "width": 900,
+                  "height": 140,
+                  "idEntry": "input2"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "username": "email",
+    "password": "pass",
+    "formKind": "LOGIN",
+    "focused": "email"
+  }
+}

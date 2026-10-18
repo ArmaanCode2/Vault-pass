@@ -1,0 +1,63 @@
+{
+  "description": "Two-factor code page: the code box is never treated as a password. Hand-made from what Chrome sends (Chromium FormData.fillViewStructure): no class name, input type or view id; HTML attributes, placeholder as hint, autocomplete as autofill hints.",
+  "packageName": "com.android.chrome",
+  "windows": [
+    {
+      "id": "root",
+      "className": "com.android.internal.policy.DecorView",
+      "width": 1080,
+      "height": 2400,
+      "children": [
+        {
+          "className": "android.widget.LinearLayout",
+          "width": 1080,
+          "height": 2400,
+          "children": [
+            {
+              "id": "form",
+              "className": "android.widget.FrameLayout",
+              "width": 1080,
+              "height": 2000,
+              "webDomain": "accounts.example.com",
+              "webScheme": "https",
+              "htmlTag": "form",
+              "htmlAttributes": {
+                "name": ""
+              },
+              "children": [
+                {
+                  "id": "code",
+                  "autofillType": 1,
+                  "width": 900,
+                  "height": 140,
+                  "htmlTag": "input",
+                  "htmlAttributes": {
+                    "name": "otp",
+                    "type": "text",
+                    "label": "",
+                    "ua-autofill-hints": "",
+                    "id": "",
+                    "crowdsourcing-autofill-hints": "",
+                    "computed-autofill-hints": ""
+                  },
+                  "hint": "6-digit code",
+                  "hints": [
+                    "one-time-code"
+                  ],
+                  "focused": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "webDomain": "accounts.example.com",
+    "focused": "code",
+    "otp": [
+      "code"
+    ]
+  }
+}

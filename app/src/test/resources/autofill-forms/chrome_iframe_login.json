@@ -1,0 +1,94 @@
+{
+  "description": "Bank page with its login inside an iframe of another domain; each field carries its frame's origin. Hand-made from what Chrome sends (Chromium FormData.fillViewStructure): no class name, input type or view id; HTML attributes, placeholder as hint, autocomplete as autofill hints.",
+  "packageName": "com.android.chrome",
+  "windows": [
+    {
+      "id": "root",
+      "className": "com.android.internal.policy.DecorView",
+      "width": 1080,
+      "height": 2400,
+      "children": [
+        {
+          "className": "android.widget.LinearLayout",
+          "width": 1080,
+          "height": 2400,
+          "children": [
+            {
+              "id": "form",
+              "className": "android.widget.FrameLayout",
+              "width": 1080,
+              "height": 2000,
+              "webDomain": "www.bank-example.com",
+              "webScheme": "https",
+              "htmlTag": "form",
+              "htmlAttributes": {
+                "name": ""
+              },
+              "children": [
+                {
+                  "id": "q",
+                  "autofillType": 1,
+                  "width": 900,
+                  "height": 140,
+                  "htmlTag": "input",
+                  "htmlAttributes": {
+                    "name": "q",
+                    "type": "search",
+                    "label": "",
+                    "ua-autofill-hints": "",
+                    "id": "",
+                    "crowdsourcing-autofill-hints": "",
+                    "computed-autofill-hints": ""
+                  },
+                  "hint": "Search"
+                },
+                {
+                  "id": "user",
+                  "autofillType": 1,
+                  "width": 900,
+                  "height": 140,
+                  "htmlTag": "input",
+                  "htmlAttributes": {
+                    "name": "userid",
+                    "type": "text",
+                    "label": "User ID",
+                    "ua-autofill-hints": "",
+                    "id": "",
+                    "crowdsourcing-autofill-hints": "",
+                    "computed-autofill-hints": ""
+                  },
+                  "focused": true,
+                  "webDomain": "login.bankidp-example.com"
+                },
+                {
+                  "id": "pass",
+                  "autofillType": 1,
+                  "width": 900,
+                  "height": 140,
+                  "htmlTag": "input",
+                  "htmlAttributes": {
+                    "name": "pwd",
+                    "type": "password",
+                    "label": "",
+                    "ua-autofill-hints": "",
+                    "id": "",
+                    "crowdsourcing-autofill-hints": "",
+                    "computed-autofill-hints": ""
+                  },
+                  "webDomain": "login.bankidp-example.com"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "username": "user",
+    "password": "pass",
+    "webDomain": "login.bankidp-example.com",
+    "formKind": "LOGIN",
+    "focused": "user"
+  }
+}
