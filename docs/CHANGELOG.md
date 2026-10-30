@@ -3,13 +3,14 @@
 ## [Unreleased]
 *(Version 2.7.1 / Build 14, not released yet. 2.7.0 / Build 13 was never published; its changes ship in 2.7.1.)*
 
-LAN sync with VaultPass Desktop, rebuilt for security and reliability. Update both apps together: this version can't sync with older versions, and every phone must be paired again once. This version also adds optional in-app updates, an AMOLED theme and a text size setting, and changes how autofill matches websites and apps.
+The first release since 2.6.3. It adds two-factor codes, passkeys, saving logins from autofill, LAN sync with VaultPass Desktop, optional in-app updates, an AMOLED theme and a text size setting, and changes how autofill matches websites and apps. LAN sync needs VaultPass Desktop 1.1.0 or newer, so update both apps together.
 
 ### Before you update
 - **If you can't unlock VaultPass 2.6.x, do NOT uninstall it: uninstalling deletes the vault. Contact us via GitHub issues first: https://github.com/ArmaanCode2/Vault-pass/issues**
 - 2.7.1 is the first build signed with the release key, so it can't install over 2.6.x: export a backup, uninstall, install 2.7.1, then restore.
 - After that, updates can come from inside VaultPass. The first in-app update shows Android's confirmation. Later updates may install without it: VaultPass just closes, and you open it again to use the new version.
-- Apps need to be re-linked once for autofill: use "Search VaultPass…" in each app.
+- Apps need to be linked once for autofill: use "Search VaultPass…" in each app.
+- Biometric unlock has to be turned on again after reinstalling.
 
 ### Added
 - **Reviewed sync that ends identical on both devices:** The device that starts a sync reviews every difference and chooses what happens to each entry; conflicts must be answered. The other device sees a summary and applies or declines it. Both apply the same changes and compare a fingerprint of their vaults, so a sync only reports success when the two vaults match.
@@ -19,15 +20,32 @@ LAN sync with VaultPass Desktop, rebuilt for security and reliability. Update bo
 - **In-app updates, off by default:** Settings has "Check for updates when the app opens" and "Check now". VaultPass asks GitHub for the latest release (`api.github.com/repos/ArmaanCode2/Vault-pass/releases/latest`) and offers "Update to latest version X.Y.Z". Tapping it downloads the release asset `VaultPass.apk` and checks it: the size GitHub lists, GitHub's SHA-256 digest (a release without one is refused: "This release has no checksum, so it can't be verified"), the same package name, a higher version and the same signing key (an APK whose signer Android can't report is refused, except on Android 7-8.1, where Android's own install check still enforces the key). "Restart now" hands the file to Android's installer, which closes VaultPass while it installs. The first in-app update shows Android's dialog and then offers "Open"; later updates may install without Android's confirmation, and VaultPass just closes: open it again. "Later" keeps the verified file, and the next time the app starts it offers "Install update X.Y.Z" without downloading again. Nothing from the vault is sent.
 - **"Search VaultPass…" in the autofill list:** Opens a list of your entries to pick one to fill. In an app (not a browser), VaultPass remembers the pick on this phone and offers that entry to the app directly from then on.
 - **`androidapp://<package>` websites:** An entry whose website is `androidapp://` followed by an app's package name is offered to that app.
-
 - **Appearance card:** Tapping Appearance in Settings opens a card with the theme, accent color and text size. Every choice applies to the whole app as soon as it's tapped; there's no save step, and Close only closes the card. Accent colors are circles; the selected one has a check mark.
 - **AMOLED Dark Mode:** A fourth theme with a pure black background, which uses less battery on AMOLED screens. Cards, dialogs and menus stay a shade above black so their edges show.
 - **Text size:** Small, Default, Large or Largest (85% to 130%), on top of the phone's own font size. The two together stop at twice the normal size. Toasts, the fingerprint prompt and the autofill list are drawn by Android and keep the phone's size.
+- **Simpler score card:** The Vault and Security tabs show one card with the security score on top. On the Vault tab it holds the Total, Weak and Reused counts, which open the same pages as before; on the Security tab it holds the strength bars. Weak and Reused take their warning color only when they are above zero.
+- **Two-factor codes:** In the entry editor, "2FA code (authenticator)" takes a scanned QR code or a setup key, stored in the entry with its other fields. Entry details shows the current code, its countdown and a copy button. Autofill offers the code on code boxes, including pages with one box per digit, and "Copy 2FA code after filling" (on by default) copies it when a login is filled. Removing a setup asks first.
+- **Passkeys and Android's sign-in sheet (Android 14+):** VaultPass can create and use passkeys and lists passkeys and logins in Android's sign-in sheet; turn it on under Passwords, passkeys & accounts. Passkeys are ES256 (P-256) keys created on the phone, kept with their login, and synced and backed up like passwords. Using one needs the vault unlock or the phone's screen lock, and an app asks once before using a site's passkey. Entry details lists an entry's passkeys and can remove them. TXT and JSON exports contain the private keys. VaultPass Desktop keeps passkeys as custom fields but can't sign in with them yet.
+- **Saving logins from autofill:** After you sign in, sign up or change a password, Android can offer "Save to VaultPass". A screen then saves a new login or updates a matching one, and two-step logins (username page, then password page) save as one login. An update always asks first. Android 8 can't open that screen, so there a new login is saved directly while the vault is unlocked, and a password update is not applied.
+- **"Never save" list:** "Never save for this website" and "Never save for this app" stop the offer. Settings lists them with Remove buttons.
+- **Generate strong password:** Autofill offers it on sign-up and change-password forms, following the site's rules from Apple's password-rules list when the site is on it. The login can be saved straight away, or after you sign up when Android asks.
+- **Autofill history:** Password Generator keeps the last 50 generated passwords and the old passwords they replaced, encrypted with the vault key, on this phone only. It is never synced or exported, and "Clear history" empties it.
+- **Suggestions in the keyboard:** On Android 11 or newer, autofill suggestions also appear as chips in the keyboard, and the dropdown has new icons.
+- **Long-press to autofill:** Long-press any box and tap Autofill to get "Search VaultPass…". VaultPass then asks whether the box takes the username or the password, and doesn't link the app.
+- **Chrome setup:** Chrome 135 and newer hand page forms to autofill only with "Autofill using another service" on. Settings shows that setting for each installed Chrome channel and opens the right page.
+- **More websites per entry:** "Add another website" in the editor. Extra websites sync, export and count towards the custom field limit.
+- **Related sites:** Using Apple's list of related sites, a login saved for one site can be suggested on another. VaultPass names the site it was saved for and asks before filling.
+- **The website an app names:** An app can say which website it belongs to. Logins for that site are suggested to it, and VaultPass asks first, because any app can claim any site.
+- **App signing check:** VaultPass stores an app's signing certificate the first time it fills that app and warns if a later app with the same package name is signed differently.
+- **"Used in apps":** Entry details lists the apps an entry is offered to; links made on this phone can be removed there.
+- **Quick Settings tile:** The "VaultPass" tile opens a search, then copies the chosen entry's username or password.
+- **Unsaved changes:** Leaving the entry editor with unsaved changes now asks first.
 
 ### Changed
-- **Database:** Room upgraded to Version 4. Version 3 adds a `syncId` column, filled in automatically for existing entries, and the `sync_tombstones` table. Version 4 (`MIGRATION_3_4`) only adds the `autofill_app_links` table, which stays on this phone and is never synced or exported.
-- **Autofill website matching:** An entry matches a web page on the exact host, or on the same registrable domain using the bundled Public Suffix List: `mail.google.com` matches an entry for `google.com`, but `a.github.io` doesn't match `b.github.io`. Page domains are trusted only from browsers on Google's privileged-apps list whose signing certificate matches that list (Chrome, Firefox, Edge, Samsung Internet, Brave, DuckDuckGo, Opera, Vivaldi and others); a domain reported by any other app is ignored. Kiwi, Cromite, Mull and Tor Browser are not on Google's list and are handled like apps. Only visible fields of the login field's own frame are filled, never fields in another site's iframe. On an `http://` page only entries saved with `http://` are offered. In a browser, "Search VaultPass…" shows the page's domain and asks before filling an entry for another site.
-- **Autofill app matching:** Apps are offered only entries linked to them through "Search VaultPass…" or an `androidapp://` website. Entry titles, app names and package names are no longer compared, so a lookalike app can't pick up another app's login.
+- **Database:** Room upgraded to Version 5. Version 3 adds a `syncId` column, filled in automatically for existing entries, and the `sync_tombstones` table. Version 4 (`MIGRATION_3_4`) only adds the `autofill_app_links` table and Version 5 (`MIGRATION_4_5`) only adds the `autofill_app_certs` table; both stay on this phone and are never synced or exported.
+- **Permissions:** 2.6.3 requested none. This version requests internet, network and Wi-Fi state (LAN sync and the optional update check), the camera (scanning pairing and 2FA QR codes), and permission to install apps (in-app updates).
+- **Autofill website matching:** An entry matches a web page on the exact host, or on the same registrable domain using the bundled Public Suffix List: `mail.google.com` matches an entry for `google.com`, but `a.github.io` doesn't match `b.github.io`. Page domains are trusted only from browsers on Google's privileged-apps list whose signing certificate matches that list (Chrome, Firefox, Edge, Samsung Internet, Brave, DuckDuckGo, Opera, Vivaldi and others); a domain reported by any other app is ignored. Kiwi, Cromite, Mull and Tor Browser are not on Google's list and are handled like apps. Only visible fields of the login field's own frame are filled, never fields in another site's iframe. On an `http://` page only entries saved with `http://` are suggested; picking any other entry from "Search VaultPass…" asks first. In a browser, "Search VaultPass…" shows the page's domain and asks before filling an entry for another site.
+- **Autofill app matching:** Apps are offered entries linked to them through "Search VaultPass…" or an `androidapp://` website, and, after you confirm, entries for a website the app names. Entry titles, app names and package names are no longer compared, so a lookalike app can't pick up another app's login.
 - **Entry lists:** The second line under an entry's title is its username, or the website's host when there is no username.
 - **Debug builds** install next to the release app as `com.aistudio.vaultpass.zxqwej.debug` and are named "VaultPass Debug".
 - **Networking only while syncing:** Discovery and the sync listener run only while the Sync screen is open.
@@ -38,6 +56,9 @@ LAN sync with VaultPass Desktop, rebuilt for security and reliability. Update bo
 - **Encrypted backups (.vpex):** New backups use 300,000 key-derivation iterations instead of 100,000, and the count is saved in the file. VaultPass 2.6.x or older and VaultPass Desktop 1.1.0 or older can't open them and report an incorrect password, so update both apps before restoring a new backup on another device. Older .vpex files still import. Unlocking a backup no longer freezes the screen; a progress indicator shows while it is decrypted.
 
 ### Security
+- **Screenshots blocked by default:** Blocking screenshots, screen recording and the recent-apps preview was off by default in 2.6.3 and is now on. You can allow screenshots in Settings.
+- **Clipboard clears after the app closes:** The clear no longer depends on VaultPass staying open: it runs on time even if the app was closed in between.
+- **"Pwned Check" removed:** Password Generator showed "Pwned Check: Clear" without checking anything, so it is gone.
 - **Sync protocol v2:** Each connection starts with a P-256 key exchange authenticated by the pairing key, and every message is encrypted with AES-256-GCM using a key and a counter per direction. A replayed, reordered or altered message ends the connection.
 - **The QR code's secret never goes over the network**, and pairing keys are stored encrypted with the vault key. Pairings from the old protocol, whose keys were sent and stored in plain text, are deleted.
 - **Discovery beacons carry no device name or ID**, and a recorded beacon can't redirect a device to another address.
@@ -60,7 +81,19 @@ LAN sync with VaultPass Desktop, rebuilt for security and reliability. Update bo
 - **Backup password typed twice:** A secure export asks for its password twice and only exports when both match and are at least 8 characters. The export and import password fields are hidden until shown and use a password keyboard. Cancelling the import dialog forgets the password and the chosen file, so the next import doesn't show it. After saving an export, VaultPass reads the file back: one that differs from what was written is reported as damaged ("export again"), one that still holds old data after the export says to export to a new file, and one that can't be read back is reported as not checked. Results with a note (entries left out, file not checked) now show in a dialog, since a toast cut them off. Locking VaultPass closes both password dialogs.
 - **Navigation bar icons:** They follow the app's theme instead of the phone's, so they stay readable when the two differ, for example Dark Mode on a phone set to light mode.
 
-## [2.6.2] - Current Release
+## [2.6.3] - Current Release
+*(Published as v2.6.3 / Build 12)*
+
+### Added
+- **Password generator in the editor:** A small popup in the add and edit entry screens generates a password without leaving the form.
+
+### Changed
+- **Privacy Policy** updated.
+
+### Fixed
+- Bug fixes.
+
+## [2.6.2]
 *(Version 2.6.2 / Build 10)*
 
 ### Added

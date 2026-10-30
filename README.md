@@ -36,10 +36,23 @@ VaultPass stores your passwords in an encrypted database on your phone. It works
 
 ### Vault
 
-- Entries with a title, username, password, website, notes, category, tags and up to 50 custom fields
+- Entries with a title, username, password, one or more websites, notes, category, tags and up to 50 custom fields
 - Search across titles, usernames, websites, notes, categories, tags and custom field values
 - Favorites and a password generator
 - A recycle bin that keeps deleted entries for 7 days
+- A Quick Settings tile to search your vault and copy a username or password from anywhere
+
+### 2FA codes
+
+- Keep a login's authenticator code with it: scan the site's QR code or enter its setup key
+- Entry details shows the current code, a countdown and a copy button
+- Autofill offers the code on code boxes, including pages with one box per digit, and can copy it after filling a password
+
+### Passkeys (Android 14 or newer)
+
+- Create and use passkeys, with VaultPass listed in Android's sign-in sheet for passkeys and saved logins
+- Passkeys are stored with their login, sync with VaultPass Desktop and are included in backups
+- VaultPass Desktop keeps passkeys through sync but can't sign in with them yet
 
 ### Security
 
@@ -54,8 +67,15 @@ VaultPass stores your passwords in an encrypted database on your phone. It works
 ### Autofill
 
 - Fills logins in apps and browsers through the Android Autofill service (Android 8.0 or newer)
+- Offers to save new logins and update changed passwords, with a "Never save" list for websites and apps
+- Generates a strong password on sign-up and change-password forms, following the site's password rules when they are known
+- Keeps the last 50 generated and replaced passwords in an encrypted Autofill history on the phone
 - Matches websites by registrable domain using the bundled Public Suffix List, and trusts page domains only from known browsers
 - Offers an entry to an app only after you link the two: pick the entry once with "Search VaultPass…", or set its website to `androidapp://<package>`
+- Remembers each app's signing certificate and warns you if it changes
+- Offers logins from related sites, or from a website an app names, only after you confirm
+- Shows suggestions in the keyboard on Android 11 or newer; long-press any box and tap Autofill to pick an entry yourself
+- Shows in Settings whether Chrome is set up for autofill, and opens the right page if it isn't
 - Shows "Tap to unlock VaultPass" on login fields while the vault is locked
 
 ### Sync with VaultPass Desktop
@@ -68,14 +88,14 @@ VaultPass stores your passwords in an encrypted database on your phone. It works
 ### Backup
 
 - Encrypted `.vpex` backups protected by a password you choose
-- Readable TXT and JSON exports
+- Readable TXT and JSON exports, which also contain 2FA setup keys and passkey private keys in the clear
 - Import from VPEX, JSON or TXT
 - Backups made with 2.7.1 can't be opened by VaultPass 2.6.x or by VaultPass Desktop 1.1.0 and older
 
 ### Appearance
 
 - System, Light, Dark and AMOLED (pure black) themes
-- Five accent colors and four text sizes, applied as soon as you choose them
+- Five accent colors and four text sizes, all applied as soon as you choose them
 
 ### Updates
 
@@ -113,8 +133,8 @@ Download the APK from the [latest release](https://github.com/ArmaanCode2/Vault-
 2. Uninstall 2.6.x.
 3. Install 2.7.1 and import the backup.
 4. Turn biometric unlock on again in Settings.
-5. Link your apps for autofill again, once each, with "Search VaultPass…".
-6. If you use VaultPass Desktop, update it and pair the phone again.
+5. Link your apps for autofill, once each, with "Search VaultPass…".
+6. To sync with VaultPass Desktop, install version 1.1.0 or newer and pair the phone.
 
 Later updates can come from inside VaultPass. The first in-app update shows Android's confirmation. Later ones may install without it: VaultPass closes, and you open it again to use the new version.
 
@@ -135,6 +155,7 @@ Details are in the [privacy policy](PRIVACY.md) and the [sync protocol](docs/SYN
 | Vault key | A random data encryption key (DEK), held in memory only while the vault is unlocked |
 | Key storage | The DEK is stored wrapped by a key derived from the master password; a second copy is wrapped by an Android Keystore key for biometric unlock |
 | Entries | Title, username, password, website, notes, category, tags and custom fields are encrypted with AES-GCM in a Room database; the favorite flag, timestamps and recycle-bin state are not |
+| 2FA and passkeys | Setup keys and passkey private keys are stored in the entry's encrypted custom fields; passkeys are ES256 (P-256) keys created on the phone |
 | KDF settings | Algorithm, iteration count and version are stored per vault, so they can change without breaking older vaults |
 | KDF upgrades | Written in three steps (prepare, commit, finalize) so that a crash at any point leaves a vault that still unlocks |
 | Auto-lock | Enforced through `ProcessLifecycleOwner` and activity lifecycle hooks |
@@ -151,7 +172,7 @@ The full design is in [Security and Cryptography Architecture](docs/01_SECURITY_
 | Architecture | MVVM |
 | Storage | Room, Jetpack DataStore, SharedPreferences |
 | Cryptography | `javax.crypto` (AES-GCM, PBKDF2), Android Keystore, BiometricPrompt |
-| System integration | Android Autofill framework, CameraX and ZXing for QR pairing |
+| System integration | Android Autofill framework, Credential Manager, Quick Settings tile, CameraX and ZXing for QR codes |
 
 ## Build from source
 
